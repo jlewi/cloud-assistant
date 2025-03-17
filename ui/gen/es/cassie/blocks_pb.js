@@ -9,7 +9,7 @@ import { file_cassie_filesearch } from "./filesearch_pb";
  * Describes the file cassie/blocks.proto.
  */
 export const file_cassie_blocks = /*@__PURE__*/
-  fileDesc("ChNjYXNzaWUvYmxvY2tzLnByb3RvIvQBCgVCbG9jaxIYCgRraW5kGAEgASgOMgouQmxvY2tLaW5kEhAKCGxhbmd1YWdlGAIgASgJEhAKCGNvbnRlbnRzGAMgASgJEgoKAmlkGAcgASgJEiYKCG1ldGFkYXRhGAggAygLMhQuQmxvY2suTWV0YWRhdGFFbnRyeRIYCgRyb2xlGAkgASgOMgouQmxvY2tSb2xlEi4KE2ZpbGVfc2VhcmNoX3Jlc3VsdHMYCiADKAsyES5GaWxlU2VhcmNoUmVzdWx0Gi8KDU1ldGFkYXRhRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ASIpCg9HZW5lcmF0ZVJlcXVlc3QSFgoGYmxvY2tzGAEgAygLMgYuQmxvY2siKgoQR2VuZXJhdGVSZXNwb25zZRIWCgZibG9ja3MYASADKAsyBi5CbG9jaypSCglCbG9ja0tpbmQSFgoSVU5LTk9XTl9CTE9DS19LSU5EEAASCgoGTUFSS1VQEAESCAoEQ09ERRACEhcKE0ZJTEVfU0VBUkNIX1JFU1VMVFMQAypSCglCbG9ja1JvbGUSFgoSQkxPQ0tfUk9MRV9VTktOT1dOEAASEwoPQkxPQ0tfUk9MRV9VU0VSEAESGAoUQkxPQ0tfUk9MRV9BU1NJU1RBTlQQAjJECg1CbG9ja3NTZXJ2aWNlEjMKCEdlbmVyYXRlEhAuR2VuZXJhdGVSZXF1ZXN0GhEuR2VuZXJhdGVSZXNwb25zZSIAMAFCT0ILQmxvY2tzUHJvdG9QAVo+Z2l0aHViLmNvbS9vcGVuYWkvb3BlbmFpL2FwaS9jbG91ZC1hc3Npc3RhbnQvcHJvdG9zL2dlbi9jYXNzaWViBnByb3RvMw", [file_cassie_filesearch]);
+  fileDesc("ChNjYXNzaWUvYmxvY2tzLnByb3RvIpMCCgVCbG9jaxIYCgRraW5kGAEgASgOMgouQmxvY2tLaW5kEhAKCGxhbmd1YWdlGAIgASgJEhAKCGNvbnRlbnRzGAMgASgJEgoKAmlkGAcgASgJEiYKCG1ldGFkYXRhGAggAygLMhQuQmxvY2suTWV0YWRhdGFFbnRyeRIYCgRyb2xlGAkgASgOMgouQmxvY2tSb2xlEi4KE2ZpbGVfc2VhcmNoX3Jlc3VsdHMYCiADKAsyES5GaWxlU2VhcmNoUmVzdWx0Eh0KB291dHB1dHMYCyADKAsyDC5CbG9ja091dHB1dBovCg1NZXRhZGF0YUVudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEiLgoLQmxvY2tPdXRwdXQSHwoFaXRlbXMYASADKAsyEC5CbG9ja091dHB1dEl0ZW0iMgoPQmxvY2tPdXRwdXRJdGVtEgwKBG1pbWUYASABKAkSEQoJdGV4dF9kYXRhGAIgASgJIikKD0dlbmVyYXRlUmVxdWVzdBIWCgZibG9ja3MYASADKAsyBi5CbG9jayIqChBHZW5lcmF0ZVJlc3BvbnNlEhYKBmJsb2NrcxgBIAMoCzIGLkJsb2NrKlIKCUJsb2NrS2luZBIWChJVTktOT1dOX0JMT0NLX0tJTkQQABIKCgZNQVJLVVAQARIICgRDT0RFEAISFwoTRklMRV9TRUFSQ0hfUkVTVUxUUxADKlIKCUJsb2NrUm9sZRIWChJCTE9DS19ST0xFX1VOS05PV04QABITCg9CTE9DS19ST0xFX1VTRVIQARIYChRCTE9DS19ST0xFX0FTU0lTVEFOVBACMkQKDUJsb2Nrc1NlcnZpY2USMwoIR2VuZXJhdGUSEC5HZW5lcmF0ZVJlcXVlc3QaES5HZW5lcmF0ZVJlc3BvbnNlIgAwAUJPQgtCbG9ja3NQcm90b1ABWj5naXRodWIuY29tL29wZW5haS9vcGVuYWkvYXBpL2Nsb3VkLWFzc2lzdGFudC9wcm90b3MvZ2VuL2Nhc3NpZWIGcHJvdG8z", [file_cassie_filesearch]);
 
 /**
  * Describes the message Block.
@@ -19,18 +19,32 @@ export const BlockSchema = /*@__PURE__*/
   messageDesc(file_cassie_blocks, 0);
 
 /**
+ * Describes the message BlockOutput.
+ * Use `create(BlockOutputSchema)` to create a new message.
+ */
+export const BlockOutputSchema = /*@__PURE__*/
+  messageDesc(file_cassie_blocks, 1);
+
+/**
+ * Describes the message BlockOutputItem.
+ * Use `create(BlockOutputItemSchema)` to create a new message.
+ */
+export const BlockOutputItemSchema = /*@__PURE__*/
+  messageDesc(file_cassie_blocks, 2);
+
+/**
  * Describes the message GenerateRequest.
  * Use `create(GenerateRequestSchema)` to create a new message.
  */
 export const GenerateRequestSchema = /*@__PURE__*/
-  messageDesc(file_cassie_blocks, 1);
+  messageDesc(file_cassie_blocks, 3);
 
 /**
  * Describes the message GenerateResponse.
  * Use `create(GenerateResponseSchema)` to create a new message.
  */
 export const GenerateResponseSchema = /*@__PURE__*/
-  messageDesc(file_cassie_blocks, 2);
+  messageDesc(file_cassie_blocks, 4);
 
 /**
  * Describes the enum BlockKind.

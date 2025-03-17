@@ -12,6 +12,8 @@ import type { FileSearchResult, FileSearchResultJson } from "./filesearch_pb";
 export declare const file_cassie_blocks: GenFile;
 
 /**
+ * Block represents the data in an element in the UI.
+ *
  * @generated from message Block
  */
 export declare type Block = Message<"Block"> & {
@@ -60,9 +62,16 @@ export declare type Block = Message<"Block"> & {
    * @generated from field: repeated FileSearchResult file_search_results = 10;
    */
   fileSearchResults: FileSearchResult[];
+
+  /**
+   * @generated from field: repeated BlockOutput outputs = 11;
+   */
+  outputs: BlockOutput[];
 };
 
 /**
+ * Block represents the data in an element in the UI.
+ *
  * @generated from message Block
  */
 export declare type BlockJson = {
@@ -111,6 +120,11 @@ export declare type BlockJson = {
    * @generated from field: repeated FileSearchResult file_search_results = 10;
    */
   fileSearchResults?: FileSearchResultJson[];
+
+  /**
+   * @generated from field: repeated BlockOutput outputs = 11;
+   */
+  outputs?: BlockOutputJson[];
 };
 
 /**
@@ -118,6 +132,102 @@ export declare type BlockJson = {
  * Use `create(BlockSchema)` to create a new message.
  */
 export declare const BlockSchema: GenMessage<Block, BlockJson>;
+
+/**
+ * BlockOutput represents the output of a block.
+ * It corresponds to a VSCode NotebookCellOutput
+ * https://github.com/microsoft/vscode/blob/98332892fd2cb3c948ced33f542698e20c6279b9/src/vscode-dts/vscode.d.ts#L14835
+ *
+ * @generated from message BlockOutput
+ */
+export declare type BlockOutput = Message<"BlockOutput"> & {
+  /**
+   * items is the output items. Each item is the different representation of the same output data
+   *
+   * @generated from field: repeated BlockOutputItem items = 1;
+   */
+  items: BlockOutputItem[];
+};
+
+/**
+ * BlockOutput represents the output of a block.
+ * It corresponds to a VSCode NotebookCellOutput
+ * https://github.com/microsoft/vscode/blob/98332892fd2cb3c948ced33f542698e20c6279b9/src/vscode-dts/vscode.d.ts#L14835
+ *
+ * @generated from message BlockOutput
+ */
+export declare type BlockOutputJson = {
+  /**
+   * items is the output items. Each item is the different representation of the same output data
+   *
+   * @generated from field: repeated BlockOutputItem items = 1;
+   */
+  items?: BlockOutputItemJson[];
+};
+
+/**
+ * Describes the message BlockOutput.
+ * Use `create(BlockOutputSchema)` to create a new message.
+ */
+export declare const BlockOutputSchema: GenMessage<BlockOutput, BlockOutputJson>;
+
+/**
+ * BlockOutputItem represents an item in a block output.
+ * It corresponds to a VSCode NotebookCellOutputItem
+ * https://github.com/microsoft/vscode/blob/98332892fd2cb3c948ced33f542698e20c6279b9/src/vscode-dts/vscode.d.ts#L14753
+ *
+ * @generated from message BlockOutputItem
+ */
+export declare type BlockOutputItem = Message<"BlockOutputItem"> & {
+  /**
+   * mime is the mime type of the output item.
+   *
+   * @generated from field: string mime = 1;
+   */
+  mime: string;
+
+  /**
+   * value of the output item.
+   * We use string data type and not bytes because the JSON representation of bytes is a base64
+   * string. vscode data uses a byte. We may need to add support for bytes to support non text data
+   * data in the future.
+   *
+   * @generated from field: string text_data = 2;
+   */
+  textData: string;
+};
+
+/**
+ * BlockOutputItem represents an item in a block output.
+ * It corresponds to a VSCode NotebookCellOutputItem
+ * https://github.com/microsoft/vscode/blob/98332892fd2cb3c948ced33f542698e20c6279b9/src/vscode-dts/vscode.d.ts#L14753
+ *
+ * @generated from message BlockOutputItem
+ */
+export declare type BlockOutputItemJson = {
+  /**
+   * mime is the mime type of the output item.
+   *
+   * @generated from field: string mime = 1;
+   */
+  mime?: string;
+
+  /**
+   * value of the output item.
+   * We use string data type and not bytes because the JSON representation of bytes is a base64
+   * string. vscode data uses a byte. We may need to add support for bytes to support non text data
+   * data in the future.
+   *
+   * @generated from field: string text_data = 2;
+   */
+  textData?: string;
+};
+
+/**
+ * Describes the message BlockOutputItem.
+ * Use `create(BlockOutputItemSchema)` to create a new message.
+ */
+export declare const BlockOutputItemSchema: GenMessage<BlockOutputItem, BlockOutputItemJson>;
 
 /**
  * @generated from message GenerateRequest
