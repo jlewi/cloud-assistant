@@ -2,7 +2,8 @@
 
 import React, { useState } from "react";
 import styles from "./warnings.module.css";
-import { assistantId } from "../assistant-config";
+
+// TODO(jlewi): Is this page still used?
 
 const Warnings = () => {
   const [loading, setLoading] = useState(false);
@@ -19,8 +20,7 @@ const Warnings = () => {
   };
 
   return (
-    <>
-      {!assistantId && (
+    <>      
         <div className={styles.container}>
           <h1>Start by creating your assistant</h1>
           <div className={styles.message}>
@@ -38,8 +38,7 @@ const Warnings = () => {
           ) : (
             <div className={styles.result}>{newAssistantId}</div>
           )}
-        </div>
-      )}
+        </div>      
     </>
   );
 };

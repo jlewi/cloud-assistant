@@ -2,11 +2,24 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import styles from "./chat.module.css";
-import { AssistantStream } from "openai/lib/AssistantStream";
 import Markdown from "react-markdown";
-// @ts-expect-error - no types for this yet
-import { AssistantStreamEvent } from "openai/resources/beta/assistants/assistants";
 import { RequiredActionFunctionToolCall } from "openai/resources/beta/threads/runs/runs";
+import { useFiles } from "./file-viewer";
+import { useClient } from "./ai-client";
+import { create } from "@bufbuild/protobuf";
+import { createClient } from "@connectrpc/connect";
+import {
+  createGrpcWebTransport,
+} from "@connectrpc/connect-web";
+import { fromJsonString } from "@bufbuild/protobuf";
+import { Button, Card, CardContent } from "./ui";
+
+//import * as blocks_pb from '../../../protos/gen/es/cassie/blocks_pb'
+import * as blocks_pb from "../../gen/es/cassie/blocks_pb";
+import { v4 as uuidv4 } from 'uuid';
+import {Block } from './notebook';
+
+import { useBlocks} from "./blocks-context";
 
 type MessageProps = {
   role: "user" | "assistant" | "code";
@@ -38,6 +51,23 @@ const CodeMessage = ({ text }: { text: string }) => {
   );
 };
 
+
+// Render a block
+// Block before switching to monaco
+// const Block = ( b : blocks_pb.Block) => {
+//   let text = b.contents
+//   return (
+//     <div className={styles.codeMessage}>
+//       {text.split("\n").map((line, index) => (
+//         <div key={index}>
+//           <span>{`${index + 1}. `}</span>
+//           {line}
+//         </div>
+//       ))}
+//     </div>
+//   );
+// }
+
 const Message = ({ role, text }: MessageProps) => {
   switch (role) {
     case "user":
@@ -60,10 +90,26 @@ type ChatProps = {
 const Chat = ({
   functionCallHandler = () => Promise.resolve(""), // default to return empty string
 }: ChatProps) => {
+  // Get the AIServe client from the context
+  const { client, setClient } = useClient();
+
+  // Access the context
+  const filesContext= useFiles(); //
+
+  const blocksContext = useBlocks();
+
+  // User input keeps track of the state in the input element.
   const [userInput, setUserInput] = useState("");
   const [messages, setMessages] = useState([]);
   const [inputDisabled, setInputDisabled] = useState(false);
   const [threadId, setThreadId] = useState("");
+
+
+  // Keep track of the blocks indexed by their ID.
+  //const [blocks, setBlocks] = useState(new Map<string, blocks_pb.Block>());
+  
+  // List of block ids in the order they should appear
+  //const [blocksPos, setBlockPos] = useState([]);
 
   // automatically scroll to bottom of chat
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
@@ -74,53 +120,83 @@ const Chat = ({
     scrollToBottom();
   }, [messages]);
 
-  // create a new threadID when chat component created
-  useEffect(() => {
-    const createThread = async () => {
-      const res = await fetch(`/api/assistants/threads`, {
-        method: "POST",
-      });
-      const data = await res.json();
-      setThreadId(data.threadId);
-    };
-    createThread();
-  }, []);
+  // const sendMessage = async (text) => {
+  //   console.log("sending message");
+  //   const createThread = async () => {      
+  //     let aiClient = client;
+  //     if (aiClient === null) {
+  //       // N.B. when using npm run dev how do we allow this be set to a different value? Since we might be talking to a different server
+  //       // TODO(jlewi): I think we could add a settings page stored in webstorage and use that to set the backend.
+  //       let baseURL = window.location.origin;
+  //       if (window.location.hostname === 'localhost') {
+  //         // This is a hack to support local development without requiring the frontend to be served off the same server
+  //         // as the backend. This way we can reuse npm's hot reloading.
+  //         baseURL = 'http://localhost:8080';
+  //       }
+  //       console.log(`initializing the client: baseURL ${baseURL}`);
+  //       // TODO(jeremy): How do we make this configurable
+  //       // TODO(jeremy): Ideally we server the frontend from the backend so we can use the baseHREF
+  //       // to get the address of the backend.
+  //       // We use gRPCWebTransport because we want server side streaming
+  //       const transport = createGrpcWebTransport({
+  //         baseUrl: baseURL,
+  //       });
 
-  const sendMessage = async (text) => {
-    const response = await fetch(
-      `/api/assistants/threads/${threadId}/messages`,
-      {
-        method: "POST",
-        body: JSON.stringify({
-          content: text,
-        }),
-      }
-    );
-    const stream = AssistantStream.fromReadableStream(response.body);
-    handleReadableStream(stream);
-  };
+  //       // Here we make the client itself, combining the service
+  //       // definition with the transport.
+  //       let newClient = createClient(blocks_pb.BlocksService, transport);
+  //       aiClient = newClient;
+  //       setClient(newClient);
+  //     }
 
-  const submitActionResult = async (runId, toolCallOutputs) => {
-    const response = await fetch(
-      `/api/assistants/threads/${threadId}/actions`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          runId: runId,
-          toolCallOutputs: toolCallOutputs,
-        }),
-      }
-    );
-    const stream = AssistantStream.fromReadableStream(response.body);
-    handleReadableStream(stream);
-  };
+  //     let blocks: blocks_pb.Block[] = [
+  //       create(blocks_pb.BlockSchema, {
+  //         kind: blocks_pb.BlockKind.MARKUP,
+  //         contents: userInput,
+  //         role: blocks_pb.BlockRole.USER,
+  //         id: uuidv4(),
+  //       }),
+  //     ];
 
+  //     // Add the input block to the input
+  //     updateBlock(blocks[0])
+  //     const req: blocks_pb.GenerateRequest = create(
+  //       blocks_pb.GenerateRequestSchema,
+  //       {
+  //         blocks: blocks,
+  //       }
+  //     );
+  //     console.log("calling generate");
+  //     let responses = aiClient.generate(req);
+
+  //     // Streaming response handling
+  //     for await (const response of responses) {
+  //       console.log(`response has ${response.blocks.length} blocks`)
+  //       for (const b of response.blocks) {
+  //         if (b.kind == blocks_pb.BlockKind.FILE_SEARCH_RESULTS) {
+  //           setBlock(b)
+  //         } else {
+  //           updateBlock(b)
+  //         }
+  //       }
+  //     }
+
+  //     // Reenable input
+  //     setInputDisabled(false);
+  //     console.log("Stream ended.");
+  //   };  
+  //     console.log("calling createThread");
+  //     createThread();    
+  // };
+
+  // handleSubmit is invoked via form submission when a user enters a query.
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!userInput.trim()) return;
+    console.log("handleSubmit");
+    if (!userInput.trim()) {
+      console.log("no user input");
+      return;
+    }
     sendMessage(userInput);
     setMessages((prevMessages) => [
       ...prevMessages,
@@ -131,82 +207,6 @@ const Chat = ({
     scrollToBottom();
   };
 
-  /* Stream Event Handlers */
-
-  // textCreated - create new assistant message
-  const handleTextCreated = () => {
-    appendMessage("assistant", "");
-  };
-
-  // textDelta - append text to last assistant message
-  const handleTextDelta = (delta) => {
-    if (delta.value != null) {
-      appendToLastMessage(delta.value);
-    };
-    if (delta.annotations != null) {
-      annotateLastMessage(delta.annotations);
-    }
-  };
-
-  // imageFileDone - show image in chat
-  const handleImageFileDone = (image) => {
-    appendToLastMessage(`\n![${image.file_id}](/api/files/${image.file_id})\n`);
-  }
-
-  // toolCallCreated - log new tool call
-  const toolCallCreated = (toolCall) => {
-    if (toolCall.type != "code_interpreter") return;
-    appendMessage("code", "");
-  };
-
-  // toolCallDelta - log delta and snapshot for the tool call
-  const toolCallDelta = (delta, snapshot) => {
-    if (delta.type != "code_interpreter") return;
-    if (!delta.code_interpreter.input) return;
-    appendToLastMessage(delta.code_interpreter.input);
-  };
-
-  // handleRequiresAction - handle function call
-  const handleRequiresAction = async (
-    event: AssistantStreamEvent.ThreadRunRequiresAction
-  ) => {
-    const runId = event.data.id;
-    const toolCalls = event.data.required_action.submit_tool_outputs.tool_calls;
-    // loop over tool calls and call function handler
-    const toolCallOutputs = await Promise.all(
-      toolCalls.map(async (toolCall) => {
-        const result = await functionCallHandler(toolCall);
-        return { output: result, tool_call_id: toolCall.id };
-      })
-    );
-    setInputDisabled(true);
-    submitActionResult(runId, toolCallOutputs);
-  };
-
-  // handleRunCompleted - re-enable the input form
-  const handleRunCompleted = () => {
-    setInputDisabled(false);
-  };
-
-  const handleReadableStream = (stream: AssistantStream) => {
-    // messages
-    stream.on("textCreated", handleTextCreated);
-    stream.on("textDelta", handleTextDelta);
-
-    // image
-    stream.on("imageFileDone", handleImageFileDone);
-
-    // code interpreter
-    stream.on("toolCallCreated", toolCallCreated);
-    stream.on("toolCallDelta", toolCallDelta);
-
-    // events without helpers yet (e.g. requires_action and run.done)
-    stream.on("event", (event) => {
-      if (event.event === "thread.run.requires_action")
-        handleRequiresAction(event);
-      if (event.event === "thread.run.completed") handleRunCompleted();
-    });
-  };
 
   /*
     =======================
@@ -214,47 +214,78 @@ const Chat = ({
     =======================
   */
 
-  const appendToLastMessage = (text) => {
-    setMessages((prevMessages) => {
-      const lastMessage = prevMessages[prevMessages.length - 1];
-      const updatedLastMessage = {
-        ...lastMessage,
-        text: lastMessage.text + text,
-      };
-      return [...prevMessages.slice(0, -1), updatedLastMessage];
-    });
-  };
+    // // Update the block 
+    // const updateBlock = (block : blocks_pb.Block) => {
+    //   if (!blocks.has(block.id)) {
+    //     console.log(`adding block: ${block.id}`)
+        
+    //     // Is it ok to do this or is this violating the fact that state should only
+    //     // be mutated by React state functions
+    //     blocks.set(block.id, block)
 
-  const appendMessage = (role, text) => {
-    setMessages((prevMessages) => [...prevMessages, { role, text }]);
-  };
+    //     // Since this is the first time we see this block add it to the end of the list of blocks
+    //     setBlockPos(prevBlocksPos => [...prevBlocksPos, block.id]);
+    //   }      
+    //   setBlock(prevBlocks => {       
+    //     console.log(`Setblocks called with ${prevBlocks.size} elements`)
+    //     console.log(`Setblocks called to add ${block.id}`)
+    //     const newBlocks = new Map(prevBlocks); // Create a new Map instance
+    //     newBlocks.set(block.id, block); // Remove the block
+    //     return newBlocks; // Set the new state
+    //   });
+    // };
 
-  const annotateLastMessage = (annotations) => {
-    setMessages((prevMessages) => {
-      const lastMessage = prevMessages[prevMessages.length - 1];
-      const updatedLastMessage = {
-        ...lastMessage,
-      };
-      annotations.forEach((annotation) => {
-        if (annotation.type === 'file_path') {
-          updatedLastMessage.text = updatedLastMessage.text.replaceAll(
-            annotation.text,
-            `/api/files/${annotation.file_path.file_id}`
-          );
-        }
-      })
-      return [...prevMessages.slice(0, -1), updatedLastMessage];
-    });
-    
-  }
+    const addBlock = (kind : blocks_pb.BlockKind) => {
+      const newBlock = create(blocks_pb.BlockSchema, {
+        kind: kind,
+        contents: "",
+        role: blocks_pb.BlockRole.USER,
+        id: uuidv4(),
+      })            
+      blocksContext.updateBlock(newBlock);
+    };
 
-  return (
+
+    const handleAddMarkupBlock = () => {
+      addBlock(blocks_pb.BlockKind.MARKUP);
+    };
+
+    const handleAddCodeBlock = () => {
+      addBlock(blocks_pb.BlockKind.CODE);
+    };
+
+
+    return (
     <div className={styles.chatContainer}>
       <div className={styles.messages}>
-        {messages.map((msg, index) => (
-          <Message key={index} role={msg.role} text={msg.text} />
-        ))}
+         {blocksContext.blockPositions.map((blockId) => {
+        const block = blocksContext.blocks.get(blockId); // Lookup block in the map
+        return block ? (
+          <Block
+            key={block.id}
+            block={block}
+            
+            onChange={(content) => {
+              // Set the contents of the proto associated with this block and 
+              // then update it.
+              block.contents = content              
+              blocksContext.updateBlock(block)
+            }}
+            onRun={() => null}
+            //onRun={() => runCode(block.id, block.contents)}
+          />
+                  
+        ) : (
+          <p key={blockId}>Block not found: {blockId}</p>
+        );
+      })}
         <div ref={messagesEndRef} />
+      </div>
+      <div className="add-block-button">
+        <Button onClick={handleAddMarkupBlock}>Add Markdown Block</Button>
+      </div>
+      <div className="add-block-button">
+        <Button onClick={handleAddCodeBlock}>Add Code Block</Button>
       </div>
       <form
         onSubmit={handleSubmit}
@@ -280,3 +311,22 @@ const Chat = ({
 };
 
 export default Chat;
+
+interface BlockProps {
+  block: blocks_pb.Block;
+}
+
+const BlockComponent: React.FC<BlockProps> = ({ block }) => {
+  if (block.kind == blocks_pb.BlockKind.CODE) {
+    return <CodeMessage text={block.contents} />;
+  }
+  
+  switch (block.role) {
+    case blocks_pb.BlockRole.USER:
+      return <UserMessage text={block.contents} />;
+    case blocks_pb.BlockRole.ASSISTANT:
+      return <AssistantMessage text={block.contents} />;
+    default:
+      return <AssistantMessage text={block.contents} />;
+  };
+};

@@ -1,8 +1,25 @@
 .main {
   display: flex;
-  justify-content: center;
-  align-items: center;
+  /* justify-content: center; */
+  flex-direction: column;
+  align-items: stretch;
   height: 100vh;
+}
+
+.title {
+  font-size: 1.5em;
+  margin-bottom: 20px;
+  font-weight: 600;
+  width: 100%;        /* Ensure title takes up full width */
+  text-align: center; /* Center the text horizontally */
+  margin-top: 0;      /* Optionally remove any top margin */
+}
+
+.row {
+  display: flex;
+  flex-direction: row;
+  width: 100%;
+  margin-bottom: 16px; /* Add some spacing between rows */
 }
 
 .container {
