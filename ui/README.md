@@ -22,9 +22,7 @@ npm run dev
 
 ## Deployment
 
-The OpenAPI Key is Stored in Key Vault
-
-* Staging - [cloud-assistant-openai-apikey]()
+TODO(jlewi): You need an OpenAI key
 
 # To deploy / update the configmap used by the deployment
 
