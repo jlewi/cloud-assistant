@@ -207,34 +207,6 @@ const Chat = ({
     scrollToBottom();
   };
 
-
-  /*
-    =======================
-    === Utility Helpers ===
-    =======================
-  */
-
-    // // Update the block 
-    // const updateBlock = (block : blocks_pb.Block) => {
-    //   if (!blocks.has(block.id)) {
-    //     console.log(`adding block: ${block.id}`)
-        
-    //     // Is it ok to do this or is this violating the fact that state should only
-    //     // be mutated by React state functions
-    //     blocks.set(block.id, block)
-
-    //     // Since this is the first time we see this block add it to the end of the list of blocks
-    //     setBlockPos(prevBlocksPos => [...prevBlocksPos, block.id]);
-    //   }      
-    //   setBlock(prevBlocks => {       
-    //     console.log(`Setblocks called with ${prevBlocks.size} elements`)
-    //     console.log(`Setblocks called to add ${block.id}`)
-    //     const newBlocks = new Map(prevBlocks); // Create a new Map instance
-    //     newBlocks.set(block.id, block); // Remove the block
-    //     return newBlocks; // Set the new state
-    //   });
-    // };
-
     const addBlock = (kind : blocks_pb.BlockKind) => {
       const newBlock = create(blocks_pb.BlockSchema, {
         kind: kind,
@@ -287,25 +259,6 @@ const Chat = ({
       <div className="add-block-button">
         <Button onClick={handleAddCodeBlock}>Add Code Block</Button>
       </div>
-      <form
-        onSubmit={handleSubmit}
-        className={`${styles.inputForm} ${styles.clearfix}`}
-      >
-        <input
-          type="text"
-          className={styles.input}
-          value={userInput}
-          onChange={(e) => setUserInput(e.target.value)}
-          placeholder="Enter your question"
-        />
-        <button
-          type="submit"
-          className={styles.button}
-          disabled={inputDisabled}
-        >
-          Send
-        </button>
-      </form>
     </div>
   );
 };

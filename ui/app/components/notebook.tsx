@@ -165,6 +165,15 @@ export const Block: React.FC<BlockProps>= ({ block, onChange, onRun }) => {
       console.log("calling executeOneshot");
       let responses = client.executeOneShot(req);
 
+      block.outputs = [];
+      block.outputs.push(create(blocks_pb.BlockOutputSchema, {
+          items: [
+            create(blocks_pb.BlockOutputItemSchema, {
+              textData: "Running the block...",
+            }),
+          ],
+      }));
+
       // Streaming response handling
       for await (const response of responses) {        
         // TODO(jlewi): We should add it to the output
