@@ -151,6 +151,7 @@ export const Block: React.FC<BlockProps>= ({ block, onChange, onRun }) => {
       const client = runmeContext.getClient();
 
       // TODO(jlewi): Should we check its a code cell?
+      // If its not we could service the error in the output cell.
       
       // Add the input block to the input
       //updateBlock(blocks[0])
