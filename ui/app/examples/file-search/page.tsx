@@ -3,13 +3,12 @@ import React from "react";
 import Head from "next/head"
 import styles from "../shared/page.module.css";
 
-import NotebookEditor from "../../components/notebook";
 import Chat from "../../components/chat";
 import FileViewer from "../../components/file-viewer";
 import { FilesProvider } from "../../components/file-viewer";
 import { ClientProvider, useClient } from "../../components/ai-client";
 import {BlocksProvider} from "../../components/blocks-context";
-
+import { ClientProvider as RunmeProvider}  from "../../components/runme-client";
 const FileSearchPage = () => {
   return (
     <>
@@ -21,8 +20,9 @@ const FileSearchPage = () => {
         <h1 className={styles.title}>OpenAI's Cloud Assistant (go/act)</h1>
         </div>
         <FilesProvider>
-        <ClientProvider>
+        <ClientProvider>        
         <BlocksProvider>
+        <RunmeProvider>
         <div className={styles.container}>          
           <div className={styles.column}>
             <FileViewer />
@@ -38,6 +38,7 @@ const FileSearchPage = () => {
             </div>
           </div>
         </div>
+        </RunmeProvider>
         </BlocksProvider>
         </ClientProvider>
         </FilesProvider>

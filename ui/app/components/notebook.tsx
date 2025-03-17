@@ -7,7 +7,8 @@ import { useClient, CreateBackendClient } from "./ai-client";
 import { create } from "@bufbuild/protobuf";
 import { useFiles } from "./file-viewer";
 import { useBlocks} from "./blocks-context";
-
+import { useClient as useRunmeClient } from "./runme-client";
+import * as runner_pb from "../../gen/es/runme/runner/v2/runner_pb";
 // Define BlocksContext
 export type BlocksContextType = {
   blocks: blocks_pb.Block[];
@@ -59,10 +60,12 @@ export const Block: React.FC<BlockProps>= ({ block, onChange, onRun }) => {
   const editorRef = useRef(null);
   const [executor, setExecutor] = useState(defaultExecutors[0]);
 
-    // Access the context
-    const filesContext = useFiles(); //
-    
-    const blocksContext = useBlocks();
+  // Access the context
+  const filesContext = useFiles();
+  
+  const blocksContext = useBlocks();
+
+  const runmeContext = useRunmeClient();
 
   // Get the AIServe client from the context
   const { client, setClient } = useClient();
@@ -106,16 +109,7 @@ export const Block: React.FC<BlockProps>= ({ block, onChange, onRun }) => {
         setClient(aiClient);
       }
 
-    //   let blocks: blocks_pb.Block[] = [
-    //     create(blocks_pb.BlockSchema, {
-    //       kind: blocks_pb.BlockKind.MARKUP,
-    //       contents: userInput,
-    //       role: blocks_pb.BlockRole.USER,
-    //       id: uuidv4(),
-    //     }),
-    //   ];
-
-    let blocks: blocks_pb.Block[] = [block];
+      let blocks: blocks_pb.Block[] = [block];
       // Add the input block to the input
       //updateBlock(blocks[0])
       const req: blocks_pb.GenerateRequest = create(
@@ -124,6 +118,7 @@ export const Block: React.FC<BlockProps>= ({ block, onChange, onRun }) => {
           blocks: blocks,
         }
       );
+
       console.log("calling generate");
       let responses = aiClient.generate(req);
 
@@ -149,6 +144,52 @@ export const Block: React.FC<BlockProps>= ({ block, onChange, onRun }) => {
     
   };
 
+
+  const executeBlock = async (block : blocks_pb.Block) => {
+    console.log(`sending block ${block.id}`);
+    const createThread = async () => {      
+      const client = runmeContext.getClient();
+
+      // TODO(jlewi): Should we check its a code cell?
+      
+      // Add the input block to the input
+      //updateBlock(blocks[0])
+      const req: runner_pb.ExecuteOneShotRequest = create(
+        runner_pb.ExecuteOneShotRequestSchema,
+        {
+          inputData: new TextEncoder().encode(block.contents),
+        }
+      );
+      
+      console.log("calling executeOneshot");
+      let responses = client.executeOneShot(req);
+
+      // Streaming response handling
+      for await (const response of responses) {        
+        // TODO(jlewi): We should add it to the output
+        console.log(`stdout has ${response.stdoutData}`)
+        console.log(`stderr has ${response.stderrData}`)
+                    
+        // for (const b of response.blocks) {
+        //   if (b.kind == blocks_pb.BlockKind.FILE_SEARCH_RESULTS) {
+        //     filesContext.setBlock(b)
+        //   } else {
+        //     blocksContext.updateBlock(b)
+        //   }
+        // }
+      }
+
+      // Reenable input
+      //setInputDisabled(false);
+      console.log("Stream ended.");
+    };  
+    
+    //console.log("calling createThread");
+    createThread();
+    
+  };
+
+
   return (
     <Card className="block-card">
       <CardContent className="block-card-content" ref={editorRef}>
@@ -166,7 +207,7 @@ export const Block: React.FC<BlockProps>= ({ block, onChange, onRun }) => {
         {block.kind === blocks_pb.BlockKind.CODE && (
           <>
             <div className="run-button-container">
-              <Button onClick={onRun}>Run</Button>
+              <Button onClick={() => executeBlock(block)}>Run</Button>
             </div>
             
             {/* TODO(jlewi): need to render the outputs
@@ -205,81 +246,3 @@ export const Block: React.FC<BlockProps>= ({ block, onChange, onRun }) => {
     </Card>
   );
 };
-
-// const NotebookEditor = () => {
-//   const [blocks, setBlocks] = useState<blocks_pb.Block[]>([]);
-
-//   const addBlock = () => {
-//     const newBlock: blocks_pb.Block = {
-//       id: Date.now().toString(),
-//       kind: 2,
-//       language: "javascript",
-//       contents: defaultCode,
-//       outputs: [],
-//       metadata: {},
-//       role: 1,
-//       file_search_results: [],
-//     };
-//     setBlocks((prev) => [...prev, newBlock]);
-//   };
-
-//   const updateBlock = (id: string, newContent: string) => {
-//     setBlocks((prev) =>
-//       prev.map((block) =>
-//         block.id === id ? { ...block, contents: newContent } : block
-//       )
-//     );
-//   };
-
-//   const runCode = (id: string, code: string) => {
-//     const log: string[] = [];
-//     const originalConsoleLog = console.log;
-//     console.log = (...args) => {
-//       log.push(args.join(" "));
-//       originalConsoleLog(...args);
-//     };
-
-//     try {
-//       // eslint-disable-next-line no-eval
-//       eval(code);
-//     } catch (error) {
-//       log.push("Error: " + error.message);
-//     }
-
-//     console.log = originalConsoleLog;
-//     const outputItem = {
-//       mime: "text/plain",
-//       text_data: log.join("\n"),
-//     };
-//     const output = {
-//       items: [outputItem],
-//     };
-//     setBlocks((prev) =>
-//       prev.map((block) =>
-//         block.id === id ? { ...block, outputs: [output] } : block
-//       )
-//     );
-//   };
-
-//   return (
-//     <BlocksContext.Provider value={{ blocks, setBlocks }}>
-//       <div className="notebook-editor">
-//         <div className="blocks">
-//         {blocks.map((block) => (
-//           <Block
-//             key={block.id}
-//             block={block}
-//             onChange={(content) => updateBlock(block.id, content)}
-//             onRun={() => runCode(block.id, block.contents)}
-//           />
-//         ))}
-//         </div>
-//         <div className="add-block-button">
-//           <Button onClick={addBlock}>Add Block</Button>
-//         </div>
-//       </div>
-//     </BlocksContext.Provider>
-//   );
-// };
-
-// export default NotebookEditor;
