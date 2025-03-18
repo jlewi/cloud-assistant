@@ -6,9 +6,10 @@ import * as blocks_pb from "../../gen/es/cassie/blocks_pb";
 import { useClient, CreateBackendClient } from "./ai-client";
 import { create } from "@bufbuild/protobuf";
 import { useFiles } from "./file-viewer";
-import { useBlocks} from "./blocks-context";
+import { useBlocks } from "./blocks-context";
 import { useClient as useRunmeClient } from "./runme-client";
 import * as runner_pb from "../../gen/es/runme/runner/v2/runner_pb";
+import RunmeConsole from "./runme";
 // Define BlocksContext
 export type BlocksContextType = {
   blocks: blocks_pb.Block[];
@@ -17,7 +18,7 @@ export type BlocksContextType = {
 
 export const BlocksContext = createContext<BlocksContextType>({
   blocks: [],
-  setBlocks: () => {},
+  setBlocks: () => { },
 });
 
 const defaultCode = `console.log('Hello, world!');`;
@@ -43,26 +44,27 @@ const BlockOutput = ({ outputs }) => {
 
 // BlockProps defines the properties of the Block component.
 interface BlockProps {
-    // Block is the proto buffer containing/storing all the data that will be rendered in this
-    // component.
-    block: blocks_pb.Block;
-    // onChange is the handler to invoke when the content changes.
-    // TODO(jlewi) : Is this where we update the contents of the proto?
-    onChange: (value: any) => void;  // Update type as necessary
-    // onRun is the function that is executed when the run button is clicked.
-    // TODO(jlewi): I don't think we need to pass in an onRun function
-    // because the behavior of what to do will be determined by the block type.
-    onRun: () => void;    
-  }
-  
+  // Block is the proto buffer containing/storing all the data that will be rendered in this
+  // component.
+  block: blocks_pb.Block;
+  // onChange is the handler to invoke when the content changes.
+  // TODO(jlewi) : Is this where we update the contents of the proto?
+  onChange: (value: any) => void;  // Update type as necessary
+  // onRun is the function that is executed when the run button is clicked.
+  // TODO(jlewi): I don't think we need to pass in an onRun function
+  // because the behavior of what to do will be determined by the block type.
+  onRun: () => void;
+}
 
-export const Block: React.FC<BlockProps>= ({ block, onChange, onRun }) => {
+
+export const Block: React.FC<BlockProps> = ({ block, onChange, onRun }) => {
   const editorRef = useRef(null);
   const [executor, setExecutor] = useState(defaultExecutors[0]);
+  const [execCommands, setExecCommands] = useState<string[] | null>(null);
 
   // Access the context
   const filesContext = useFiles();
-  
+
   const blocksContext = useBlocks();
 
   const runmeContext = useRunmeClient();
@@ -100,11 +102,11 @@ export const Block: React.FC<BlockProps>= ({ block, onChange, onRun }) => {
 
   // sendBlockToAssistant sends a block to the Assistant for processing.
   // TODO(jlewi): Add support for sending outputs
-  const sendBlockToAssistant = async (block : blocks_pb.Block) => {
+  const sendBlockToAssistant = async (block: blocks_pb.Block) => {
     console.log(`sending block ${block.id}`);
-    const createThread = async () => {      
+    const createThread = async () => {
       let aiClient = client;
-      if (aiClient === null) {       
+      if (aiClient === null) {
         aiClient = CreateBackendClient();
         setClient(aiClient);
       }
@@ -137,22 +139,29 @@ export const Block: React.FC<BlockProps>= ({ block, onChange, onRun }) => {
       // Reenable input
       //setInputDisabled(false);
       console.log("Stream ended.");
-    };  
-    
+    };
+
     //console.log("calling createThread");
     createThread();
-    
+
   };
 
+  const executeBlockWithRunme = async (block: blocks_pb.Block) => {
+    const execCommands = block.contents.replace('\r\n', '\n').split('\n');
+    if (execCommands.length === 0) {
+      return
+    }
+    setExecCommands(execCommands);
+  }
 
-  const executeBlock = async (block : blocks_pb.Block) => {
+  const executeBlock = async (block: blocks_pb.Block) => {
     console.log(`sending block ${block.id}`);
-    const createThread = async () => {      
+    const createThread = async () => {
       const client = runmeContext.getClient();
 
       // TODO(jlewi): Should we check its a code cell?
       // If its not we could service the error in the output cell.
-      
+
       // Add the input block to the input
       //updateBlock(blocks[0])
       const req: runner_pb.ExecuteOneShotRequest = create(
@@ -161,25 +170,25 @@ export const Block: React.FC<BlockProps>= ({ block, onChange, onRun }) => {
           inputData: new TextEncoder().encode(block.contents),
         }
       );
-      
+
       console.log("calling executeOneshot");
       let responses = client.executeOneShot(req);
 
       block.outputs = [];
       block.outputs.push(create(blocks_pb.BlockOutputSchema, {
-          items: [
-            create(blocks_pb.BlockOutputItemSchema, {
-              textData: "Running the block...",
-            }),
-          ],
+        items: [
+          create(blocks_pb.BlockOutputItemSchema, {
+            textData: "Running the block...",
+          }),
+        ],
       }));
 
       // Streaming response handling
-      for await (const response of responses) {        
+      for await (const response of responses) {
         // TODO(jlewi): We should add it to the output
         console.log(`stdout has ${response.stdoutData}`)
         console.log(`stderr has ${response.stderrData}`)
-                    
+
         // for (const b of response.blocks) {
         //   if (b.kind == blocks_pb.BlockKind.FILE_SEARCH_RESULTS) {
         //     filesContext.setBlock(b)
@@ -192,11 +201,11 @@ export const Block: React.FC<BlockProps>= ({ block, onChange, onRun }) => {
       // Reenable input
       //setInputDisabled(false);
       console.log("Stream ended.");
-    };  
-    
+    };
+
     //console.log("calling createThread");
     createThread();
-    
+
   };
 
 
@@ -211,15 +220,18 @@ export const Block: React.FC<BlockProps>= ({ block, onChange, onRun }) => {
           options={{ minimap: { enabled: false }, theme: "vs-dark" }}
         />
         <div className="run-button-container">
-            <Button onClick={() => sendBlockToAssistant(block)}>Send</Button>
+          <Button onClick={() => sendBlockToAssistant(block)}>Send</Button>
         </div>
-            
+
         {block.kind === blocks_pb.BlockKind.CODE && (
           <>
             <div className="run-button-container">
-              <Button onClick={() => executeBlock(block)}>Run</Button>
+              <Button onClick={() => {
+                // return executeBlock(block);
+                return executeBlockWithRunme(block);
+              }}>Run</Button>
             </div>
-            
+
             {/* TODO(jlewi): need to render the outputs
             <BlockOutput outputs={block.outputs}/> 
             */}
@@ -251,6 +263,11 @@ export const Block: React.FC<BlockProps>= ({ block, onChange, onRun }) => {
               <option value={2}>Code</option>
             </select>
           </div>
+        </div>
+        <div>
+          {execCommands && (
+            <RunmeConsole commands={execCommands} />
+          )}
         </div>
       </CardContent>
     </Card>
