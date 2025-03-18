@@ -9,6 +9,8 @@ import { useFiles } from "./file-viewer";
 import { useBlocks} from "./blocks-context";
 import { useClient as useRunmeClient } from "./runme-client";
 import * as runner_pb from "../../gen/es/runme/runner/v2/runner_pb";
+import * as config_pb from "../../gen/es/runme/runner/v2/config_pb";
+import { config } from "process";
 // Define BlocksContext
 export type BlocksContextType = {
   blocks: blocks_pb.Block[];
@@ -158,7 +160,13 @@ export const Block: React.FC<BlockProps>= ({ block, onChange, onRun }) => {
       const req: runner_pb.ExecuteOneShotRequest = create(
         runner_pb.ExecuteOneShotRequestSchema,
         {
-          inputData: new TextEncoder().encode(block.contents),
+          config: create(config_pb.ProgramConfigSchema, {
+            programName: "bash",
+            source: {
+              value: block.contents,
+              case: "script",
+            },
+          }),
         }
       );
       
