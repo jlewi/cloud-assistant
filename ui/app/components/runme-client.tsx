@@ -40,7 +40,7 @@ export const ClientProvider: FC<{ children: ReactNode }>  = ({ children }) => {
   const getClient = () => {
     // N.B. when using npm run dev how do we allow this be set to a different value? Since we might be talking to a different server
     // TODO(jlewi): I think we could add a settings page stored in webstorage and use that to set the backend.
-    const baseURL = "http://localhost:8080";
+    const baseURL = "http://localhost:9090";
     
     // let baseURL = window.location.origin;
     // if (window.location.hostname === 'localhost') {

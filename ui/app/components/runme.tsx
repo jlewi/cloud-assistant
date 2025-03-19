@@ -54,7 +54,19 @@ function buildExecuteRequest(): ExecuteRequest {
     });
 }
 
-const RunmeConsole = ({ commands, rows = 20 }: { commands: string[], rows?: number }) => {
+const RunmeConsole = ({
+    commands,
+    rows = 20,
+    onStdout,
+    onStderr,
+    onExitCode
+}: {
+    commands: string[],
+    rows?: number,
+    onStdout?: (data: Uint8Array) => void,
+    onStderr?: (data: Uint8Array) => void,
+    onExitCode?: (code: number) => void
+}) => {
     const execReq = buildExecuteRequest();
     const defaults = {
         output: {
@@ -115,6 +127,10 @@ const RunmeConsole = ({ commands, rows = 20 }: { commands: string[], rows?: numb
                         data: response.stdoutData,
                     },
                 } as any);
+
+                if (onStdout) {
+                    onStdout(response.stdoutData);
+                }
             }
             if (response.stderrData) {
                 callback?.({
@@ -124,6 +140,16 @@ const RunmeConsole = ({ commands, rows = 20 }: { commands: string[], rows?: numb
                         data: response.stderrData,
                     },
                 } as any);
+
+                if (onStderr) {
+                    onStderr(response.stderrData);
+                }
+            }
+
+            if (response.exitCode !== undefined) {
+                if (onExitCode) {
+                    onExitCode(response.exitCode);
+                }
             }
         });
 
