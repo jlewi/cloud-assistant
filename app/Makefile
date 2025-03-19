@@ -11,7 +11,7 @@ LDFLAGS := -s -w \
         -X 'github.com/jlewi/cloud-assistant/app/pkg/version.Commit=$(GIT_SHA)'
 
 build: build-dir
-	CGO_ENABLED=0 go build -o .build/someapp -ldflags="$(LDFLAGS)" github.com/jlewi/cloud-assistant/app
+	CGO_ENABLED=0 go build -o .build/cas -ldflags="$(LDFLAGS)" github.com/jlewi/cloud-assistant/app
 
 build-dir:
 	mkdir -p .build

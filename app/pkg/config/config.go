@@ -14,6 +14,7 @@ import (
 	"os/user"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 // Note: The application uses viper for configuration management. Viper merges configurations from various sources
@@ -22,7 +23,7 @@ import (
 const (
 	ConfigFlagName = "config"
 	LevelFlagName  = "level"
-	AppName        = "somegoapp"
+	AppName        = "cloud-assistant"
 	ConfigDir      = "." + AppName
 )
 
@@ -49,10 +50,15 @@ type Config struct {
 	Logging   Logging          `json:"logging" yaml:"logging"`
 	Telemetry *TelemetryConfig `json:"telemetry,omitempty" yaml:"telemetry,omitempty"`
 
-	SomeOption string `json:"someOption,omitempty" yaml:"someOption,omitempty"`
-	
+	OpenAI          *OpenAIConfig          `json:"openai,omitempty" yaml:"openai,omitempty"`
+	AssistantServer *AssistantServerConfig `json:"assistantServer,omitempty" yaml:"assistantServer,omitempty"`
 	// configFile is the configuration file used
 	configFile string
+}
+
+type OpenAIConfig struct {
+	// APIKeyFile is the file containing the OpenAI API key
+	APIKeyFile string `json:"apiKeyFile,omitempty" yaml:"apiKeyFile,omitempty"`
 }
 
 type Logging struct {
@@ -280,4 +286,58 @@ func (c *Config) Write(cfgFile string) error {
 
 func DefaultConfigFile() string {
 	return binHome() + "/config.yaml"
+}
+
+type AssistantServerConfig struct {
+	// BindAddress is the address to bind to. Default is 0.0.0.0
+	BindAddress string `json:"bindAddress" yaml:"bindAddress"`
+
+	// Port is the port for the server
+	Port int `json:"port" yaml:"port"`
+
+	// HttpMaxReadTimeout is the max read duration.
+	// Ref: https://blog.cloudflare.com/the-complete-guide-to-golang-net-http-timeouts
+	HttpMaxReadTimeout time.Duration `json:"httpMaxReadTimeout" yaml:"httpMaxReadTimeout"`
+
+	// HttpMaxWriteTimeout is the max write duration.
+	HttpMaxWriteTimeout time.Duration `json:"httpMaxWriteTimeout" yaml:"httpMaxWriteTimeout"`
+
+	StaticAssets string `json:"staticAssets" yaml:"staticAssets"`
+
+	// RunnerService starts the Runme runner service if true otherwise it doesn't start the runner service.
+	RunnerService bool `json:"runnerService" yaml:"runnerService"`
+}
+
+func (c *AssistantServerConfig) GetBindAddress() string {
+	if c.BindAddress == "" {
+		return "0.0.0.0"
+	}
+	return c.BindAddress
+}
+
+func (c *AssistantServerConfig) GetPort() int {
+	if c.Port <= 0 {
+		return 8080
+	}
+	return c.Port
+}
+
+func (c *AssistantServerConfig) GetHttpMaxReadTimeout() time.Duration {
+	if c.HttpMaxReadTimeout > 0 {
+		return c.HttpMaxReadTimeout
+	}
+	// See https://blog.cloudflare.com/the-complete-guide-to-golang-net-http-timeouts
+	// If we start using really slow models we may need to bump these to avoid timeouts.
+	// This is just a guess on how we should set the timeout.
+	return 5 * time.Minute
+}
+
+func (c *AssistantServerConfig) GetHttpMaxWriteTimeout() time.Duration {
+	if c.HttpMaxWriteTimeout > 0 {
+		return c.HttpMaxWriteTimeout
+	}
+	// See https://blog.cloudflare.com/the-complete-guide-to-golang-net-http-timeouts
+	// If we start using really slow models we may need to bump these to avoid timeouts.
+	// This is just a guess on how we should set the timeout.
+	return 5 * time.Minute
 }
