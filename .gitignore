@@ -1,0 +1,17 @@
+**/.build
+**/__pycache__
+**/.pytest_cache
+**/.idea/**
+**/.ipynb_checkpoints/**
+**/.DS_Store
+dist/
+**/node_modules
+**/out
+**/wandb/
+**/.next
+**/bin
+**/plugin
+**/cover.out
+**/*.wasm
+experiments/runs/**
+tools/stripmetadata/stripmetadata

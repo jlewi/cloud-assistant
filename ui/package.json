@@ -1,9 +1,10 @@
 {
   "name": "assistants-nextjs",
   "version": "0.1.0",
+  "type": "module",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "npx tsx server.ts",
     "build": "next build",
     "start": "next start",
     "lint": "next lint"
@@ -16,11 +17,24 @@
     "@connectrpc/connect-web": "^2.0.2",
     "@monaco-editor/react": "^4.7.0",
     "@types/uuid": "^10.0.0",
+    "@buf/stateful_runme.bufbuild_es": "^2.2.3-20250313184526-2d02c6150545.1",
+    "@bufbuild/protobuf": "^2.2.3",
+    "@connectrpc/connect-node": "^2.0.2",
+    "@connectrpc/connect-web": "^2.0.2",
+    "@connectrpc/connect": "^2.0.2",
+    "@monaco-editor/react": "^4.7.0",
+    "@types/uuid": "^10.0.0",
+    "@types/vscode-notebook-renderer": "^1.72.3",
     "next": "14.1.4",
     "openai": "^4.46.0",
-    "react": "^18",
     "react-dom": "^18",
     "react-markdown": "^9.0.1",
+    "react": "^18",
+    "socket.io-client": "^4.8.1",
+    "socket.io": "^4.8.1",
+    "ts-node": "^10.9.2",
+    "tsx": "^4.19.3",
+    "ulid": "^2.4.0",
     "uuid": "^11.1.0"
   },
   "devDependencies": {
@@ -30,5 +44,6 @@
   },
   "prettier": {
     "singleQuote": false
-  }
+  },
+  "packageManager": "pnpm@10.6.3+sha1.43e3aa4a371d889dfb0ffe7a9b5d4ca0668ccaa9"
 }
