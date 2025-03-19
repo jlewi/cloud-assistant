@@ -2,7 +2,7 @@ package application
 
 import (
 	"fmt"
-	"github.com/jlewi/goapp-template/pkg/config"
+	"github.com/jlewi/cloud-assistant/app/pkg/config"
 	"github.com/jlewi/monogo/gcp/logging"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"

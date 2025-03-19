@@ -26,7 +26,7 @@ builds:
     # Custom ldflags templates.
     # Default is `-s -w -X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{.Date}} -X main.builtBy=goreleaser`.
     ldflags:
-      - "-s -w -X github.com/jlewi/goapp-template/pkg/version.Version={{.Version}} -X github.com/jlewi/goapp-template/pkg/version.Commit={{.Commit}} -X github.com/jlewi/goapp-template/pkg/version.Date={{.Date}} -X github.com/jlewi/goapp-template/pkg/version.BuiltBy=goreleaser"
+      - "-s -w -X github.com/jlewi/cloud-assistant/app/pkg/version.Version={{.Version}} -X github.com/jlewi/cloud-assistant/app/pkg/version.Commit={{.Commit}} -X github.com/jlewi/cloud-assistant/app/pkg/version.Date={{.Date}} -X github.com/jlewi/cloud-assistant/app/pkg/version.BuiltBy=goreleaser"
 archives:
   # https://goreleaser.com/customization/archive/?h=archives
   - id: "binary"

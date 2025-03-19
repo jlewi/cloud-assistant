@@ -2,7 +2,7 @@
 # This script is an example of handling renaming of golang packages and repositories.
 set -ex
 ORIGINAL="github.com\/jlewi\/goapp-template"
-NEW="github.com\/YOURORG\/YOURREPO"
+NEW="github.com\/jlewi\/cloud-assistant\/app"
 
 # These rule updates all go files
 find ./ -name "*.go"  -exec  sed -i ".bak" "s/${ORIGINAL}/${NEW}/g" {} ";"

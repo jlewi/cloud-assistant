@@ -1,4 +1,4 @@
-module github.com/jlewi/goapp-template
+module github.com/jlewi/cloud-assistant/app
 
 go 1.22.5
 

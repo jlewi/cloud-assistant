@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/jlewi/goapp-template/pkg/config"
+	"github.com/jlewi/cloud-assistant/app/pkg/config"
 	"github.com/spf13/cobra"
 )
 

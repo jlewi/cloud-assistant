@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/jlewi/goapp-template/cmd"
+	"github.com/jlewi/cloud-assistant/app/cmd"
 	"os"
 )
 
