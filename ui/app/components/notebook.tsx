@@ -209,7 +209,7 @@ export const Block: React.FC<BlockProps> = ({ block, onChange, onRun }) => {
   };
 
   let output = ''
-  const outputHandler = (data: Uint8Array<ArrayBufferLike>): void => {
+  const outputHandler = (data: Uint8Array): void => {
     output += new TextDecoder().decode(data);
   };
 
@@ -221,7 +221,7 @@ export const Block: React.FC<BlockProps> = ({ block, onChange, onRun }) => {
 
   return (
     <Card className="block-card">
-      <CardContent className="block-card-content" ref={editorRef}>
+      <CardContent className="block-card-content">
         <Editor
           height="200px"
           defaultLanguage={block.language || (block.kind === blocks_pb.BlockKind.CODE ? "bash" : "markdown")}

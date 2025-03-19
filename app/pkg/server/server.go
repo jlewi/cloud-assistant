@@ -150,6 +150,10 @@ func (s *Server) registerServices() error {
 		mux.Handle(rPath, rHandler)
 	}
 
+	sHandler := &WebSocketHandler{}
+	// Mount other Connect handlers
+	mux.Handle("/ws", http.HandlerFunc(sHandler.Handler))
+
 	checker := grpchealth.NewStaticChecker()
 	mux.Handle(grpchealth.NewHandler(checker))
 

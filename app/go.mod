@@ -16,6 +16,7 @@ require (
 	github.com/go-logr/logr v1.4.2
 	github.com/go-logr/zapr v1.3.0
 	github.com/google/go-cmp v0.7.0
+	github.com/gorilla/websocket v1.5.3
 	github.com/jlewi/monogo v0.0.0-20240918030136-e0ca1337aea4
 	github.com/pkg/errors v0.9.1
 	github.com/rs/cors v1.11.1
