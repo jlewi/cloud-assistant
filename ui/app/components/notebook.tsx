@@ -208,6 +208,16 @@ export const Block: React.FC<BlockProps> = ({ block, onChange, onRun }) => {
 
   };
 
+  let output = ''
+  const outputHandler = (data: Uint8Array<ArrayBufferLike>): void => {
+    output += new TextDecoder().decode(data);
+  };
+
+  const exitCodeHandler = (code: number): void => {
+    console.log('Output:', output);
+    console.log(`Exit code: ${code}`);
+    output = '';
+  };
 
   return (
     <Card className="block-card">
@@ -266,7 +276,12 @@ export const Block: React.FC<BlockProps> = ({ block, onChange, onRun }) => {
         </div>
         <div>
           {execCommands && (
-            <RunmeConsole commands={execCommands} />
+            <RunmeConsole
+              commands={execCommands}
+              onStdout={outputHandler}
+              onStderr={outputHandler}
+              onExitCode={exitCodeHandler}
+            />
           )}
         </div>
       </CardContent>
