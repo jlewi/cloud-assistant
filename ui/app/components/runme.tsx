@@ -111,7 +111,7 @@ const RunmeConsole = ({
     } as Partial<RendererContext<void>>)
 
     useEffect(() => {
-        socket = io("http://localhost:9090");
+        socket = io();
 
         socket.on('connect', () => {
             console.log(new Date(), 'Connected to WebSocket server');
