@@ -1,0 +1,18 @@
+syntax = "proto3";
+import "runme/runner/v2/runner.proto"
+
+// SocketRequest defines the message sent by the client over a websocket.
+// The request is a union of types that indicate the type of message.
+message SocketRequest{
+    oneof {
+        runme.runner.v2.ExecuteRequest execute_request = 1;
+    }
+}
+
+// SocketResponse defines the message sent by the server over a websocket.
+// The request is a union of types that indicate the type of message.
+message SocketResponse {
+    oneof {
+        runme.runner.v2.ExecuteResponse execute_response = 2;
+    }
+}
