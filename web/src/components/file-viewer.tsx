@@ -1,6 +1,6 @@
 import React, { createContext, useContext, Dispatch, SetStateAction, useState, useEffect , ReactNode, FC} from "react";
 import styles from "./file-viewer.module.css";
-import * as blocks_pb from "../../gen/es/cassie/blocks_pb";
+import * as blocks_pb from "../gen/es/cassie/blocks_pb";
 
 // FileSearchResult is used to hold the values in the result of the FileSearchToolcall.
 // TODO(jlewi): Does the TS SDK define this type already?

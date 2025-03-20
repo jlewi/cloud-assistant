@@ -15,7 +15,7 @@ import { fromJsonString } from "@bufbuild/protobuf";
 import { Button, Card, CardContent } from "./ui";
 
 //import * as blocks_pb from '../../../protos/gen/es/cassie/blocks_pb'
-import * as blocks_pb from "../../gen/es/cassie/blocks_pb";
+import * as blocks_pb from "../gen/es/cassie/blocks_pb";
 import { v4 as uuidv4 } from 'uuid';
 import {Block } from './notebook';
 
