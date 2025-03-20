@@ -1,5 +1,6 @@
 import React from 'react';
 import Chat from "../components/chat";
+import { Helmet } from 'react-helmet';
 import FileViewer from "../components/file-viewer";
 import { FilesProvider } from "../components/file-viewer";
 import { ClientProvider, useClient } from "../components/ai-client";
@@ -9,9 +10,9 @@ import { ClientProvider as RunmeProvider}  from "../components/runme-client";
 const Home: React.FC = () => {
   return (
     <>
-    <Head>
+    <Helmet>
     <title>Cloud Assistant</title>
-    </Head>
+    </Helmet>
     <main className={styles.main}>
       <div className={styles.row}>
       <h1 className={styles.title}>Cloud Assistant</h1>

@@ -6,7 +6,7 @@ import {
   createGrpcWebTransport,
 } from "@connectrpc/connect-web";
 // Import service definition that you want to connect to.
-import * as runner_pb from "../../gen/es/runme/runner/v2/runner_pb";
+import * as runner_pb from "../gen/es/runme/runner/v2/runner_pb";
 
 type RunnerServiceContextType = {
   client: Client<typeof runner_pb.RunnerService>;

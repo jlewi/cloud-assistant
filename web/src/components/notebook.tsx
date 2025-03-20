@@ -2,13 +2,13 @@ import React, { useState, createContext, Dispatch, SetStateAction, useEffect, us
 import { Button, Card, CardContent } from "./ui";
 import Editor from "@monaco-editor/react";
 //import {BlockComponent } from "./notebook";
-import * as blocks_pb from "../../gen/es/cassie/blocks_pb";
+import * as blocks_pb from "../gen/es/cassie/blocks_pb";
 import { useClient, CreateBackendClient } from "./ai-client";
 import { create } from "@bufbuild/protobuf";
 import { useFiles } from "./file-viewer";
 import { useBlocks } from "./blocks-context";
 import { useClient as useRunmeClient } from "./runme-client";
-import * as runner_pb from "../../gen/es/runme/runner/v2/runner_pb";
+import * as runner_pb from "../gen/es/runme/runner/v2/runner_pb";
 import RunmeConsole from "./runme";
 // Define BlocksContext
 export type BlocksContextType = {

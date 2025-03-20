@@ -9,7 +9,7 @@ import React, {
   FC,
 } from "react";
 import styles from "./file-viewer.module.css";
-import * as blocks_pb from "../../gen/es/cassie/blocks_pb";
+import * as blocks_pb from "../gen/es/cassie/blocks_pb";
 
 // Define a context to keep track of blocks keyed by block id.
 

@@ -6,7 +6,7 @@ import {
   createGrpcWebTransport,
 } from "@connectrpc/connect-web";
 // Import service definition that you want to connect to.
-import * as blocks_pb from "../../gen/es/cassie/blocks_pb";
+import * as blocks_pb from "../gen/es/cassie/blocks_pb";
 
 type AIServiceContextType = {
   client: Client<typeof blocks_pb.BlocksService>;
