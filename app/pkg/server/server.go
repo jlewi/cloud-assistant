@@ -13,8 +13,6 @@ import (
 	"github.com/rs/cors"
 	"github.com/stateful/runme/v3/pkg/api/gen/proto/go/runme/runner/v2/runnerv2connect"
 	"go.uber.org/zap"
-	"golang.org/x/net/http2"
-	"golang.org/x/net/http2/h2c"
 	"net"
 	"net/http"
 	"os"
@@ -93,16 +91,38 @@ func (s *Server) Run() error {
 	address := fmt.Sprintf("%s:%d", serverConfig.GetBindAddress(), serverConfig.GetPort())
 	log.Info("Starting http server", "address", address)
 
+	// N.B. We don't use an http2 server because we are using websockets and we were having some issues with
+	// http2. Without http2 I'm not sure we can serve grpc.
 	hServer := &http.Server{
-		WriteTimeout: serverConfig.GetHttpMaxWriteTimeout(),
-		ReadTimeout:  serverConfig.GetHttpMaxReadTimeout(),
-		// We need to wrap it in h2c to support HTTP/2 without TLS
-		Handler: h2c.NewHandler(s.engine, &http2.Server{}),
+		// Do we need long timeouts since its a websocket?
+		//WriteTimeout: serverConfig.GetHttpMaxWriteTimeout(),
+		//ReadTimeout:  serverConfig.GetHttpMaxReadTimeout(),
+
+		// Set timeouts to 0 to disable them because we are using websockets
+		WriteTimeout: 0,
+		ReadTimeout:  0,
+		Handler:      s.engine,
 	}
 	// Enable HTTP/2 support
-	if err := http2.ConfigureServer(hServer, &http2.Server{}); err != nil {
-		return errors.Wrapf(err, "failed to configure http2 server")
-	}
+	//if err := http2.ConfigureServer(hServer, &http2.Server{}); err != nil {
+	//	return errors.Wrapf(err, "failed to configure http2 server")
+	//}
+
+	//hServer := &http.Server{
+	//	// Do we need long timeouts since its a websocket?
+	//	//WriteTimeout: serverConfig.GetHttpMaxWriteTimeout(),
+	//	//ReadTimeout:  serverConfig.GetHttpMaxReadTimeout(),
+	//
+	//	// Set timeouts to 0 to disable them because we are using websockets
+	//	WriteTimeout: 0,
+	//	ReadTimeout:  0,
+	//	// We need to wrap it in h2c to support HTTP/2 without TLS
+	//	Handler: h2c.NewHandler(s.engine, &http2.Server{}),
+	//}
+	//// Enable HTTP/2 support
+	//if err := http2.ConfigureServer(hServer, &http2.Server{}); err != nil {
+	//	return errors.Wrapf(err, "failed to configure http2 server")
+	//}
 
 	s.hServer = hServer
 
@@ -152,7 +172,9 @@ func (s *Server) registerServices() error {
 
 	sHandler := &WebSocketHandler{}
 	// Mount other Connect handlers
+	// TODO(jlewi): Which handler should we use? Looks like client is using /socket.io by default
 	mux.Handle("/ws", http.HandlerFunc(sHandler.Handler))
+	mux.Handle("/socket.io/", http.HandlerFunc(sHandler.Handler))
 
 	checker := grpchealth.NewStaticChecker()
 	mux.Handle(grpchealth.NewHandler(checker))

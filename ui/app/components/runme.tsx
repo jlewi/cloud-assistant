@@ -111,7 +111,9 @@ const RunmeConsole = ({
     } as Partial<RendererContext<void>>)
 
     useEffect(() => {
-        socket = io();
+        socket = io( {
+            transports: ['websocket']
+          });
 
         socket.on('connect', () => {
             console.log(new Date(), 'Connected to WebSocket server');

@@ -9,7 +9,13 @@ import { useFiles } from "./file-viewer";
 import { useBlocks } from "./blocks-context";
 import { useClient as useRunmeClient } from "./runme-client";
 import * as runner_pb from "../../gen/es/runme/runner/v2/runner_pb";
-import RunmeConsole from "./runme";
+import dynamic from 'next/dynamic'
+
+const RunmeConsoleWithoutSSR = dynamic(
+  () => import('./runme'),
+  { ssr: false }
+)
+
 // Define BlocksContext
 export type BlocksContextType = {
   blocks: blocks_pb.Block[];
@@ -209,7 +215,7 @@ export const Block: React.FC<BlockProps> = ({ block, onChange, onRun }) => {
   };
 
   let output = ''
-  const outputHandler = (data: Uint8Array<ArrayBufferLike>): void => {
+  const outputHandler = (data: Uint8Array): void => {
     output += new TextDecoder().decode(data);
   };
 
@@ -276,7 +282,7 @@ export const Block: React.FC<BlockProps> = ({ block, onChange, onRun }) => {
         </div>
         <div>
           {execCommands && (
-            <RunmeConsole
+            <RunmeConsoleWithoutSSR
               commands={execCommands}
               onStdout={outputHandler}
               onStderr={outputHandler}
