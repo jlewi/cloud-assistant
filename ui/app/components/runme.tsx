@@ -13,7 +13,6 @@ import { create } from "@bufbuild/protobuf";
 import { VSCodeEvent } from "vscode-notebook-renderer/events";
 import { ulid } from "ulid";
 let socket: WebSocket;
-//let socketOpenPromise: Promise<void>;
 
 // A queue for socket requests.
 // We enqueue messages to deal with the case where the socket isn't open yet.
@@ -290,34 +289,17 @@ function createWebSocket(): WebSocket {
     // TODO(jlewi): Should make this default to an address based on the current origin
     const ws = new WebSocket("ws://localhost:8080/ws");
 
-    // This is setting the global promise
-    // socketOpenPromise = new Promise((resolve, reject) => {
-    //     ws.onopen = () => {
-    //         console.log(new Date(), "✅ Connected to WebSocket server");
-
-    //         if (sendQueue.length > 0) {
-    //             console.log("Sending queued messages");
-    //         }
-    //         // Send all the messages in the queue
-    //         while (sendQueue.length > 0) {
-    //             const req = sendQueue.shift();
-    //             ws.send(JSON.stringify(toJson(SocketRequestSchema, req)));
-    //         }
-
-    //         resolve();
-    //     };
-    //     ws.onerror = (err) => {
-    //         reject(err);
-    //     };
-    // });
-
     ws.onopen = () => {
         console.log(new Date(), "✅ Connected to Runme WebSocket server");
 
         if (sendQueue.length > 0) {
             console.log("Sending queued messages");
         }
+
         // Send all the messages in the queue
+        // These will be messages that were enqueued before the socket was open.
+        // If we try to send a message before the socket is open it will fail and 
+        // close the connection so we need to enqueue htem.
         while (sendQueue.length > 0) {
             const req = sendQueue.shift();
             ws.send(JSON.stringify(toJson(SocketRequestSchema, req)));

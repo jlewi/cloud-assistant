@@ -170,11 +170,11 @@ func (s *Server) registerServices() error {
 	//	mux.Handle(rPath, rHandler)
 	//}
 
-	sHandler := &WebSocketHandler{}
+	sHandler := &WebSocketHandler{
+		runner: s.runner,
+	}
 	// Mount other Connect handlers
-	// TODO(jlewi): Which handler should we use? Looks like client is using /socket.io by default
 	mux.Handle("/ws", http.HandlerFunc(sHandler.Handler))
-	mux.Handle("/socket.io/", http.HandlerFunc(sHandler.Handler))
 
 	checker := grpchealth.NewStaticChecker()
 	mux.Handle(grpchealth.NewHandler(checker))

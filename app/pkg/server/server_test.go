@@ -5,18 +5,23 @@ import (
 	"context"
 	"fmt"
 	"github.com/go-logr/zapr"
+	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 	"github.com/jlewi/cloud-assistant/app/pkg/application"
 	"github.com/jlewi/cloud-assistant/app/pkg/config"
 	"github.com/jlewi/cloud-assistant/app/pkg/logs"
+	"github.com/jlewi/cloud-assistant/protos/gen/cassie"
 	"github.com/jlewi/monogo/networking"
 	"github.com/pkg/errors"
+	v2 "github.com/stateful/runme/v3/pkg/api/gen/proto/go/runme/runner/v2"
 	"go.uber.org/zap"
 	"google.golang.org/grpc/health/grpc_health_v1"
+	"google.golang.org/protobuf/encoding/protojson"
 	"net/http"
 	"net/url"
 	"os"
 	"os/signal"
+	"sync"
 	"testing"
 	"time"
 )
@@ -138,50 +143,80 @@ func runRunmeClient(baseURL string) (map[string]any, error) {
 
 	done := make(chan struct{})
 
+	gotAllMessage := sync.WaitGroup{}
+	gotAllMessage.Add(1)
+
 	go func() {
 		defer close(done)
 		for {
 			_, message, err := c.ReadMessage()
 			if err != nil {
 				log.Error(err, "read error")
+			}
+
+			response := &cassie.SocketResponse{}
+			if err := protojson.Unmarshal(message, response); err != nil {
+				log.Error(err, "Failed to unmarshal message")
 				return
 			}
-			log.Info("received", "message", string(message))
+			if response.GetExecuteResponse() != nil {
+				resp := response.GetExecuteResponse()
+				if resp.GetExitCode() != nil {
+					// Use ExitCode to determine if the message indicates the end of the program
+					gotAllMessage.Done()
+				}
+				log.Info("Command Response", "stdout", string(resp.StdoutData), "stderr", string(resp.StderrData), "exitCode", resp.ExitCode)
+			} else {
+				log.Info("received", "message", string(message))
+			}
 		}
 	}()
 
-	ticker := time.NewTicker(time.Second)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-done:
-			return blocks, nil
-		case t := <-ticker.C:
-			message := fmt.Sprintf("Hello, the time is %v", t)
-			err := c.WriteMessage(websocket.TextMessage, []byte(message))
-			if err != nil {
-				log.Error(err, "write error")
-				return blocks, errors.Wrapf(err, "Failed to write message; %v", err)
-			}
-		case <-interrupt:
-			log.Info("interrupt")
-
-			// Cleanly close the connection by sending a close message and then
-			// waiting (with timeout) for the server to close the connection.
-			err := c.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
-			if err != nil {
-				log.Error(err, "write close error")
-				return blocks, errors.Wrapf(err, "Failed to write close message; %v", err)
-			}
-			select {
-			case <-done:
-			case <-time.After(time.Second):
-			}
-			return blocks, nil
-		}
+	executeRequest := &v2.ExecuteRequest{
+		Config: &v2.ProgramConfig{
+			ProgramName:   "/bin/zsh",
+			Arguments:     make([]string, 0),
+			LanguageId:    "sh",
+			Background:    false,
+			FileExtension: "",
+			Env: []string{
+				`RUNME_ID=${blockID}`,
+				"RUNME_RUNNER=v2",
+				"TERM=xterm-256color",
+			},
+			Source: &v2.ProgramConfig_Commands{
+				Commands: &v2.ProgramConfig_CommandList{
+					Items: []string{
+						"ls -la /tmp",
+					},
+				},
+			},
+			Interactive: true,
+			Mode:        v2.CommandMode_COMMAND_MODE_INLINE,
+			KnownId:     uuid.NewString(),
+		},
+		Winsize: &v2.Winsize{Rows: 34, Cols: 100, X: 0, Y: 0},
 	}
 
+	socketRequest := &cassie.SocketRequest{
+		Payload: &cassie.SocketRequest_ExecuteRequest{
+			ExecuteRequest: executeRequest,
+		},
+	}
+
+	message, err := protojson.Marshal(socketRequest)
+	if err != nil {
+		log.Error(err, "Failed to marshal message")
+		return blocks, errors.Wrapf(err, "Failed to marshal message; %v", err)
+	}
+
+	err = c.WriteMessage(websocket.TextMessage, []byte(message))
+	if err != nil {
+		log.Error(err, "write error")
+		return blocks, errors.Wrapf(err, "Failed to write message; %v", err)
+	}
+
+	gotAllMessage.Wait()
 	return blocks, nil
 }
 
