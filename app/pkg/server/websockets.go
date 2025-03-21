@@ -3,6 +3,7 @@ package server
 import (
 	"github.com/gorilla/websocket"
 	"github.com/jlewi/cloud-assistant/app/pkg/logs"
+	"github.com/jlewi/cloud-assistant/protos/gen/cassie"
 	"net/http"
 )
 
@@ -38,6 +39,13 @@ func (h *WebSocketHandler) Handler(w http.ResponseWriter, r *http.Request) {
 			break
 		}
 
+		req := &cassie.SocketRequest{}
+
+		switch messageType {
+		case websocket.TextMessage:
+
+		case websocket.BinaryMessage:
+		}
 		log.Info("Received message", "message", string(message))
 
 		// Process the message or send a response

@@ -14,11 +14,11 @@ building it on demand using bazel.
 Language bindings are generated using [buf](https://buf.build/docs/introduction)
 
 ```sh
-buf generate
+buf dep update
 ```
 
 ```sh
-buf config init
+buf generate
 ```
 
 ## Generate the protocol buffers
