@@ -1,4 +1,4 @@
-module github.com/jlewi/cloud-assistant/app
+module github.com/jlewi/cloud-assistant
 
 go 1.23.1
 
