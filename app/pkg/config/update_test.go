@@ -26,7 +26,6 @@ func Test_UpdateViperConfig(t *testing.T) {
 				Logging: Logging{
 					Level: "",
 				},
-				SomeOption: "some-value",
 			},
 		},
 	}
