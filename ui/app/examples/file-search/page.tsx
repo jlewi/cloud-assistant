@@ -17,7 +17,7 @@ const FileSearchPage = () => {
       </Head>
       <main className={styles.main}>
         <div className={styles.row}>
-        <h1 className={styles.title}>Cloud Assistant Modified</h1>
+        <h1 className={styles.title}>Cloud Assistant</h1>
         </div>
         <FilesProvider>
         <ClientProvider>        
