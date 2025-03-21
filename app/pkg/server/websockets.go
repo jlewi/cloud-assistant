@@ -37,7 +37,9 @@ func (h *WebSocketHandler) Handler(w http.ResponseWriter, r *http.Request) {
 	defer conn.Close()
 
 	for {
+		log.Info("Waiting for message")
 		messageType, message, err := conn.ReadMessage()
+		log.Info("Got for message")
 		if err != nil {
 			log.Error(err, "Could not read message")
 			break
