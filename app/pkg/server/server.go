@@ -1,8 +1,6 @@
 package server
 
 import (
-	//"connectrpc.com/connect"
-	connectcors "connectrpc.com/cors"
 	"connectrpc.com/grpchealth"
 	"golang.org/x/net/http2"
 
@@ -12,7 +10,6 @@ import (
 	"github.com/go-logr/zapr"
 	"github.com/jlewi/cloud-assistant/app/pkg/config"
 	"github.com/pkg/errors"
-	"github.com/rs/cors"
 	//"github.com/stateful/runme/v3/pkg/api/gen/proto/go/runme/runner/v2/runnerv2connect"
 	"go.uber.org/zap"
 	"net"
@@ -58,18 +55,6 @@ func NewServer(cfg config.Config) (*Server, error) {
 		runner: runner,
 	}
 	return s, nil
-}
-
-// withCORS adds CORS support to a Connect HTTP handler.
-func withCORS(connectHandler http.Handler, allowedOrigins []string) http.Handler {
-	c := cors.New(cors.Options{
-		AllowedOrigins: allowedOrigins, // replace with your domain
-		AllowedMethods: connectcors.AllowedMethods(),
-		AllowedHeaders: connectcors.AllowedHeaders(),
-		ExposedHeaders: connectcors.ExposedHeaders(),
-		MaxAge:         7200, // 2 hours in seconds
-	})
-	return c.Handler(connectHandler)
 }
 
 // Run starts the http server

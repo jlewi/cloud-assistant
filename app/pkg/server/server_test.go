@@ -80,7 +80,9 @@ func setupAndRunServer(cfg config.Config) error {
 		return errors.Wrap(err, "Failed to create server")
 	}
 	go func() {
-		srv.Run()
+		if err := srv.Run(); err != nil {
+			log.Error(err, "Error running server")
+		}
 		log.Info("Shutting down server...")
 		srv.shutdown()
 	}()
@@ -131,7 +133,7 @@ func runRunmeClient(baseURL string) (map[string]any, error) {
 		return blocks, errors.Wrapf(err, "Failed to parse URL")
 	}
 
-	u := url.URL{Scheme: "ws", Host: fmt.Sprintf("%s", base.Host), Path: "/ws"}
+	u := url.URL{Scheme: "ws", Host: base.Host, Path: "/ws"}
 	log.Info("connecting to", "host", u.String())
 
 	c, _, err := websocket.DefaultDialer.Dial(u.String(), nil)

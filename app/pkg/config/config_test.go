@@ -10,11 +10,8 @@ import (
 
 func Test_ConfigDefaultConfig(t *testing.T) {
 	type testCase struct {
-		name                    string
-		configFile              string
-		expectedRAG             bool
-		expectedHTTPPort        int
-		expectedMaxDelaySeconds int
+		name       string
+		configFile string
 	}
 
 	cases := []testCase{
