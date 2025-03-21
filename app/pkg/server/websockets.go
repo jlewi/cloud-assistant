@@ -55,11 +55,12 @@ func (h *WebSocketHandler) Handler(w http.ResponseWriter, r *http.Request) {
 	log.Info("Websocket request finished")
 }
 
-// WSConnHandler is a processor for messages received over a websocket.
+// RunmeHandler is a processor for messages received over a websocket from a single RunmeConsole element
+// in the DOM.
 //
 // There is one instance of this struct per websocket connection; i.e. each instance handles a single websocket
 // connection. There is also 1 websocket connection per RunmeConsole element (block) in the UI.
-// So this SocketMessageProcessor is only handling one UI block. However, multiple commands can be sent over
+// So this RunmeHandler is only handling one UI block. However, multiple commands can be sent over
 // the websocket connection. Right now we only support non-interactive commands. So the protocol is
 // client sends a single ExecuteRequest and then the server responds with multiple ExecuteResponses.
 // The runnerv2service.Execute method is invoked once per ExecuteRequest; it will terminate when execution finishes.
@@ -68,7 +69,7 @@ func (h *WebSocketHandler) Handler(w http.ResponseWriter, r *http.Request) {
 //
 // However, we should also be robust to the case where the UI erroneously sends a new request before the current one
 // has finished.
-type WSConnHandler struct {
+type RunmeHandler struct {
 	Ctx    context.Context
 	Conn   *websocket.Conn
 	Runner *Runner
@@ -78,77 +79,16 @@ type WSConnHandler struct {
 	p *SocketMessageProcessor
 }
 
-func NewWSConnHandler(ctx context.Context, conn *websocket.Conn, runner *Runner) *WSConnHandler {
-	return &WSConnHandler{
+func NewWSConnHandler(ctx context.Context, conn *websocket.Conn, runner *Runner) *RunmeHandler {
+	return &RunmeHandler{
 		Ctx:    ctx,
 		Conn:   conn,
 		Runner: runner,
 	}
 }
 
-// Process reads messages from the websocket connection and puts them on the ExecuteRequests channel.
-//func (h *WSConnHandler) Process() {
-//	defer h.Conn.Close()
-//	log := logs.FromContext(h.Ctx)
-//	for {
-//		//// We should build our own buffer to read the message
-//		//var err error
-//		//var message []byte
-//		//var messageType int
-//		messageType, message, err := h.Conn.ReadMessage()
-//		if err != nil {
-//			log.Info("Closing ExecuteRequest channel", "err", err)
-//			// Close the channel.
-//			// This will cause Recv to return io.EOF which will signal to the Runme that no messages are expected
-//			close(p.ExecuteRequests)
-//
-//			closeErr, ok := err.(*websocket.CloseError)
-//
-//			if !ok {
-//				// For now assume unexpected errors are fatal and we should terminate the request.
-//				// This way at least they will be noticeable and we can see if it makes sense to try to keep going
-//				log.Error(err, "Could not read message")
-//				return
-//			}
-//
-//			log.Info("Connection closed", "closeCode", closeErr.Code, "closeText", closeErr.Error())
-//			return
-//		}
-//
-//		req := &cassie.SocketRequest{}
-//
-//		switch messageType {
-//		case websocket.TextMessage:
-//			// Parse the message
-//			if err := protojson.Unmarshal(message, req); err != nil {
-//				log.Error(err, "Could not unmarshal message as SocketRequest")
-//				continue
-//			}
-//			log.Info("Received message", "message", req)
-//		case websocket.BinaryMessage:
-//			// Parse the message
-//			if err := proto.Unmarshal(message, req); err != nil {
-//				log.Error(err, "Could not unmarshal message as SocketRequest")
-//				continue
-//			}
-//			log.Info("Received message", "message", req)
-//		default:
-//			log.Error(nil, "Unsupported message type", "messageType", messageType)
-//			continue
-//		}
-//
-//		if req.GetExecuteRequest() == nil {
-//			log.Info("Received message doesn't contain an ExecuteRequest")
-//			continue
-//		}
-//
-//		// Put the request on the channel
-//		h.ExecuteRequests <- req.GetExecuteRequest()
-//	}
-//}
-
 // receive reads messages from the websocket connection and puts them on the ExecuteRequests channel.
-func (h *WSConnHandler) receive() {
+func (h *RunmeHandler) receive() {
 	log := logs.FromContext(h.Ctx)
 	for {
 
@@ -220,13 +160,13 @@ func (h *WSConnHandler) receive() {
 	}
 }
 
-func (h *WSConnHandler) getInflight() *SocketMessageProcessor {
+func (h *RunmeHandler) getInflight() *SocketMessageProcessor {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	return h.p
 }
 
-func (h *WSConnHandler) setInflight(p *SocketMessageProcessor) {
+func (h *RunmeHandler) setInflight(p *SocketMessageProcessor) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	// Zero out the processor so we will start a new one on the next message
@@ -235,7 +175,7 @@ func (h *WSConnHandler) setInflight(p *SocketMessageProcessor) {
 
 // execute invokes the Runme runner to execute the request.
 // It returns when the request has been processed by Runme.
-func (h *WSConnHandler) execute(p *SocketMessageProcessor) {
+func (h *RunmeHandler) execute(p *SocketMessageProcessor) {
 	defer h.setInflight(nil)
 	// On exit we close the executeResponses channel because no more responses are expected from runme.
 	defer close(p.ExecuteResponses)
@@ -248,7 +188,7 @@ func (h *WSConnHandler) execute(p *SocketMessageProcessor) {
 }
 
 // sendResponses listens for all the responses and sends them over the websocket connection.
-func (h *WSConnHandler) sendResponses(c <-chan *v2.ExecuteResponse) {
+func (h *RunmeHandler) sendResponses(c <-chan *v2.ExecuteResponse) {
 	log := logs.FromContext(h.Ctx)
 	for {
 		res, ok := <-c
