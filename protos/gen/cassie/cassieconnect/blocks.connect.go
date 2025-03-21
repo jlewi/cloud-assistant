@@ -8,7 +8,7 @@ import (
 	connect "connectrpc.com/connect"
 	context "context"
 	errors "errors"
-	cassie "github.com/openai/openai/api/cloud-assistant/protos/gen/cassie"
+	cassie "github.com/jlewi/cloud-assistant/protos/gen/cassie"
 	http "net/http"
 	strings "strings"
 )

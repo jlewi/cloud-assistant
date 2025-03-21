@@ -1,5 +1,7 @@
 syntax = "proto3";
 
+option go_package = "github.com/jlewi/cloud-assistant/protos/gen/cassie";
+
 message FileSearchResult {
   // The unique ID of the file.
   string FileID = 1;

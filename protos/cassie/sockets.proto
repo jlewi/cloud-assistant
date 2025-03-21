@@ -1,6 +1,8 @@
 syntax = "proto3";
 import "runme/runner/v2/runner.proto";
 
+option go_package = "github.com/jlewi/cloud-assistant/protos/gen/cassie";
+
 // SocketRequest defines the message sent by the client over a websocket.
 // The request is a union of types that indicate the type of message.
 message SocketRequest {

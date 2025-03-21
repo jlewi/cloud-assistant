@@ -1,17 +1,17 @@
 package server
 
 import (
-	"connectrpc.com/connect"
+	//"connectrpc.com/connect"
 	connectcors "connectrpc.com/cors"
 	"connectrpc.com/grpchealth"
-	"connectrpc.com/otelconnect"
+	//"connectrpc.com/otelconnect"
 	"context"
 	"fmt"
 	"github.com/go-logr/zapr"
 	"github.com/jlewi/cloud-assistant/app/pkg/config"
 	"github.com/pkg/errors"
 	"github.com/rs/cors"
-	"github.com/stateful/runme/v3/pkg/api/gen/proto/go/runme/runner/v2/runnerv2connect"
+	//"github.com/stateful/runme/v3/pkg/api/gen/proto/go/runme/runner/v2/runnerv2connect"
 	"go.uber.org/zap"
 	"net"
 	"net/http"
@@ -149,26 +149,26 @@ func (s *Server) Run() error {
 }
 
 func (s *Server) registerServices() error {
-	log := zapr.NewLogger(zap.L())
+	//log := zapr.NewLogger(zap.L())
 	mux := http.NewServeMux()
 
 	// Create the OTEL interceptor
-	otelInterceptor, err := otelconnect.NewInterceptor()
-	if err != nil {
-		return errors.Wrapf(err, "Failed to create otel interceptor")
-	}
-
-	interceptors := []connect.Interceptor{otelInterceptor}
+	//otelInterceptor, err := otelconnect.NewInterceptor()
+	//if err != nil {
+	//	return errors.Wrapf(err, "Failed to create otel interceptor")
+	//}
+	//
+	//interceptors := []connect.Interceptor{otelInterceptor}
 
 	// TODO(jlewi): We should probably make the CORS origins configurable
-	origins := []string{"*"}
+	//origins := []string{"*"}
 
-	if s.runner != nil {
-		rPath, rHandler := runnerv2connect.NewRunnerServiceHandler(s.runner, connect.WithInterceptors(interceptors...))
-		rHandler = withCORS(rHandler, origins)
-		log.Info("Setting up runme runner service", "path", rPath)
-		mux.Handle(rPath, rHandler)
-	}
+	//if s.runner != nil {
+	//	rPath, rHandler := runnerv2connect.NewRunnerServiceHandler(s.runner, connect.WithInterceptors(interceptors...))
+	//	rHandler = withCORS(rHandler, origins)
+	//	log.Info("Setting up runme runner service", "path", rPath)
+	//	mux.Handle(rPath, rHandler)
+	//}
 
 	sHandler := &WebSocketHandler{}
 	// Mount other Connect handlers

@@ -6,7 +6,7 @@ toolchain go1.23.7
 
 // TODO(jlewi): Switch back to runme once my changes are merged
 //replace github.com/stateful/runme/v3 => github.com/jlewi/runme/v3 v3.0.0-20250317183759-fcfd0231f3cd
-replace github.com/stateful/runme/v3 => ../../git_runme
+replace github.com/stateful/runme/v3 => ../git_runme
 
 require (
 	connectrpc.com/connect v1.18.1

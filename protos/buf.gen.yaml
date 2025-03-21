@@ -3,9 +3,9 @@ managed:
   # Lets try managed mode for file options rather than managing them directly
   # https://buf.build/docs/cli/quickstart/#configure-a-bufgenyaml
   enabled: true
-  override:
-    - file_option: go_package_prefix
-      value: github.com/openai/openai/api/cloud-assistant/protos/gen
+  #override:
+    #- file_option: go_package_prefix
+    #  #value: github.com/jlewi/cloud-assistant/protos/gen
 # deps:
 #   - buf.build/googleapis/googleapis
 plugins:
