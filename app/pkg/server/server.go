@@ -4,6 +4,8 @@ import (
 	//"connectrpc.com/connect"
 	connectcors "connectrpc.com/cors"
 	"connectrpc.com/grpchealth"
+	"golang.org/x/net/http2"
+
 	//"connectrpc.com/otelconnect"
 	"context"
 	"fmt"
@@ -94,36 +96,16 @@ func (s *Server) Run() error {
 	// N.B. We don't use an http2 server because we are using websockets and we were having some issues with
 	// http2. Without http2 I'm not sure we can serve grpc.
 	hServer := &http.Server{
-		// Do we need long timeouts since its a websocket?
-		//WriteTimeout: serverConfig.GetHttpMaxWriteTimeout(),
-		//ReadTimeout:  serverConfig.GetHttpMaxReadTimeout(),
-
 		// Set timeouts to 0 to disable them because we are using websockets
 		WriteTimeout: 0,
 		ReadTimeout:  0,
 		Handler:      s.engine,
 	}
 	// Enable HTTP/2 support
-	//if err := http2.ConfigureServer(hServer, &http2.Server{}); err != nil {
-	//	return errors.Wrapf(err, "failed to configure http2 server")
-	//}
-
-	//hServer := &http.Server{
-	//	// Do we need long timeouts since its a websocket?
-	//	//WriteTimeout: serverConfig.GetHttpMaxWriteTimeout(),
-	//	//ReadTimeout:  serverConfig.GetHttpMaxReadTimeout(),
-	//
-	//	// Set timeouts to 0 to disable them because we are using websockets
-	//	WriteTimeout: 0,
-	//	ReadTimeout:  0,
-	//	// We need to wrap it in h2c to support HTTP/2 without TLS
-	//	Handler: h2c.NewHandler(s.engine, &http2.Server{}),
-	//}
-	//// Enable HTTP/2 support
-	//if err := http2.ConfigureServer(hServer, &http2.Server{}); err != nil {
-	//	return errors.Wrapf(err, "failed to configure http2 server")
-	//}
-
+	if err := http2.ConfigureServer(hServer, &http2.Server{}); err != nil {
+		return errors.Wrapf(err, "failed to configure http2 server")
+	}
+	
 	s.hServer = hServer
 
 	lis, err := net.Listen("tcp", address)
