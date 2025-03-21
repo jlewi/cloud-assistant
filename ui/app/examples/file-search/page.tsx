@@ -13,11 +13,11 @@ const FileSearchPage = () => {
   return (
     <>
       <Head>
-      <title>Cloud Assistant (go/act)</title>
+      <title>Cloud Assistant</title>
       </Head>
       <main className={styles.main}>
         <div className={styles.row}>
-        <h1 className={styles.title}>Cloud Assistant (go/act)</h1>
+        <h1 className={styles.title}>Cloud Assistant Modified</h1>
         </div>
         <FilesProvider>
         <ClientProvider>        

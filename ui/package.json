@@ -4,7 +4,6 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "dev-server": "npx tsx server.ts",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
