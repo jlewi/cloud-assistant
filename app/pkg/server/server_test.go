@@ -21,7 +21,6 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
-	"sync"
 	"testing"
 	"time"
 )
@@ -141,37 +140,37 @@ func runRunmeClient(baseURL string) (map[string]any, error) {
 	}
 	defer c.Close()
 
-	done := make(chan struct{})
+	// Send one command
+	if err := sendExecuteRequest(c, newExecuteRequest([]string{"ls -la"})); err != nil {
+		return blocks, errors.Wrapf(err, "Failed to send execute request; %v", err)
+	}
 
-	gotAllMessage := sync.WaitGroup{}
-	gotAllMessage.Add(1)
+	// Wait for the command to finish.
+	block, err := waitForCommandToFinish(c)
+	if err != nil {
+		return blocks, errors.Wrapf(err, "Failed to wait for command to finish; %v", err)
+	}
 
-	go func() {
-		defer close(done)
-		for {
-			_, message, err := c.ReadMessage()
-			if err != nil {
-				log.Error(err, "read error")
-			}
+	log.Info("Block", "block", logs.ZapProto("block", block))
 
-			response := &cassie.SocketResponse{}
-			if err := protojson.Unmarshal(message, response); err != nil {
-				log.Error(err, "Failed to unmarshal message")
-				return
-			}
-			if response.GetExecuteResponse() != nil {
-				resp := response.GetExecuteResponse()
-				if resp.GetExitCode() != nil {
-					// Use ExitCode to determine if the message indicates the end of the program
-					gotAllMessage.Done()
-				}
-				log.Info("Command Response", "stdout", string(resp.StdoutData), "stderr", string(resp.StderrData), "exitCode", resp.ExitCode)
-			} else {
-				log.Info("received", "message", string(message))
-			}
-		}
-	}()
+	// Send second command
+	if err := sendExecuteRequest(c, newExecuteRequest([]string{"echo The date is $(DATE)"})); err != nil {
+		return blocks, errors.Wrapf(err, "Failed to send execute request; %v", err)
+	}
 
+	// Wait for the command to finish.
+	block, err = waitForCommandToFinish(c)
+	if err != nil {
+		return blocks, errors.Wrapf(err, "Failed to wait for command to finish; %v", err)
+	}
+
+	log.Info("Block", "block", logs.ZapProto("block", block))
+
+	return blocks, nil
+}
+
+// newExecuteRequest is a helper function to create an ExecuteRequest.
+func newExecuteRequest(commands []string) *v2.ExecuteRequest {
 	executeRequest := &v2.ExecuteRequest{
 		Config: &v2.ProgramConfig{
 			ProgramName:   "/bin/zsh",
@@ -186,9 +185,7 @@ func runRunmeClient(baseURL string) (map[string]any, error) {
 			},
 			Source: &v2.ProgramConfig_Commands{
 				Commands: &v2.ProgramConfig_CommandList{
-					Items: []string{
-						"ls -la /tmp",
-					},
+					Items: commands,
 				},
 			},
 			Interactive: true,
@@ -197,7 +194,11 @@ func runRunmeClient(baseURL string) (map[string]any, error) {
 		},
 		Winsize: &v2.Winsize{Rows: 34, Cols: 100, X: 0, Y: 0},
 	}
+	return executeRequest
+}
 
+// sendExecuteRequest sends an ExecuteRequest to the server.
+func sendExecuteRequest(c *websocket.Conn, executeRequest *v2.ExecuteRequest) error {
 	socketRequest := &cassie.SocketRequest{
 		Payload: &cassie.SocketRequest_ExecuteRequest{
 			ExecuteRequest: executeRequest,
@@ -206,18 +207,61 @@ func runRunmeClient(baseURL string) (map[string]any, error) {
 
 	message, err := protojson.Marshal(socketRequest)
 	if err != nil {
-		log.Error(err, "Failed to marshal message")
-		return blocks, errors.Wrapf(err, "Failed to marshal message; %v", err)
+		return errors.Wrapf(err, "Failed to marshal message; %v", err)
 	}
 
 	err = c.WriteMessage(websocket.TextMessage, []byte(message))
 	if err != nil {
-		log.Error(err, "write error")
-		return blocks, errors.Wrapf(err, "Failed to write message; %v", err)
+		return errors.Wrapf(err, "Failed to write message; %v", err)
+	}
+	return nil
+}
+
+func waitForCommandToFinish(c *websocket.Conn) (*cassie.Block, error) {
+	log := logs.NewLogger()
+
+	block := &cassie.Block{
+		Outputs: make([]*cassie.BlockOutput, 0),
 	}
 
-	gotAllMessage.Wait()
-	return blocks, nil
+	block.Outputs = append(block.Outputs, &cassie.BlockOutput{
+
+		Items: []*cassie.BlockOutputItem{
+			{
+				TextData: "",
+			},
+			{
+				TextData: "",
+			},
+		},
+	})
+	for {
+		_, message, err := c.ReadMessage()
+		if err != nil {
+			log.Error(err, "read error")
+		}
+
+		response := &cassie.SocketResponse{}
+		if err := protojson.Unmarshal(message, response); err != nil {
+			log.Error(err, "Failed to unmarshal message")
+			return block, errors.Wrapf(err, "Failed to unmarshal message; %v", err)
+		}
+		if response.GetExecuteResponse() != nil {
+			resp := response.GetExecuteResponse()
+
+			block.Outputs[0].Items[0].TextData += string(resp.StdoutData)
+			block.Outputs[0].Items[1].TextData += string(resp.StderrData)
+
+			if resp.GetExitCode() != nil {
+				// Use ExitCode to determine if the message indicates the end of the program
+				return block, nil
+			}
+			log.Info("Command Response", "stdout", string(resp.StdoutData), "stderr", string(resp.StderrData), "exitCode", resp.ExitCode)
+		} else {
+			log.Info("received", "message", string(message))
+		}
+	}
+
 }
 
 func SkipIfMissing(t *testing.T, env string) string {

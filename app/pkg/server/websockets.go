@@ -12,6 +12,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	"io"
 	"net/http"
+	"sync"
 )
 
 var upgrader = websocket.Upgrader{
@@ -46,75 +47,120 @@ func (h *WebSocketHandler) Handler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	func() {
-		defer conn.Close()
+	defer conn.Close()
+	processor := NewWSConnHandler(r.Context(), conn, h.runner)
 
-		processor := NewSocketMessageProcessor(r.Context(), conn)
-
-		// Invoke the runme code
-		// This will block until the client closes the connection
-		// or Execute returns indicating the completion of Runme execution.
-		if err := h.runner.server.Execute(processor); err != nil {
-			log.Error(err, "Execute finished with error")
-		}
-	}()
-	// Signal to the readMessages goroutine that it should stop reading messages
-	//processor.StopReading <- true
+	// This will keep reading messages and streaming the outputs until the connection is closed.
+	processor.receive()
 	log.Info("Websocket request finished")
 }
 
-// SocketMessageProcessor is a processor for messages received over a websocket.
-// It wraps the websocket connection in the grpc.BidiStreamingServer[ExecuteRequest, ExecuteResponse] interface
-// so that we can invoke the runme code.
-type SocketMessageProcessor struct {
-	Ctx             context.Context
-	Conn            *websocket.Conn
-	ExecuteRequests chan *v2.ExecuteRequest
-	// StopReading is used to signal to the readMessages goroutine that it should stop reading messages
-	StopReading chan bool
+// WSConnHandler is a processor for messages received over a websocket.
+//
+// There is one instance of this struct per websocket connection; i.e. each instance handles a single websocket
+// connection. There is also 1 websocket connection per RunmeConsole element (block) in the UI.
+// So this SocketMessageProcessor is only handling one UI block. However, multiple commands can be sent over
+// the websocket connection. Right now we only support non-interactive commands. So the protocol is
+// client sends a single ExecuteRequest and then the server responds with multiple ExecuteResponses.
+// The runnerv2service.Execute method is invoked once per ExecuteRequest; it will terminate when execution finishes.
+// However, the UI could send additional ExecuteRequests over the same websocket connection. These could
+// be a stop/terminate message to indicate we should abort a long running command.
+//
+// However, we should also be robust to the case where the UI erroneously sends a new request before the current one
+// has finished.
+type WSConnHandler struct {
+	Ctx    context.Context
+	Conn   *websocket.Conn
+	Runner *Runner
+
+	mu sync.Mutex
+	// p is the processor that is currently processing messages. If p is nil then no processor is currently processing
+	p *SocketMessageProcessor
 }
 
-func (p *SocketMessageProcessor) SendMsg(m any) error {
-	err := errors.New("SendMsg is not implemented")
-	log := logs.FromContext(p.Ctx)
-	log.Error(err, "SendMsg is not implemented")
-	return err
-}
-
-func (p *SocketMessageProcessor) RecvMsg(m any) error {
-	err := errors.New("RecvMsg is not implemented")
-	log := logs.FromContext(p.Ctx)
-	log.Error(err, "RecvMsg is not implemented")
-	return err
-}
-
-func NewSocketMessageProcessor(ctx context.Context, conn *websocket.Conn) *SocketMessageProcessor {
-	p := &SocketMessageProcessor{
-		Ctx:  ctx,
-		Conn: conn,
-		// Create a channel to buffer requests
-		ExecuteRequests: make(chan *v2.ExecuteRequest, 100),
-		StopReading:     make(chan bool, 1),
+func NewWSConnHandler(ctx context.Context, conn *websocket.Conn, runner *Runner) *WSConnHandler {
+	return &WSConnHandler{
+		Ctx:    ctx,
+		Conn:   conn,
+		Runner: runner,
 	}
-
-	// Start a goroutine to read messages from the websocket and put them on the channel
-	go p.readMesages()
-	return p
 }
 
-func (p *SocketMessageProcessor) readMesages() {
-	log := logs.FromContext(p.Ctx)
+// Process reads messages from the websocket connection and puts them on the ExecuteRequests channel.
+//func (h *WSConnHandler) Process() {
+//	defer h.Conn.Close()
+//	log := logs.FromContext(h.Ctx)
+//	for {
+//		//// We should build our own buffer to read the message
+//		//var err error
+//		//var message []byte
+//		//var messageType int
+//		messageType, message, err := h.Conn.ReadMessage()
+//		if err != nil {
+//			log.Info("Closing ExecuteRequest channel", "err", err)
+//			// Close the channel.
+//			// This will cause Recv to return io.EOF which will signal to the Runme that no messages are expected
+//			close(p.ExecuteRequests)
+//
+//			closeErr, ok := err.(*websocket.CloseError)
+//
+//			if !ok {
+//				// For now assume unexpected errors are fatal and we should terminate the request.
+//				// This way at least they will be noticeable and we can see if it makes sense to try to keep going
+//				log.Error(err, "Could not read message")
+//				return
+//			}
+//
+//			log.Info("Connection closed", "closeCode", closeErr.Code, "closeText", closeErr.Error())
+//			return
+//		}
+//
+//		req := &cassie.SocketRequest{}
+//
+//		switch messageType {
+//		case websocket.TextMessage:
+//			// Parse the message
+//			if err := protojson.Unmarshal(message, req); err != nil {
+//				log.Error(err, "Could not unmarshal message as SocketRequest")
+//				continue
+//			}
+//			log.Info("Received message", "message", req)
+//		case websocket.BinaryMessage:
+//			// Parse the message
+//			if err := proto.Unmarshal(message, req); err != nil {
+//				log.Error(err, "Could not unmarshal message as SocketRequest")
+//				continue
+//			}
+//			log.Info("Received message", "message", req)
+//		default:
+//			log.Error(nil, "Unsupported message type", "messageType", messageType)
+//			continue
+//		}
+//
+//		if req.GetExecuteRequest() == nil {
+//			log.Info("Received message doesn't contain an ExecuteRequest")
+//			continue
+//		}
+//
+//		// Put the request on the channel
+//		h.ExecuteRequests <- req.GetExecuteRequest()
+//	}
+//}
+
+// receive reads messages from the websocket connection and puts them on the ExecuteRequests channel.
+func (h *WSConnHandler) receive() {
+	log := logs.FromContext(h.Ctx)
 	for {
-		//// We should build our own buffer to read the message
-		//var err error
-		//var message []byte
-		//var messageType int
-		messageType, message, err := p.Conn.ReadMessage()
+
+		messageType, message, err := h.Conn.ReadMessage()
 		if err != nil {
 			log.Info("Closing ExecuteRequest channel", "err", err)
 			// Close the channel.
 			// This will cause Recv to return io.EOF which will signal to the Runme that no messages are expected
-			close(p.ExecuteRequests)
+			p := h.getInflight()
+			if p != nil {
+				p.close()
+			}
 
 			closeErr, ok := err.(*websocket.CloseError)
 
@@ -156,9 +202,119 @@ func (p *SocketMessageProcessor) readMesages() {
 			continue
 		}
 
+		// Check if we already have an Execute processing inflight
+		// if not we launch. We need to run this asynchronously becaue it is a blocking function
+		p := h.getInflight()
+		if p == nil {
+			p = NewSocketMessageProcessor(h.Ctx)
+			h.setInflight(p)
+			go h.execute(p)
+
+			// start a separate goroutine to send responses to the client
+			go h.sendResponses(p.ExecuteResponses)
+		}
+
 		// Put the request on the channel
+		// Access the local variable to ensure its always set at this point and avoid race conditions.
 		p.ExecuteRequests <- req.GetExecuteRequest()
 	}
+}
+
+func (h *WSConnHandler) getInflight() *SocketMessageProcessor {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	return h.p
+}
+
+func (h *WSConnHandler) setInflight(p *SocketMessageProcessor) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	// Zero out the processor so we will start a new one on the next message
+	h.p = nil
+}
+
+// execute invokes the Runme runner to execute the request.
+// It returns when the request has been processed by Runme.
+func (h *WSConnHandler) execute(p *SocketMessageProcessor) {
+	defer h.setInflight(nil)
+	// On exit we close the executeResponses channel because no more responses are expected from runme.
+	defer close(p.ExecuteResponses)
+	log := logs.FromContext(h.Ctx)
+	// Send the request to the runner
+	if err := h.Runner.server.Execute(p); err != nil {
+		log.Error(err, "Failed to execute request")
+		return
+	}
+}
+
+// sendResponses listens for all the responses and sends them over the websocket connection.
+func (h *WSConnHandler) sendResponses(c <-chan *v2.ExecuteResponse) {
+	log := logs.FromContext(h.Ctx)
+	for {
+		res, ok := <-c
+		if !ok {
+			// The channel is closed
+			log.Info("Channel to SocketProcessor closed")
+			return
+		}
+		response := &cassie.SocketResponse{
+			Payload: &cassie.SocketResponse_ExecuteResponse{
+				ExecuteResponse: res,
+			},
+		}
+		responseData, err := protojson.Marshal(response)
+		if err != nil {
+			log.Error(err, "Could not marshal response")
+		}
+		// Process the message or send a response
+		err = h.Conn.WriteMessage(websocket.TextMessage, responseData)
+		if err != nil {
+			log.Error(err, "Could not send message")
+		}
+	}
+}
+
+type SocketMessageProcessor struct {
+	Ctx              context.Context
+	Conn             *websocket.Conn
+	ExecuteRequests  chan *v2.ExecuteRequest
+	ExecuteResponses chan *v2.ExecuteResponse
+	// StopReading is used to signal to the readMessages goroutine that it should stop reading messages
+	StopReading chan bool
+
+	Runner *Runner
+}
+
+func (p *SocketMessageProcessor) SendMsg(m any) error {
+	err := errors.New("SendMsg is not implemented")
+	log := logs.FromContext(p.Ctx)
+	log.Error(err, "SendMsg is not implemented")
+	return err
+}
+
+func (p *SocketMessageProcessor) RecvMsg(m any) error {
+	err := errors.New("RecvMsg is not implemented")
+	log := logs.FromContext(p.Ctx)
+	log.Error(err, "RecvMsg is not implemented")
+	return err
+}
+
+func NewSocketMessageProcessor(ctx context.Context) *SocketMessageProcessor {
+	p := &SocketMessageProcessor{
+		Ctx: ctx,
+		// Create a channel to buffer requests
+		ExecuteRequests:  make(chan *v2.ExecuteRequest, 100),
+		ExecuteResponses: make(chan *v2.ExecuteResponse, 100),
+		StopReading:      make(chan bool, 1),
+	}
+
+	return p
+}
+
+func (p *SocketMessageProcessor) close() {
+	// Close the requests channel to signal to the Runme that no more requests are expected
+	close(p.ExecuteRequests)
+	// We don't close the responses channel because that is closed in WebsocketHandler.execute
 }
 
 func (p *SocketMessageProcessor) Recv() (*v2.ExecuteRequest, error) {
@@ -178,22 +334,7 @@ func (p *SocketMessageProcessor) Recv() (*v2.ExecuteRequest, error) {
 // error is returned if the stream was terminated unexpectedly, and the
 // handler method should return, as the stream is no longer usable.
 func (p *SocketMessageProcessor) Send(res *v2.ExecuteResponse) error {
-	log := logs.FromContext(p.Ctx)
-	response := &cassie.SocketResponse{
-		Payload: &cassie.SocketResponse_ExecuteResponse{
-			ExecuteResponse: res,
-		},
-	}
-	responseData, err := protojson.Marshal(response)
-	if err != nil {
-		log.Error(err, "Could not marshal response")
-		return err
-	}
-	// Process the message or send a response
-	err = p.Conn.WriteMessage(websocket.TextMessage, responseData)
-	if err != nil {
-		log.Error(err, "Could not send message")
-	}
+	p.ExecuteResponses <- res
 	return nil
 }
 
