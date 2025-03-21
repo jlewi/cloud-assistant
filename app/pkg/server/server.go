@@ -149,26 +149,7 @@ func (s *Server) Run() error {
 }
 
 func (s *Server) registerServices() error {
-	//log := zapr.NewLogger(zap.L())
 	mux := http.NewServeMux()
-
-	// Create the OTEL interceptor
-	//otelInterceptor, err := otelconnect.NewInterceptor()
-	//if err != nil {
-	//	return errors.Wrapf(err, "Failed to create otel interceptor")
-	//}
-	//
-	//interceptors := []connect.Interceptor{otelInterceptor}
-
-	// TODO(jlewi): We should probably make the CORS origins configurable
-	//origins := []string{"*"}
-
-	//if s.runner != nil {
-	//	rPath, rHandler := runnerv2connect.NewRunnerServiceHandler(s.runner, connect.WithInterceptors(interceptors...))
-	//	rHandler = withCORS(rHandler, origins)
-	//	log.Info("Setting up runme runner service", "path", rPath)
-	//	mux.Handle(rPath, rHandler)
-	//}
 
 	sHandler := &WebSocketHandler{
 		runner: s.runner,
@@ -228,22 +209,4 @@ func trapInterrupt(s *Server) {
 		log.Info("Received signal", "signal", msg)
 		s.shutdown()
 	}()
-}
-
-// Middleware to add CORS headers
-func enableCORS(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Set CORS headers
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
-
-		// Handle preflight requests
-		if r.Method == "OPTIONS" {
-			w.WriteHeader(http.StatusOK)
-			return
-		}
-
-		next.ServeHTTP(w, r)
-	})
 }

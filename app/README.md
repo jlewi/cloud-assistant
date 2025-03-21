@@ -1,9 +1,16 @@
-# goapp-template
+# Cloud Assistant Server
 
-Template For Go Applications
+This is the server for the Cloud Assistant project. The server performs two functions
 
-## Creating A New Instance From The Template
+1. It acts as a "proxy" between the Web Client and Runme.
+2. It serves the Web Client.
 
-1. Clone the Repository
-1. Edit `config/config.go` to set `AppName`
-2. Use `hack/rename_repo.sh` to rename the application directory
+[Runme](https://github.com/runmedev/runme) provides a gRPC serve and relies on bidirectional streaming
+for the [Execute Request](https://github.com/runmedev/runme/blob/35cb336a37a4e81d3a4623644dfbe39916a2e824/pkg/api/proto/runme/runner/v2/runner.proto#L438).
+Since BIDI streaming isn't supported in the browser, we use websockets to allow bidirectional streaming.
+
+The server provides a WebsocketHandler for Execute requests that handles requests by invoking Runme.
+Runme is used by linking it in; rather than running it as a separate process and communicating via gRPC.
+
+This currently depends on a forked version of Runme available in 
+[runmedev/runme#767](https://github.com/runmedev/runme/pull/767).
