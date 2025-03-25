@@ -37,7 +37,7 @@ export const useFiles = () => {
   return useContext(FilesContext);
 };
 
-const FileViewer = () => {
+export const FileViewer = () => {
   const { block } = useFiles();
 
   if (!block || !block.fileSearchResults) {
@@ -69,4 +69,3 @@ const FileViewer = () => {
   );
 };
 
-export default FileViewer;

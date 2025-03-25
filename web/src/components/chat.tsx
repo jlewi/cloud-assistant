@@ -77,12 +77,6 @@ const Message = ({ role, text }: MessageProps) => {
   }
 };
 
-type ChatProps = {
-  functionCallHandler?: (
-    toolCall: RequiredActionFunctionToolCall
-  ) => Promise<string>;
-};
-
 const Chat = ({
   functionCallHandler = () => Promise.resolve(""), // default to return empty string
 }: ChatProps) => {

@@ -3,8 +3,10 @@ import { Helmet } from 'react-helmet'
 import './globals.css'
 import openaiLogo from './assets/openai.svg'
 import FileSearch from './pages/FileSearch'
+// Chat is broken it breaks the import
+// import { Chat } from './components/chat'
 import { Flex, Text, Box, Button } from "@radix-ui/themes";
-import { FilesProvider } from "./components/file-viewer";
+import { FileViewer, FilesProvider } from "./components/file-viewer";
 import { ClientProvider } from "./components/ai-client";
 import { BlocksProvider } from "./components/blocks-context";
 
@@ -39,6 +41,7 @@ function ThreeColumnLayout() {
         {/* Column 1 */}
         <Box style={{ flex: 1 }}>
           <h1>How can I help you?</h1>
+          {/* <Chat /> */ }
         </Box>
 
         {/* Column 2 */}
@@ -50,7 +53,7 @@ function ThreeColumnLayout() {
         {/* Column 3 */}
         <Box style={{ flex: 1 }}>
           <h1>Files</h1>
-          {/* <FileViewer/> */}
+          <FileViewer/>
         </Box>
       </Flex>
     </Box>    
