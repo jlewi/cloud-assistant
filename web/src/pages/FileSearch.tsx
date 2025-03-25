@@ -10,14 +10,10 @@ import { BlocksProvider } from "../components/blocks-context";
 
 const FileSearch = () => {
     return (
-        <>
-            <Helmet>
-                <title>OpenAI's Cloud Assistant (go/act)</title>
-            </Helmet>
-            <h1>OpenAI's Cloud Assistant (go/act)</h1>
+        <>            
             <main className={styles.main}>
                 <div className={styles.row}>
-                    <h1 className={styles.title}>OpenAI's Cloud Assistant (go/act)</h1>
+                    <h1 className={styles.title}>How Can I Help You?</h1>
                 </div>
                 <FilesProvider>
                     <ClientProvider>

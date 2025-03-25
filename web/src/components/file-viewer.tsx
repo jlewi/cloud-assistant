@@ -46,6 +46,7 @@ const FileViewer = () => {
 
   return (
     <div className={styles.fileViewer}>
+      <h1> Files </h1>
       <div
         className={`${styles.filesList} ${
           block.fileSearchResults.length !== 0 ? styles.grow : ""
@@ -68,5 +69,3 @@ const FileViewer = () => {
     </div>
   );
 };
-
-export default FileViewer;
