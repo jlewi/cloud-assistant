@@ -3,62 +3,21 @@ import { Helmet } from 'react-helmet'
 import './globals.css'
 import openaiLogo from './assets/openai.svg'
 import FileSearch from './pages/FileSearch'
-import { Flex, Text, Box, Button } from "@radix-ui/themes";
-//import { FilesProvider } from "./components/file-viewer";
-import { ClientProvider } from "./components/ai-client";
-import { BlocksProvider } from "./components/blocks-context";
-
 
 function App() {
   return (
     <>
       <Helmet>
-        <title>Cloud Assistant</title>
-        <meta name="description" content="An AI Assistant For Your Cloud" />
+        <title>OpenAI's Cloud Assistant (go/act)</title>
+        <meta name="description" content="A quickstart template using the Assistants API with OpenAI" />
         <link rel="icon" href={openaiLogo} />
-      </Helmet>      
-
-      <FilesProvider>
-          <ClientProvider>
-              <BlocksProvider>
-          <div>
-            hello world
-            </div>
-      </BlocksProvider>
-      </ClientProvider>
-      </FilesProvider>
+      </Helmet>
+      <div className="app-container">
+        {/* add router later */}
+        <FileSearch />
+      </div>
     </>
   )
 }
 
 export default App
-
-function ThreeColumnLayout() {
-  return (
-    <>
-    <div>
-      <h1>Cloud Assistant</h1>
-    </div>
-    <Box style={{ width: '100%' }}>
-      <Flex style={{ width: '100%' }} gap="4" justify="between">
-        {/* Column 1 */}
-        <Box style={{ flex: 1 }}>
-          <FileSearch/>
-        </Box>
-
-        {/* Column 2 */}
-        <Box style={{ flex: 1 }}>
-          <h1>Actions</h1>
-          {/* Additional items */}
-        </Box>
-
-        {/* Column 3 */}
-        <Box style={{ flex: 1 }}>
-          Some text
-          {/* <FileViewer/> */}
-        </Box>
-      </Flex>
-    </Box>
-    </>
-  );
-}
