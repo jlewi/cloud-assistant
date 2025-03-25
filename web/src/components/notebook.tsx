@@ -302,9 +302,15 @@ export const Block: React.FC<BlockProps> = ({ block, onChange, onRun }) => {
 // }
 
 // N.B. THis is a palce holder
-export const BlocksComponent: React.FC = ({ block }) => {
+export const BlocksComponent: React.FC = () => {
+  // This is a placeholder so we can test visualization.
+  const block = create(blocks_pb.BlockSchema, {
+    kind: blocks_pb.BlockKind.CODE,
+    language: "bash",
+    contents: "echo hello world",
+  });
   return (
-    <div>
+    <div>      
       <Block block={block} onChange={() => { }} onRun={() => { }} />
       </div>
   )

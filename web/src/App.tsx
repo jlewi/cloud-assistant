@@ -1,8 +1,8 @@
-import { Helmet } from 'react-helmet'
+//import { Helmet } from 'react-helmet'
 // import './App.css'
 import './globals.css'
 import openaiLogo from './assets/openai.svg'
-import FileSearch from './pages/FileSearch'
+//import FileSearch from './pages/FileSearch'
 // Chat is broken it breaks the import
 // import { Chat } from './components/chat'
 import { Flex, Text, Box, Button } from "@radix-ui/themes";
@@ -14,11 +14,11 @@ import { BlocksComponent } from './components/notebook';
 function App() {
   return (
     <>
-      <Helmet>
+      {/* <Helmet> */}
         <title>Cloud Assistant</title>
         <meta name="description" content="An AI Assistant For Your Cloud" />
         <link rel="icon" href={openaiLogo} />
-      </Helmet>      
+      {/* </Helmet>       */}
 
       <FilesProvider>
           <ClientProvider>
