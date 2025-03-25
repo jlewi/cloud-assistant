@@ -2,6 +2,8 @@ package server
 
 import (
 	"context"
+	"github.com/go-logr/logr"
+	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 	"github.com/jlewi/cloud-assistant/app/pkg/logs"
 	"github.com/jlewi/cloud-assistant/protos/gen/cassie"
@@ -32,7 +34,13 @@ type WebSocketHandler struct {
 
 func (h *WebSocketHandler) Handler(w http.ResponseWriter, r *http.Request) {
 	log := logs.FromContext(r.Context())
+
+	// This is a hack to see if we are getting multiple requests.
+	// We should really use OTEL and traces
+	requestID := uuid.NewString()[0:8]
+	log = log.WithValues("requestID", requestID)
 	log.Info("Handling websocket request")
+	r.WithContext(logr.NewContext(r.Context(), log))
 
 	if h.runner.server == nil {
 		log.Error(errors.New("Runner server is nil"), "Runner server is nil")
@@ -48,7 +56,7 @@ func (h *WebSocketHandler) Handler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	defer conn.Close()
-	processor := NewWSConnHandler(r.Context(), conn, h.runner)
+	processor := NewRunmeHandler(r.Context(), conn, h.runner)
 
 	// This will keep reading messages and streaming the outputs until the connection is closed.
 	processor.receive()
@@ -79,7 +87,7 @@ type RunmeHandler struct {
 	p *SocketMessageProcessor
 }
 
-func NewWSConnHandler(ctx context.Context, conn *websocket.Conn, runner *Runner) *RunmeHandler {
+func NewRunmeHandler(ctx context.Context, conn *websocket.Conn, runner *Runner) *RunmeHandler {
 	return &RunmeHandler{
 		Ctx:    ctx,
 		Conn:   conn,
@@ -142,8 +150,6 @@ func (h *RunmeHandler) receive() {
 			continue
 		}
 
-		// Check if we already have an Execute processing inflight
-		// if not we launch. We need to run this asynchronously becaue it is a blocking function
 		p := h.getInflight()
 		if p == nil {
 			p = NewSocketMessageProcessor(h.Ctx)
@@ -153,6 +159,9 @@ func (h *RunmeHandler) receive() {
 			// start a separate goroutine to send responses to the client
 			go h.sendResponses(p.ExecuteResponses)
 		}
+		// TODO(jlewi): What should we do if a user tries to send a new request before the current one has finished?
+		// How can we detect if its a new request? Should we check if anything other than a "Stop" request is sent
+		// after the first request? Right now we are just passing it along to RunME. Hopefully, RunMe handles it.
 
 		// Put the request on the channel
 		// Access the local variable to ensure its always set at this point and avoid race conditions.
@@ -169,8 +178,7 @@ func (h *RunmeHandler) getInflight() *SocketMessageProcessor {
 func (h *RunmeHandler) setInflight(p *SocketMessageProcessor) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	// Zero out the processor so we will start a new one on the next message
-	h.p = nil
+	h.p = p
 }
 
 // execute invokes the Runme runner to execute the request.

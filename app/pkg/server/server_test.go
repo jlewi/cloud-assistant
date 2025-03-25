@@ -73,6 +73,57 @@ func Test_ExecuteWithRunme(t *testing.T) {
 
 }
 
+func Test_ExecuteWithRunmeConcurrent(t *testing.T) {
+	// The purpose of this test test is to verify that if we use to ExecuteRequests without waiting for the first to
+	// finish that the server can handle this. Specifically, we want to make sure we don't have concurrent writes
+	// to the websocket on the backend because that causes a panic
+	SkipIfMissing(t, "RUN_MANUAL_TESTS")
+
+	app := application.NewApp()
+	err := app.LoadConfig(nil)
+	if err != nil {
+		t.Fatalf("Error loading config; %v", err)
+	}
+	cfg := app.Config
+
+	if err := app.SetupLogging(); err != nil {
+		t.Fatalf("Error setting up logging; %v", err)
+	}
+
+	log := zapr.NewLoggerWithOptions(zap.L(), zapr.AllowZapFields(true))
+
+	port, err := networking.GetFreePort()
+	if err != nil {
+		t.Fatalf("Error getting free port; %v", err)
+	}
+
+	if cfg.AssistantServer == nil {
+		cfg.AssistantServer = &config.AssistantServerConfig{}
+	}
+	cfg.AssistantServer.Port = port
+	// N.B. Server currently needs to be started manually. Should we start it autommatically?
+	addr := fmt.Sprintf("http://localhost:%v", cfg.AssistantServer.Port)
+	go func() {
+		if err := setupAndRunServer(*cfg); err != nil {
+			log.Error(err, "Error running server")
+		}
+	}()
+
+	// N.B. There's probably a race condition here because the client might start before the server is fully up.
+	// Or maybe that's implicitly handled because the connection won't succeed until the server is up?
+	if err := waitForServer(addr); err != nil {
+		t.Fatalf("Error waiting for server; %v", err)
+	}
+
+	log.Info("Server started")
+	_, err = runRunmeClientConcurrent(addr)
+
+	if err != nil {
+		t.Fatalf("Error running client for addres %v; %v", addr, err)
+	}
+
+}
+
 func setupAndRunServer(cfg config.Config) error {
 	log := zapr.NewLogger(zap.L())
 	srv, err := NewServer(cfg)
@@ -162,6 +213,64 @@ func runRunmeClient(baseURL string) (map[string]any, error) {
 
 	// Wait for the command to finish.
 	block, err = waitForCommandToFinish(c)
+	if err != nil {
+		return blocks, errors.Wrapf(err, "Failed to wait for command to finish; %v", err)
+	}
+
+	log.Info("Block", "block", logs.ZapProto("block", block))
+
+	return blocks, nil
+}
+
+func runRunmeClientConcurrent(baseURL string) (map[string]any, error) {
+	interrupt := make(chan os.Signal, 1)
+	signal.Notify(interrupt, os.Interrupt)
+
+	log := logs.NewLogger()
+
+	blocks := make(map[string]any)
+
+	base, err := url.Parse(baseURL)
+	if err != nil {
+		log.Error(err, "Failed to parse URL")
+		return blocks, errors.Wrapf(err, "Failed to parse URL")
+	}
+
+	u := url.URL{Scheme: "ws", Host: base.Host, Path: "/ws"}
+	log.Info("connecting to", "host", u.String())
+
+	c, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
+	if err != nil {
+		return blocks, errors.Wrapf(err, "Failed to dial; %v", err)
+	}
+	defer c.Close()
+
+	req := newExecuteRequest([]string{`
+for i in {1..10}
+do
+  echo "hello world - from 1"
+  sleep 1
+done`})
+
+	// Send one command
+	if err := sendExecuteRequest(c, req); err != nil {
+		return blocks, errors.Wrapf(err, "Failed to send execute request; %v", err)
+	}
+
+	req2 := newExecuteRequest([]string{`
+for i in {1..10}
+do
+  echo "hello world - from 2"
+  sleep 1
+done`})
+
+	// Send second command
+	if err := sendExecuteRequest(c, req2); err != nil {
+		return blocks, errors.Wrapf(err, "Failed to send execute request; %v", err)
+	}
+
+	// Wait for the command to finish.
+	block, err := waitForCommandToFinish(c)
 	if err != nil {
 		return blocks, errors.Wrapf(err, "Failed to wait for command to finish; %v", err)
 	}
