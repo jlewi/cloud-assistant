@@ -255,21 +255,21 @@ const Chat = ({
 
 export default Chat;
 
-interface BlockProps {
-  block: blocks_pb.Block;
-}
+// interface BlockProps {
+//   block: blocks_pb.Block;
+// }
 
-const BlockComponent: React.FC<BlockProps> = ({ block }) => {
-  if (block.kind == blocks_pb.BlockKind.CODE) {
-    return <CodeMessage text={block.contents} />;
-  }
+// const BlockComponent: React.FC<BlockProps> = ({ block }) => {
+//   if (block.kind == blocks_pb.BlockKind.CODE) {
+//     return <CodeMessage text={block.contents} />;
+//   }
 
-  switch (block.role) {
-    case blocks_pb.BlockRole.USER:
-      return <UserMessage text={block.contents} />;
-    case blocks_pb.BlockRole.ASSISTANT:
-      return <AssistantMessage text={block.contents} />;
-    default:
-      return <AssistantMessage text={block.contents} />;
-  };
-};
+//   switch (block.role) {
+//     case blocks_pb.BlockRole.USER:
+//       return <UserMessage text={block.contents} />;
+//     case blocks_pb.BlockRole.ASSISTANT:
+//       return <AssistantMessage text={block.contents} />;
+//     default:
+//       return <AssistantMessage text={block.contents} />;
+//   };
+// };

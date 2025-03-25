@@ -9,7 +9,7 @@ import { Flex, Text, Box, Button } from "@radix-ui/themes";
 import { FileViewer, FilesProvider } from "./components/file-viewer";
 import { ClientProvider } from "./components/ai-client";
 import { BlocksProvider } from "./components/blocks-context";
-
+import { BlocksComponent } from './components/notebook';
 
 function App() {
   return (
@@ -47,7 +47,7 @@ function ThreeColumnLayout() {
         {/* Column 2 */}
         <Box style={{ flex: 1 }}>
           <h1>Actions</h1>
-          {/* Additional items */}
+          <BlocksComponent/>
         </Box>
 
         {/* Column 3 */}

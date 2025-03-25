@@ -1,19 +1,28 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 import React, { useState, createContext, Dispatch, SetStateAction, useEffect, useRef } from "react";
 import { Button, Card, CardContent } from "./ui";
 import Editor from "@monaco-editor/react";
 //import {BlockComponent } from "./notebook";
 import * as blocks_pb from "../gen/es/cassie/blocks_pb";
+import { useClient, CreateBackendClient } from "./ai-client";
+import { create } from "@bufbuild/protobuf";
 import { useFiles } from "./file-viewer";
 import { useBlocks } from "./blocks-context";
+import { useClient as useRunmeClient } from "./runme-client";
+import * as runner_pb from "../gen/es/runme/runner/v2/runner_pb";
 import RunmeConsole from "./runme";
+//import dynamic from 'next/dynamic'
+
+// const RunmeConsoleWithoutSSR = dynamic(
+//   () => import('./runme'),
+//   { ssr: false }
+// )
+
 // Define BlocksContext
 export type BlocksContextType = {
   blocks: blocks_pb.Block[];
   setBlocks: Dispatch<SetStateAction<blocks_pb.Block[]>>;
 };
 
-// eslint-disable-next-line react-refresh/only-export-components
 export const BlocksContext = createContext<BlocksContextType>({
   blocks: [],
   setBlocks: () => { },
@@ -65,10 +74,10 @@ export const Block: React.FC<BlockProps> = ({ block, onChange, onRun }) => {
 
   const blocksContext = useBlocks();
 
-  // const runmeContext = useRunmeClient();
+  const runmeContext = useRunmeClient();
 
   // Get the AIServe client from the context
-  // const { client, setClient } = useClient();
+  const { client, setClient } = useClient();
 
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -100,49 +109,49 @@ export const Block: React.FC<BlockProps> = ({ block, onChange, onRun }) => {
 
   // sendBlockToAssistant sends a block to the Assistant for processing.
   // TODO(jlewi): Add support for sending outputs
-  // const sendBlockToAssistant = async (block: blocks_pb.Block) => {
-  //   console.log(`sending block ${block.id}`);
-  //   const createThread = async () => {
-  //     let aiClient = client;
-  //     if (aiClient === null) {
-  //       aiClient = CreateBackendClient();
-  //       setClient(aiClient);
-  //     }
+  const sendBlockToAssistant = async (block: blocks_pb.Block) => {
+    console.log(`sending block ${block.id}`);
+    const createThread = async () => {
+      let aiClient = client;
+      if (aiClient === null) {
+        aiClient = CreateBackendClient();
+        setClient(aiClient);
+      }
 
-  //     let blocks: blocks_pb.Block[] = [block];
-  //     // Add the input block to the input
-  //     //updateBlock(blocks[0])
-  //     const req: blocks_pb.GenerateRequest = create(
-  //       blocks_pb.GenerateRequestSchema,
-  //       {
-  //         blocks: blocks,
-  //       }
-  //     );
+      let blocks: blocks_pb.Block[] = [block];
+      // Add the input block to the input
+      //updateBlock(blocks[0])
+      const req: blocks_pb.GenerateRequest = create(
+        blocks_pb.GenerateRequestSchema,
+        {
+          blocks: blocks,
+        }
+      );
 
-  //     console.log("calling generate");
-  //     let responses = aiClient.generate(req);
+      console.log("calling generate");
+      let responses = aiClient.generate(req);
 
-  //     // Streaming response handling
-  //     for await (const response of responses) {
-  //       console.log(`response has ${response.blocks.length} blocks`)
-  //       for (const b of response.blocks) {
-  //         if (b.kind == blocks_pb.BlockKind.FILE_SEARCH_RESULTS) {
-  //           filesContext.setBlock(b)
-  //         } else {
-  //           blocksContext.updateBlock(b)
-  //         }
-  //       }
-  //     }
+      // Streaming response handling
+      for await (const response of responses) {
+        console.log(`response has ${response.blocks.length} blocks`)
+        for (const b of response.blocks) {
+          if (b.kind == blocks_pb.BlockKind.FILE_SEARCH_RESULTS) {
+            filesContext.setBlock(b)
+          } else {
+            blocksContext.updateBlock(b)
+          }
+        }
+      }
 
-  //     // Reenable input
-  //     //setInputDisabled(false);
-  //     console.log("Stream ended.");
-  //   };
+      // Reenable input
+      //setInputDisabled(false);
+      console.log("Stream ended.");
+    };
 
-  //   //console.log("calling createThread");
-  //   createThread();
+    //console.log("calling createThread");
+    createThread();
 
-  // };
+  };
 
   const executeBlockWithRunme = async (block: blocks_pb.Block) => {
     const execCommands = block.contents.replace('\r\n', '\n').split('\n');
@@ -152,62 +161,62 @@ export const Block: React.FC<BlockProps> = ({ block, onChange, onRun }) => {
     setExecCommands(execCommands);
   }
 
-  // const executeBlock = async (block: blocks_pb.Block) => {
-  //   console.log(`sending block ${block.id}`);
-  //   const createThread = async () => {
-  //     const client = runmeContext.getClient();
+  const executeBlock = async (block: blocks_pb.Block) => {
+    console.log(`sending block ${block.id}`);
+    const createThread = async () => {
+      const client = runmeContext.getClient();
 
-  //     // TODO(jlewi): Should we check its a code cell?
-  //     // If its not we could service the error in the output cell.
+      // TODO(jlewi): Should we check its a code cell?
+      // If its not we could service the error in the output cell.
 
-  //     // Add the input block to the input
-  //     //updateBlock(blocks[0])
-  //     const req: runner_pb.ExecuteOneShotRequest = create(
-  //       runner_pb.ExecuteOneShotRequestSchema,
-  //       {
-  //         inputData: new TextEncoder().encode(block.contents),
-  //       }
-  //     );
+      // Add the input block to the input
+      //updateBlock(blocks[0])
+      const req: runner_pb.ExecuteOneShotRequest = create(
+        runner_pb.ExecuteOneShotRequestSchema,
+        {
+          inputData: new TextEncoder().encode(block.contents),
+        }
+      );
 
-  //     console.log("calling executeOneshot");
-  //     let responses = client.executeOneShot(req);
+      console.log("calling executeOneshot");
+      let responses = client.executeOneShot(req);
 
-  //     block.outputs = [];
-  //     block.outputs.push(create(blocks_pb.BlockOutputSchema, {
-  //       items: [
-  //         create(blocks_pb.BlockOutputItemSchema, {
-  //           textData: "Running the block...",
-  //         }),
-  //       ],
-  //     }));
+      block.outputs = [];
+      block.outputs.push(create(blocks_pb.BlockOutputSchema, {
+        items: [
+          create(blocks_pb.BlockOutputItemSchema, {
+            textData: "Running the block...",
+          }),
+        ],
+      }));
 
-  //     // Streaming response handling
-  //     for await (const response of responses) {
-  //       // TODO(jlewi): We should add it to the output
-  //       console.log(`stdout has ${response.stdoutData}`)
-  //       console.log(`stderr has ${response.stderrData}`)
+      // Streaming response handling
+      for await (const response of responses) {
+        // TODO(jlewi): We should add it to the output
+        console.log(`stdout has ${response.stdoutData}`)
+        console.log(`stderr has ${response.stderrData}`)
 
-  //       // for (const b of response.blocks) {
-  //       //   if (b.kind == blocks_pb.BlockKind.FILE_SEARCH_RESULTS) {
-  //       //     filesContext.setBlock(b)
-  //       //   } else {
-  //       //     blocksContext.updateBlock(b)
-  //       //   }
-  //       // }
-  //     }
+        // for (const b of response.blocks) {
+        //   if (b.kind == blocks_pb.BlockKind.FILE_SEARCH_RESULTS) {
+        //     filesContext.setBlock(b)
+        //   } else {
+        //     blocksContext.updateBlock(b)
+        //   }
+        // }
+      }
 
-  //     // Reenable input
-  //     //setInputDisabled(false);
-  //     console.log("Stream ended.");
-  //   };
+      // Reenable input
+      //setInputDisabled(false);
+      console.log("Stream ended.");
+    };
 
-  //   //console.log("calling createThread");
-  //   createThread();
+    //console.log("calling createThread");
+    createThread();
 
-  // };
+  };
 
   let output = ''
-  const outputHandler = (data: Uint8Array<ArrayBufferLike>): void => {
+  const outputHandler = (data: Uint8Array): void => {
     output += new TextDecoder().decode(data);
   };
 
@@ -285,4 +294,18 @@ export const Block: React.FC<BlockProps> = ({ block, onChange, onRun }) => {
       </CardContent>
     </Card>
   );
+};
+
+
+// interface BlockProps {
+//   block: blocks_pb.Block;
+// }
+
+// N.B. THis is a palce holder
+export const BlocksComponent: React.FC = ({ block }) => {
+  return (
+    <div>
+      <Block block={block} onChange={() => { }} onRun={() => { }} />
+      </div>
+  )
 };
