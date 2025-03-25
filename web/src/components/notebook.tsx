@@ -10,6 +10,9 @@ import { useBlocks } from "./blocks-context";
 import { useClient as useRunmeClient } from "./runme-client";
 import * as runner_pb from "../gen/es/runme/runner/v2/runner_pb";
 import RunmeConsole from "./runme";
+import { v4 as uuidv4 } from 'uuid';
+
+
 //import dynamic from 'next/dynamic'
 
 // const RunmeConsoleWithoutSSR = dynamic(
@@ -283,16 +286,58 @@ export const Block: React.FC<BlockProps> = ({ block, onChange, onRun }) => {
 // }
 
 // N.B. THis is a palce holder
-export const BlocksComponent: React.FC = () => {
-  // This is a placeholder so we can test visualization.
-  const block = create(blocks_pb.BlockSchema, {
-    kind: blocks_pb.BlockKind.CODE,
-    language: "bash",
-    contents: "echo hello world",
-  });
+export const BlocksComponent: React.FC = () => { 
+  const blocksContext = useBlocks();
+
+  const addBlock = (kind : blocks_pb.BlockKind) => {
+    const newBlock = create(blocks_pb.BlockSchema, {
+      kind: kind,
+      contents: "",
+      role: blocks_pb.BlockRole.USER,
+      id: uuidv4(),
+    })            
+    blocksContext.updateBlock(newBlock);
+  };
+
+  const handleAddMarkupBlock = () => {
+    addBlock(blocks_pb.BlockKind.MARKUP);
+  };
+
+  const handleAddCodeBlock = () => {
+    addBlock(blocks_pb.BlockKind.CODE);
+  };
+
   return (
-    <div>      
-      <Block block={block} onChange={() => { }} onRun={() => { }} />
+    <div>
+      <div>
+         {blocksContext.blockPositions.map((blockId) => {
+        const block = blocksContext.blocks.get(blockId); // Lookup block in the map
+        return block ? (
+          <Block
+            key={block.id}
+            block={block}
+            
+            onChange={(content) => {
+              // Set the contents of the proto associated with this block and 
+              // then update it.
+              block.contents = content              
+              blocksContext.updateBlock(block)
+            }}
+            onRun={() => null}
+            //onRun={() => runCode(block.id, block.contents)}
+          />
+                  
+        ) : (
+          <p key={blockId}>Block not found: {blockId}</p>
+        );
+      })}
       </div>
-  )
+      <div className="add-block-button">
+        <Button onClick={handleAddMarkupBlock}>Add Markdown Block</Button>
+      </div>
+      <div className="add-block-button">
+        <Button onClick={handleAddCodeBlock}>Add Code Block</Button>
+      </div>
+    </div>
+  );
 };
