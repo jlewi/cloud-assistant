@@ -2,9 +2,7 @@
 // import './App.css'
 import './globals.css'
 import openaiLogo from './assets/openai.svg'
-//import FileSearch from './pages/FileSearch'
-// Chat is broken it breaks the import
-// import { Chat } from './components/chat'
+import { Chat } from './components/chat'
 import { Flex, Text, Box, Button } from "@radix-ui/themes";
 import { FileViewer, FilesProvider } from "./components/file-viewer";
 import { ClientProvider } from "./components/ai-client";
@@ -41,7 +39,7 @@ function ThreeColumnLayout() {
         {/* Column 1 */}
         <Box style={{ flex: 1 }}>
           <h1>How can I help you?</h1>
-          {/* <Chat /> */ }
+          <Chat/>
         </Box>
 
         {/* Column 2 */}

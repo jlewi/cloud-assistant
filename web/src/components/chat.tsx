@@ -8,7 +8,7 @@ import Markdown from "react-markdown";
 import { useFiles } from "./file-viewer";
 import { useClient } from "./ai-client";
 import { create } from "@bufbuild/protobuf";
-import { Button } from "./ui";
+import { Flex, TextArea, Box, Button } from "@radix-ui/themes";
 
 //import * as blocks_pb from '../../../protos/gen/es/cassie/blocks_pb'
 import * as blocks_pb from "../gen/es/cassie/blocks_pb";
@@ -77,21 +77,26 @@ const Message = ({ role, text }: MessageProps) => {
   }
 };
 
-const Chat = ({
+export const Chat = ({
   functionCallHandler = () => Promise.resolve(""), // default to return empty string
 }: ChatProps) => {
   // Get the AIServe client from the context
   const { client, setClient } = useClient();
 
-  // Access the context
-  const filesContext = useFiles(); //
+  // The input context stores the value of the textArea
+  // where the user types their query
+  const [input, setInput] = useState('');
+
+  // inputDisabled keeps track of whether the input button is disabled it so we can 
+  // disable the input area when a request is in flight
+  const [inputDisabled, setInputDisabled] = useState(false);
 
   const blocksContext = useBlocks();
 
   // User input keeps track of the state in the input element.
   const [userInput, setUserInput] = useState("");
   const [messages, setMessages] = useState([]);
-  const [inputDisabled, setInputDisabled] = useState(false);
+  
   const [threadId, setThreadId] = useState("");
 
 
@@ -110,74 +115,74 @@ const Chat = ({
     scrollToBottom();
   }, [messages]);
 
-  // const sendMessage = async (text) => {
-  //   console.log("sending message");
-  //   const createThread = async () => {      
-  //     let aiClient = client;
-  //     if (aiClient === null) {
-  //       // N.B. when using npm run dev how do we allow this be set to a different value? Since we might be talking to a different server
-  //       // TODO(jlewi): I think we could add a settings page stored in webstorage and use that to set the backend.
-  //       let baseURL = window.location.origin;
-  //       if (window.location.hostname === 'localhost') {
-  //         // This is a hack to support local development without requiring the frontend to be served off the same server
-  //         // as the backend. This way we can reuse npm's hot reloading.
-  //         baseURL = 'http://localhost:8080';
-  //       }
-  //       console.log(`initializing the client: baseURL ${baseURL}`);
-  //       // TODO(jeremy): How do we make this configurable
-  //       // TODO(jeremy): Ideally we server the frontend from the backend so we can use the baseHREF
-  //       // to get the address of the backend.
-  //       // We use gRPCWebTransport because we want server side streaming
-  //       const transport = createGrpcWebTransport({
-  //         baseUrl: baseURL,
-  //       });
+  const sendMessage = async (text) => {
+    console.log("sending message");
+    const createThread = async () => {      
+      let aiClient = client;
+      if (aiClient === null) {
+        // N.B. when using npm run dev how do we allow this be set to a different value? Since we might be talking to a different server
+        // TODO(jlewi): I think we could add a settings page stored in webstorage and use that to set the backend.
+        let baseURL = window.location.origin;
+        if (window.location.hostname === 'localhost') {
+          // This is a hack to support local development without requiring the frontend to be served off the same server
+          // as the backend. This way we can reuse npm's hot reloading.
+          baseURL = 'http://localhost:8080';
+        }
+        console.log(`initializing the client: baseURL ${baseURL}`);
+        // TODO(jeremy): How do we make this configurable
+        // TODO(jeremy): Ideally we server the frontend from the backend so we can use the baseHREF
+        // to get the address of the backend.
+        // We use gRPCWebTransport because we want server side streaming
+        const transport = createGrpcWebTransport({
+          baseUrl: baseURL,
+        });
 
-  //       // Here we make the client itself, combining the service
-  //       // definition with the transport.
-  //       let newClient = createClient(blocks_pb.BlocksService, transport);
-  //       aiClient = newClient;
-  //       setClient(newClient);
-  //     }
+        // Here we make the client itself, combining the service
+        // definition with the transport.
+        let newClient = createClient(blocks_pb.BlocksService, transport);
+        aiClient = newClient;
+        setClient(newClient);
+      }
 
-  //     let blocks: blocks_pb.Block[] = [
-  //       create(blocks_pb.BlockSchema, {
-  //         kind: blocks_pb.BlockKind.MARKUP,
-  //         contents: userInput,
-  //         role: blocks_pb.BlockRole.USER,
-  //         id: uuidv4(),
-  //       }),
-  //     ];
+      let blocks: blocks_pb.Block[] = [
+        create(blocks_pb.BlockSchema, {
+          kind: blocks_pb.BlockKind.MARKUP,
+          contents: userInput,
+          role: blocks_pb.BlockRole.USER,
+          id: uuidv4(),
+        }),
+      ];
 
-  //     // Add the input block to the input
-  //     updateBlock(blocks[0])
-  //     const req: blocks_pb.GenerateRequest = create(
-  //       blocks_pb.GenerateRequestSchema,
-  //       {
-  //         blocks: blocks,
-  //       }
-  //     );
-  //     console.log("calling generate");
-  //     let responses = aiClient.generate(req);
+      // Add the input block to the input
+      updateBlock(blocks[0])
+      const req: blocks_pb.GenerateRequest = create(
+        blocks_pb.GenerateRequestSchema,
+        {
+          blocks: blocks,
+        }
+      );
+      console.log("calling generate");
+      let responses = aiClient.generate(req);
 
-  //     // Streaming response handling
-  //     for await (const response of responses) {
-  //       console.log(`response has ${response.blocks.length} blocks`)
-  //       for (const b of response.blocks) {
-  //         if (b.kind == blocks_pb.BlockKind.FILE_SEARCH_RESULTS) {
-  //           setBlock(b)
-  //         } else {
-  //           updateBlock(b)
-  //         }
-  //       }
-  //     }
+      // Streaming response handling
+      for await (const response of responses) {
+        console.log(`response has ${response.blocks.length} blocks`)
+        for (const b of response.blocks) {
+          if (b.kind == blocks_pb.BlockKind.FILE_SEARCH_RESULTS) {
+            setBlock(b)
+          } else {
+            updateBlock(b)
+          }
+        }
+      }
 
-  //     // Reenable input
-  //     setInputDisabled(false);
-  //     console.log("Stream ended.");
-  //   };  
-  //     console.log("calling createThread");
-  //     createThread();    
-  // };
+      // Reenable input
+      setInputDisabled(false);
+      console.log("Stream ended.");
+    };  
+      console.log("calling createThread");
+      createThread();    
+  };
 
   // handleSubmit is invoked via form submission when a user enters a query.
   const handleSubmit = (e) => {
@@ -208,14 +213,24 @@ const Chat = ({
   };
 
 
-  const handleAddMarkupBlock = () => {
-    addBlock(blocks_pb.BlockKind.MARKUP);
-  };
+  // TODO(jlewi): I don't think we need these anymore because we don't have
+  // buttons to add the blocks.
+  // const handleAddMarkupBlock = () => {
+  //   addBlock(blocks_pb.BlockKind.MARKUP);
+  // };
 
-  const handleAddCodeBlock = () => {
-    addBlock(blocks_pb.BlockKind.CODE);
-  };
+  // const handleAddCodeBlock = () => {
+  //   addBlock(blocks_pb.BlockKind.CODE);
+  // };
 
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      // TODO(jlewi): Calle the function to send the input
+      // handleSend();
+    }
+  };
 
   return (
     <div className={styles.chatContainer}>
@@ -243,11 +258,15 @@ const Chat = ({
         })}
         <div ref={messagesEndRef} />
       </div>
-      <div className="add-block-button">
-        <Button onClick={handleAddMarkupBlock}>Add Markdown Block</Button>
-      </div>
-      <div className="add-block-button">
-        <Button onClick={handleAddCodeBlock}>Add Code Block</Button>
+      <div>
+      <TextArea
+        className="chat-input"
+        value={input}
+        onChange={(e) => setInput(e.target.value)}
+        onKeyDown={handleKeyDown}
+        placeholder="Type your message here..."
+        rows={3}
+      />
       </div>
     </div>
   );
@@ -255,21 +274,3 @@ const Chat = ({
 
 export default Chat;
 
-// interface BlockProps {
-//   block: blocks_pb.Block;
-// }
-
-// const BlockComponent: React.FC<BlockProps> = ({ block }) => {
-//   if (block.kind == blocks_pb.BlockKind.CODE) {
-//     return <CodeMessage text={block.contents} />;
-//   }
-
-//   switch (block.role) {
-//     case blocks_pb.BlockRole.USER:
-//       return <UserMessage text={block.contents} />;
-//     case blocks_pb.BlockRole.ASSISTANT:
-//       return <AssistantMessage text={block.contents} />;
-//     default:
-//       return <AssistantMessage text={block.contents} />;
-//   };
-// };

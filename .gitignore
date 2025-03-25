@@ -13,5 +13,6 @@ dist/
 **/plugin
 **/cover.out
 **/*.wasm
+**/.vite
 experiments/runs/**
 tools/stripmetadata/stripmetadata
