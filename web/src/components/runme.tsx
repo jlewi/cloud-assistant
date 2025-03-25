@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 "use client";
 
 import "./runme-vscode.css";
@@ -9,11 +8,35 @@ import { ExecuteResponse, ExecuteResponseSchema } from "@buf/stateful_runme.bufb
 import { fromJson, toJson } from "@bufbuild/protobuf";
 import { useEffect } from "react";
 import { ExecuteRequest, ExecuteRequestSchema } from "@buf/stateful_runme.bufbuild_es/runme/runner/v2/runner_pb";
+import { SocketRequest, SocketRequestSchema , SocketResponseSchema, SocketResponse} from "../gen/es/cassie/sockets_pb";
 import { create } from "@bufbuild/protobuf";
 import { VSCodeEvent } from "vscode-notebook-renderer/events";
 import { ulid } from "ulid";
+let socket: WebSocket;
 
-let socket: Socket;
+// A queue for socket requests.
+// We enqueue messages to deal with the case where the socket isn't open yet.
+const sendQueue: SocketRequest[] = [];
+
+function sendExecuteRequest(socket: WebSocket, execReq: ExecuteRequest) {
+    console.log("Sending ExecuteRequest:", execReq);
+    const request = create(SocketRequestSchema, {
+        payload: {
+            value: execReq,
+            case: "executeRequest",
+        },            
+    });
+
+    sendQueue.push(request);
+    if (socket.readyState === WebSocket.OPEN) {
+        console.log("Socket is open, sending ExecuteRequest");
+        // Send all the messages in the queue
+        while (sendQueue.length > 0) {
+            const req = sendQueue.shift();
+            socket.send(JSON.stringify(toJson(SocketRequestSchema, req)));
+        }
+    }     
+}
 
 function buildExecuteRequest(): ExecuteRequest {
     const blockID = ulid();
@@ -100,9 +123,10 @@ const RunmeConsole = ({
             }
             if ((message as any).type === ClientMessages.terminalStdin) {
                 const inputData = encoder.encode((message as any).output.input);
-                const req = toJson(ExecuteRequestSchema, create(ExecuteRequestSchema, { inputData }));
-                console.log("terminalStdin", req);
-                socket.emit(ExecuteRequestSchema.typeName, req);
+                const req = create(ExecuteRequestSchema, { inputData })
+                const reqJson = toJson(ExecuteRequestSchema, req);
+                console.log("terminalStdin", reqJson);                
+                sendExecuteRequest(socket, req);
             }
         },
         onDidReceiveMessage: (listener: VSCodeEvent<any>) => {
@@ -111,14 +135,37 @@ const RunmeConsole = ({
     } as Partial<RendererContext<void>>)
 
     useEffect(() => {
-        socket = io();
+        // TODO(jlewi): Should make this default to an address based on the current origin
+        socket = createWebSocket();;        
 
-        socket.on('connect', () => {
-            console.log(new Date(), 'Connected to WebSocket server');
-        });
+        // socket.onopen = () => {
+        //     console.log(new Date(), 'Connected to WebSocket server');
+        // };
 
-        socket.on(ExecuteResponseSchema.typeName, (r: string) => {
-            const response = fromJson(ExecuteResponseSchema, r);
+        socket.onmessage = (event) => {
+
+            if (typeof event.data !== "string") {
+                console.warn("Unexpected WebSocket message type:", typeof event.data);
+                return
+            }
+            let message: SocketResponse;
+            try {
+                // Parse the string into an object
+                const parsed = JSON.parse(event.data);
+    
+                // Parse the payload into a Protobuf message
+                 message = fromJson(SocketResponseSchema, parsed);
+    
+                // Use the message
+                console.log("Received SocketResponse:", message);
+    
+            } catch (err) {
+                console.error("Failed to parse SocketResponse:", err);
+            }
+        
+
+            //const socketResponse = fromJson(SocketResponseSchema, event.data);
+            const response = message.payload.value as ExecuteResponse;
             if (response.stdoutData) {
                 callback?.({
                     type: ClientMessages.terminalStdout,
@@ -151,21 +198,32 @@ const RunmeConsole = ({
                     onExitCode(response.exitCode);
                 }
             }
-        });
+        };
 
         return () => {
             console.log(new Date(), 'Disconnected from WebSocket server');
-            socket.disconnect();
+            socket.close();
         };
     }, []);
-
+    
     useEffect(() => {
+        console.log("useEffect invoked - Commands changed:", commands);
         if (execReq.config.source.case === "commands") {
             execReq.config.source.value.items = commands;
         }
-        socket.emit(ExecuteRequestSchema.typeName, execReq);
+        
+        sendExecuteRequest(socket, execReq);
+        // // Promise is intended to ensure that the WebSocket is connected before sending the request
+        // socketOpenPromise
+        //     .then(() => {
+        //         console.log("WebSocket is open, sending ExecuteRequest");
+        //         sendExecuteRequest(socket, execReq);
+        //     })
+        //     .catch((err) => {
+        //         console.error("❌ WebSocket failed to connect:", err);
+        //     });
+    
     }, [commands]);
-
     return (<div
         ref={(el) => {
             if (!el || el.hasChildNodes()) { return };
@@ -227,3 +285,25 @@ const RunmeConsole = ({
 
 export default RunmeConsole;
 
+function createWebSocket(): WebSocket {
+    // TODO(jlewi): Should make this default to an address based on the current origin
+    const ws = new WebSocket("ws://localhost:8080/ws");
+
+    ws.onopen = () => {
+        console.log(new Date(), "✅ Connected to Runme WebSocket server");
+
+        if (sendQueue.length > 0) {
+            console.log("Sending queued messages");
+        }
+
+        // Send all the messages in the queue
+        // These will be messages that were enqueued before the socket was open.
+        // If we try to send a message before the socket is open it will fail and 
+        // close the connection so we need to enqueue htem.
+        while (sendQueue.length > 0) {
+            const req = sendQueue.shift();
+            ws.send(JSON.stringify(toJson(SocketRequestSchema, req)));
+        }        
+    };
+    return ws;
+}

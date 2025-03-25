@@ -28,26 +28,7 @@ export const BlocksContext = createContext<BlocksContextType>({
   setBlocks: () => { },
 });
 
-const defaultCode = `console.log('Hello, world!');`;
-const defaultMarkdown = `# Markdown Block\nWrite **markdown** here.`;
 const defaultExecutors = ["https://localhost:8090"];
-
-const BlockOutput = ({ outputs }) => {
-  if (!outputs?.length) return null;
-
-  return (
-    <div className="block-output">
-      <strong>Output:</strong>
-      <pre>
-        {outputs
-          .flatMap((output) =>
-            output.items.map((item) => item.text_data)
-          )
-          .join("\n")}
-      </pre>
-    </div>
-  );
-};
 
 // BlockProps defines the properties of the Block component.
 interface BlockProps {
