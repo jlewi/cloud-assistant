@@ -4,9 +4,9 @@ import openaiLogo from './assets/openai.svg'
 
 function Layout({ left, middle, right }: { left: React.ReactNode, middle: React.ReactNode, right: React.ReactNode }) {
   return (
-    <Box className="w-screen h-screen max-w-full overflow-hidden flex flex-col">
-      {/* Navbar */}
-      <Box className="w-full p-3 border-b" style={{ backgroundColor: 'var(--color-panel-solid)' }}>
+    <Box className="w-screen h-screen max-w-[80%] mx-auto overflow-hidden flex flex-col">
+      {/* Navbar, links are just a facade for now */}
+      <Box className="w-full p-3 mb-1 border-b" style={{ backgroundColor: 'var(--color-panel-solid)' }}>
         <Flex align="center" justify="between">
           <Flex align="center" gap="2">
             <img src={openaiLogo} alt="OpenAI Logo" className="h-6 w-6" />
@@ -36,7 +36,7 @@ function Layout({ left, middle, right }: { left: React.ReactNode, middle: React.
       </Box>
 
       {/* Main content */}
-      <Flex className="w-full flex-1 gap-4 justify-between overflow-hidden p-4">
+      <Flex className="w-full flex-1 gap-4 justify-between overflow-hidden p-2">
         {/* Left */}
         <Box className="flex-1 h-full flex flex-col">
           <Text size="5" weight="bold" className="mb-2">How can I help you?</Text>

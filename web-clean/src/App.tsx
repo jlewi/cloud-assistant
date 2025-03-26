@@ -1,10 +1,9 @@
-// import { useState } from 'react'
 import Layout from './layout'
 import { Helmet } from 'react-helmet'
 import { Theme } from "@radix-ui/themes";
 
+import Actions from "./components/Actions";
 import Chat from "./components/Placeholder";
-import BlocksComponent from "./components/Placeholder";
 import FileViewer from "./components/Placeholder";
 
 import openaiLogo from './assets/openai.svg'
@@ -12,7 +11,7 @@ import "@radix-ui/themes/styles.css";
 
 function App() {
   return (<>
-    <Theme>
+    <Theme accentColor="gray" scaling="110%" radius="small">
       <Helmet>
         <title>Cloud Assistant</title>
         <meta name="description" content="An AI Assistant For Your Cloud" />
@@ -20,7 +19,7 @@ function App() {
       </Helmet>
       <Layout
         left={<Chat />}
-        middle={<BlocksComponent />}
+        middle={<Actions />}
         right={<FileViewer />}
       />
     </Theme>
