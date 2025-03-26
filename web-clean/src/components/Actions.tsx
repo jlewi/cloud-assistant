@@ -3,6 +3,7 @@ import { Box, Button, Card } from "@radix-ui/themes";
 
 import Editor from "@monaco-editor/react";
 import Console from "./Runme/Console";
+import { v4 as uuidv4 } from 'uuid';
 
 type props = {
   value: string;
@@ -34,9 +35,9 @@ function RunActionButton({ exitCode, onClick }: { exitCode: number | null, onCli
   )
 }
 
-const CommandsConsole = memo(({ value, outputHandler, exitCodeHandler }: { value: string, outputHandler: (data: Uint8Array) => void, exitCodeHandler: (code: number) => void }) => {
+const CommandsConsole = memo(({ value, key, outputHandler, exitCodeHandler }: { value: string, key: string, outputHandler: (data: Uint8Array) => void, exitCodeHandler: (code: number) => void }) => {
   return (
-    value != "" && (
+    value != "" && key != "" && (
       <Console
         rows={10}
         commands={value.split("\n")}
@@ -45,17 +46,19 @@ const CommandsConsole = memo(({ value, outputHandler, exitCodeHandler }: { value
         onExitCode={exitCodeHandler} />
     )
   );
-}, (prevProps, nextProps) => JSON.stringify(prevProps.value) === JSON.stringify(nextProps.value));
+}, (prevProps, nextProps) => {
+  return JSON.stringify(prevProps.value) === JSON.stringify(nextProps.value) && prevProps.key === nextProps.key;
+});
 
 
 // Action is an editor and an optional Runme console
 function Action({ value, title }: props) {
   let editorValue = value;
-  const [execValue, setExecValue] = useState<string>("");
+  const [exec, setExec] = useState<{ value: string, runID: string }>({ value: "", runID: "" });
   const [exitCode, setExitCode] = useState<number | null>(null);
 
   const handleRunClick = () => {
-    setExecValue(editorValue);
+    setExec({ value: editorValue, runID: uuidv4() });
   };
 
   let output = ''
@@ -89,7 +92,7 @@ function Action({ value, title }: props) {
                 onChange={(value) => editorValue = value || ""}
               />
             </div>
-            <CommandsConsole value={execValue} outputHandler={outputHandler} exitCodeHandler={exitCodeHandler} />
+            <CommandsConsole key={exec.runID} value={exec.value} outputHandler={outputHandler} exitCodeHandler={exitCodeHandler} />
           </Card>
         </div>
       </Box>
