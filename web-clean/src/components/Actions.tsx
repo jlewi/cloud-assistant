@@ -50,10 +50,25 @@ const CommandsConsole = memo(({ value, runID, outputHandler, exitCodeHandler }: 
   return JSON.stringify(prevProps.value) === JSON.stringify(nextProps.value) && prevProps.runID === nextProps.runID;
 });
 
+// CodeEditor component for editing code which won't re-render unless the value changes
+const CodeEditor = memo(({ value, onChange }: { value: string, onChange: (value: string) => void }) => {
+  return (
+    <div className="p-1 h-100px w-full">
+      <Editor
+        height="100px"
+        width="100%"
+        defaultLanguage="shellscript"
+        value={value}
+        options={{ minimap: { enabled: false }, theme: "vs-dark" }}
+        onChange={(v) => v && onChange?.(v)}
+      />
+    </div>
+  );
+}, (prevProps, nextProps) => prevProps.value === nextProps.value);
 
 // Action is an editor and an optional Runme console
 function Action({ value, title }: props) {
-  let editorValue = value;
+  const [editorValue, setEditorValue] = useState(value);
   const [exec, setExec] = useState<{ value: string, runID: string }>({ value: "", runID: "" });
   const [exitCode, setExitCode] = useState<number | null>(null);
 
@@ -82,16 +97,7 @@ function Action({ value, title }: props) {
             <div className="flex items-center m-1">
               <span>{title}</span>
             </div>
-            <div className="p-1 h-100px w-full">
-              <Editor
-                height="100px"
-                width="100%"
-                defaultLanguage="shellscript"
-                value={editorValue ?? value}
-                options={{ minimap: { enabled: false }, theme: "vs-dark" }}
-                onChange={(v) => editorValue = v || ""}
-              />
-            </div>
+            <CodeEditor value={editorValue} onChange={(v) => setEditorValue(v)} />
             <CommandsConsole key={exec.runID} runID={exec.runID} value={exec.value} outputHandler={outputHandler} exitCodeHandler={exitCodeHandler} />
           </Card>
         </div>
@@ -100,7 +106,7 @@ function Action({ value, title }: props) {
   )
 }
 
-export default function Actions() {
+function Actions() {
   // should come out of Context
   const dummies = [
     {
@@ -124,3 +130,5 @@ export default function Actions() {
     </>
   );
 }
+
+export default Actions;
