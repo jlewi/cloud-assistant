@@ -202,14 +202,14 @@ function Actions() {
       title: "To begin, let's use shell to say hello",
       value: "echo 'Hello, world!'",
     },
-    // {
-    //   title: "What's the time?",
-    //   value: "date",
-    // },
-    // {
-    //   title: "Here are the nodes in your cluster",
-    //   value: "kubectl get nodes",
-    // },
+    {
+      title: "What's the time?",
+      value: 'date',
+    },
+    {
+      title: 'Here are the nodes in your cluster',
+      value: 'kubectl get nodes',
+    },
   ]
   return (
     <>
