@@ -39,6 +39,10 @@ func (a *App) LoadConfig(cmd *cobra.Command) error {
 	return nil
 }
 
+func (a *App) GetConfig() *config.Config {
+	return a.Config
+}
+
 func (a *App) SetupLogging() error {
 	// Configure encoder for JSON format
 	c := zap.NewDevelopmentConfig()

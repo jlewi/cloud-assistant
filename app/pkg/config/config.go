@@ -50,10 +50,17 @@ type Config struct {
 	Logging   Logging          `json:"logging" yaml:"logging"`
 	Telemetry *TelemetryConfig `json:"telemetry,omitempty" yaml:"telemetry,omitempty"`
 
-	OpenAI          *OpenAIConfig          `json:"openai,omitempty" yaml:"openai,omitempty"`
+	OpenAI *OpenAIConfig `json:"openai,omitempty" yaml:"openai,omitempty"`
+
+	CloudAssistant  *CloudAssistantConfig  `json:"cloudAssistant,omitempty" yaml:"cloudAssistant,omitempty"`
 	AssistantServer *AssistantServerConfig `json:"assistantServer,omitempty" yaml:"assistantServer,omitempty"`
 	// configFile is the configuration file used
 	configFile string
+}
+
+type CloudAssistantConfig struct {
+	// VectorStores is the list of vector stores to use
+	VectorStores []string `json:"vectorStores,omitempty" yaml:"vectorStores,omitempty"`
 }
 
 type OpenAIConfig struct {
