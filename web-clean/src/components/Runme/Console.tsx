@@ -99,7 +99,7 @@ function Console({
       cursorStyle: 'block',
       cursorBlink: true,
       cursorWidth: 1,
-      smoothScrollDuration: 100,
+      // smoothScrollDuration: 100,
       scrollback: 1000,
       initialRows: rows,
       content: '',
