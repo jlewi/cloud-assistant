@@ -41,10 +41,11 @@ function sendExecuteRequest(socket: WebSocket, execReq: ExecuteRequest) {
 function buildExecuteRequest(): ExecuteRequest {
   const blockID = ulid();
   return create(ExecuteRequestSchema, {
+    // sessionStrategy: SessionStrategy.MOST_RECENT, // without this every exec gets its own session
     storeStdoutInEnv: true,
     config: {
-      programName: "/bin/zsh",
-      arguments: [],
+      programName: "/bin/zsh", // unset uses system shell
+      // arguments: [],
       // directory:
       //     "/Users/sourishkrout/Projects/stateful/oss/vscode-runme/examples",
       languageId: "sh",
