@@ -87,9 +87,9 @@ function Action({ value, title }: props) {
                 height="100px"
                 width="100%"
                 defaultLanguage="shellscript"
-                value={editorValue}
+                value={editorValue ?? value}
                 options={{ minimap: { enabled: false }, theme: "vs-dark" }}
-                onChange={(value) => editorValue = value || ""}
+                onChange={(v) => editorValue = v || ""}
               />
             </div>
             <CommandsConsole key={exec.runID} value={exec.value} outputHandler={outputHandler} exitCodeHandler={exitCodeHandler} />
