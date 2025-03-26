@@ -1,5 +1,5 @@
 function Placeholder() {
-  return <div>Placeholder</div>;
+  return <div>Placeholder</div>
 }
 
-export default Placeholder;
+export default Placeholder
