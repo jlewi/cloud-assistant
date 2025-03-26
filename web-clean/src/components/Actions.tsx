@@ -82,6 +82,10 @@ export default function Actions() {
       title: "What's the time?",
       value: "date",
     },
+    {
+      title: "Here are the nodes in your cluster",
+      value: "kubectl get nodes",
+    },
   ];
   return (
     <>
