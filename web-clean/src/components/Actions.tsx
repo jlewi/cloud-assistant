@@ -35,9 +35,9 @@ function RunActionButton({ exitCode, onClick }: { exitCode: number | null, onCli
   )
 }
 
-const CommandsConsole = memo(({ value, key, outputHandler, exitCodeHandler }: { value: string, key: string, outputHandler: (data: Uint8Array) => void, exitCodeHandler: (code: number) => void }) => {
+const CommandsConsole = memo(({ value, runID, outputHandler, exitCodeHandler }: { value: string, runID: string, outputHandler: (data: Uint8Array) => void, exitCodeHandler: (code: number) => void }) => {
   return (
-    value != "" && key != "" && (
+    value != "" && runID != "" && (
       <Console
         rows={10}
         commands={value.split("\n")}
@@ -47,7 +47,7 @@ const CommandsConsole = memo(({ value, key, outputHandler, exitCodeHandler }: { 
     )
   );
 }, (prevProps, nextProps) => {
-  return JSON.stringify(prevProps.value) === JSON.stringify(nextProps.value) && prevProps.key === nextProps.key;
+  return JSON.stringify(prevProps.value) === JSON.stringify(nextProps.value) && prevProps.runID === nextProps.runID;
 });
 
 
@@ -92,7 +92,7 @@ function Action({ value, title }: props) {
                 onChange={(v) => editorValue = v || ""}
               />
             </div>
-            <CommandsConsole key={exec.runID} value={exec.value} outputHandler={outputHandler} exitCodeHandler={exitCodeHandler} />
+            <CommandsConsole key={exec.runID} runID={exec.runID} value={exec.value} outputHandler={outputHandler} exitCodeHandler={exitCodeHandler} />
           </Card>
         </div>
       </Box>
