@@ -34,15 +34,28 @@ function RunActionButton({ exitCode, onClick }: { exitCode: number | null, onCli
   )
 }
 
+const CommandsConsole = memo(({ value, outputHandler, exitCodeHandler }: { value: string, outputHandler: (data: Uint8Array) => void, exitCodeHandler: (code: number) => void }) => {
+  return (
+    value != "" && (
+      <Console
+        rows={10}
+        commands={value.split("\n")}
+        onStdout={outputHandler}
+        onStderr={outputHandler}
+        onExitCode={exitCodeHandler} />
+    )
+  );
+}, (prevProps, nextProps) => JSON.stringify(prevProps.value) === JSON.stringify(nextProps.value));
+
+
 // Action is an editor and an optional Runme console
 function Action({ value, title }: props) {
   let editorValue = value;
-  const [execCommands, setExecCommands] = useState<string[]>([]);
+  const [execValue, setExecValue] = useState<string>("");
   const [exitCode, setExitCode] = useState<number | null>(null);
 
   const handleRunClick = () => {
-    const commands = editorValue.split("\n");
-    setExecCommands(commands);
+    setExecValue(editorValue);
   };
 
   let output = ''
@@ -56,16 +69,6 @@ function Action({ value, title }: props) {
     setExitCode(code);
     output = '';
   };
-
-  const MemoizedConsole = memo(({ commands }: { commands: string[] }) => (
-    <Console
-      rows={10}
-      commands={commands}
-      onStdout={outputHandler}
-      onStderr={outputHandler}
-      onExitCode={exitCodeHandler}
-    />
-  ), (prevProps, nextProps) => JSON.stringify(prevProps.commands) === JSON.stringify(nextProps.commands));
 
   return (
     <div>
@@ -86,11 +89,7 @@ function Action({ value, title }: props) {
                 onChange={(value) => editorValue = value || ""}
               />
             </div>
-            {execCommands.length > 0 && (
-              <div className="p-1">
-                <MemoizedConsole commands={execCommands} />
-              </div>
-            )}
+            <CommandsConsole value={execValue} outputHandler={outputHandler} exitCodeHandler={exitCodeHandler} />
           </Card>
         </div>
       </Box>
