@@ -247,12 +247,12 @@ function Console({
       if (typeof defaults.output.cursorWidth === 'number') {
         terminalElem.setAttribute('cursorWidth', defaults.output.cursorWidth.toString())
       }
-      if (typeof defaults.output.smoothScrollDuration === 'number') {
-        terminalElem.setAttribute(
-          'smoothScrollDuration',
-          defaults.output.smoothScrollDuration.toString(),
-        )
-      }
+      // if (typeof defaults.output.smoothScrollDuration === 'number') {
+      //   terminalElem.setAttribute(
+      //     'smoothScrollDuration',
+      //     defaults.output.smoothScrollDuration.toString(),
+      //   )
+      // }
       if (typeof defaults.output.scrollback === 'number') {
         terminalElem.setAttribute('scrollback', defaults.output.scrollback.toString())
       }
