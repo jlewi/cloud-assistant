@@ -4,7 +4,6 @@ import (
 	"connectrpc.com/connect"
 	"context"
 	"encoding/json"
-	"fmt"
 	"github.com/jlewi/cloud-assistant/app/pkg/logs"
 	"github.com/jlewi/cloud-assistant/protos/gen/cassie"
 	"github.com/openai/openai-go/packages/ssestream"
@@ -231,9 +230,4 @@ func (b *BlocksBuilder) fileSearchDoneItemToBlock(ctx context.Context, item resp
 	}
 
 	return block, nil
-}
-
-// TODO(jlewi): Should we use vectore store attributes to store the link?
-func fileNameToLink(baseURL, fileName string) string {
-	return fmt.Sprintf("%s/%s", fileName)
 }
