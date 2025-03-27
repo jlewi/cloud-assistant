@@ -11,17 +11,22 @@ import (
 	"connectrpc.com/otelconnect"
 	"context"
 	"fmt"
+
 	"github.com/go-logr/zapr"
 	"github.com/jlewi/cloud-assistant/app/pkg/config"
 	"github.com/pkg/errors"
+
+	runnerv2 "github.com/stateful/runme/v3/pkg/api/gen/proto/go/runme/runner/v2"
+
 	//"github.com/stateful/runme/v3/pkg/api/gen/proto/go/runme/runner/v2/runnerv2connect"
-	"go.uber.org/zap"
 	"net"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
+
+	"go.uber.org/zap"
 )
 
 // Server is the main server for the cloud assistant
@@ -48,6 +53,20 @@ func NewServer(cfg config.Config, agent *ai.Agent) (*Server, error) {
 		if err != nil {
 			return nil, err
 		}
+		ctx := context.Background()
+		session, err := runner.server.CreateSession(ctx, &runnerv2.CreateSessionRequest{
+			Project: &runnerv2.Project{
+				Root:         ".",
+				EnvLoadOrder: []string{".env", ".env.local", ".env.development", ".env.dev"},
+			},
+			Config: &runnerv2.CreateSessionRequest_Config{
+				EnvStoreSeeding: runnerv2.CreateSessionRequest_Config_SESSION_ENV_STORE_SEEDING_SYSTEM.Enum(),
+			},
+		})
+		if err != nil {
+			return nil, err
+		}
+		log.Info("Runner session created", "sessionID", session.GetSession().GetId())
 	} else {
 		log.Info("Runner service is disabled")
 	}
