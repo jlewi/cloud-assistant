@@ -4,40 +4,57 @@ This is the front end for the Cloud Assistant.
 
 It was originally created from the [Quick Start App For the Assistants API](https://github.com/openai/openai-assistants-quickstart.git)
 
+./app golang server
+./ui is a client side web application intended to be served by the golang server
+
+
 ## Quickstart Setup
 
-./app golang server
-./ui is a client side web application intended to be served by the golang server 
+### Configure OpenAI
 
-### Build the static ui
+Create a configuration file `~/.cloud-assistant/config.yaml`
 
-#### Install dependencies
-
-```sh
-cd ui
-npm install
+```
+apiVersion: ""
+kind: ""
+logging:
+    level: info
+openai:
+    apiKeyFile: /Users/${USER}/secrets/openai.key
+cloudAssistant:
+    vectorStores:
+        - ${VSID}
+assistantServer:
+    bindAddress: ""
+    port: 0
+    httpMaxReadTimeout: 0s
+    httpMaxWriteTimeout: 0s
+    staticAssets: /Users/${USER}/git_cloud-assistant/web-clean/dist
+    runnerService: true
 ```
 
-#### Build the static assets
+* set **apiKeyFile** to the path of your OpenAI API key
+* set **vectoreStores** to contain the ID of your OpenAI API vector store
+* Change the path to the static assets to the location where you checked out the repository
 
-```sh
-cd ui
+```
+ cd ${REPOSITORY}
+./app/.build/cas config set assistantServer.staticAssets=$(PWD)/web-clean/dist
+```
+
+### Build the static assets
+
+```
+cd /Users/${USER}/git_cloud-assistant/web-clean/
+npm install
 npm run build
 ```
 
-### Build the server
+### Build and start the server
 
 ```bash
 cd app
 make build
-```
-
-### Configure the server 
-
-Configure the server to serve the static assets
-
-```
-./app/.build/cas config set assistantServer.staticAssets=$(PWD)/ui/out
 ```
 
 ### Start the server
