@@ -2,15 +2,18 @@ package server
 
 import (
 	"connectrpc.com/connect"
+	connectcors "connectrpc.com/cors"
 	"connectrpc.com/grpchealth"
 	"github.com/jlewi/cloud-assistant/app/pkg/ai"
 	"github.com/jlewi/cloud-assistant/protos/gen/cassie/cassieconnect"
+	"github.com/rs/cors"
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
 
-	"connectrpc.com/otelconnect"
 	"context"
 	"fmt"
+
+	"connectrpc.com/otelconnect"
 
 	"github.com/go-logr/zapr"
 	"github.com/jlewi/cloud-assistant/app/pkg/config"
@@ -138,6 +141,25 @@ func (s *Server) Run() error {
 	return nil
 }
 
+// handlerWithCORS adds CORS support to a Connect HTTP handler.
+func (s *Server) handlerWithCORS(connectHandler http.Handler) http.Handler {
+	log := zapr.NewLogger(zap.L())
+	origins := s.config.AssistantServer.CorsOrigins
+	if len(origins) == 0 {
+		log.Info("No additional CORS origins specified")
+		return connectHandler
+	}
+	log.Info("Adding CORS support", "origins", origins)
+	c := cors.New(cors.Options{
+		AllowedOrigins: origins,
+		AllowedMethods: connectcors.AllowedMethods(),
+		AllowedHeaders: connectcors.AllowedHeaders(),
+		ExposedHeaders: connectcors.ExposedHeaders(),
+		MaxAge:         7200, // 2 hours in seconds
+	})
+	return c.Handler(connectHandler)
+}
+
 func (s *Server) registerServices() error {
 	log := zapr.NewLogger(zap.L())
 	mux := http.NewServeMux()
@@ -152,7 +174,7 @@ func (s *Server) registerServices() error {
 
 	aiSvcPath, aiSvcHandler := cassieconnect.NewBlocksServiceHandler(s.agent, connect.WithInterceptors(interceptors...))
 	log.Info("Setting up AI service", "path", aiSvcPath)
-	mux.Handle(aiSvcPath, aiSvcHandler)
+	mux.Handle(aiSvcPath, s.handlerWithCORS(aiSvcHandler))
 
 	sHandler := &WebSocketHandler{
 		runner: s.runner,

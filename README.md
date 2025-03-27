@@ -7,14 +7,13 @@ It was originally created from the [Quick Start App For the Assistants API](http
 ./app golang server
 ./ui is a client side web application intended to be served by the golang server
 
-
 ## Quickstart Setup
 
 ### Configure OpenAI
 
 Create a configuration file `~/.cloud-assistant/config.yaml`
 
-```
+```yaml
 apiVersion: ""
 kind: ""
 logging:
@@ -31,20 +30,23 @@ assistantServer:
     httpMaxWriteTimeout: 0s
     staticAssets: /Users/${USER}/git_cloud-assistant/web-clean/dist
     runnerService: true
+    corsOrigins:
+    - "http://localhost:5173"
+    - "http://localhost:3000"
 ```
 
 * set **apiKeyFile** to the path of your OpenAI API key
 * set **vectoreStores** to contain the ID of your OpenAI API vector store
 * Change the path to the static assets to the location where you checked out the repository
 
-```
+```sh
  cd ${REPOSITORY}
 ./app/.build/cas config set assistantServer.staticAssets=$(PWD)/web-clean/dist
 ```
 
 ### Build the static assets
 
-```
+```sh
 cd /Users/${USER}/git_cloud-assistant/web-clean/
 npm install
 npm run build
