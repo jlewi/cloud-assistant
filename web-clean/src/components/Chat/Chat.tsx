@@ -81,11 +81,12 @@ function Chat() {
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (!userInput.trim()) return
-    sendMessage(userInput)
     setMessages((prevMessages) => [
       ...prevMessages,
       { role: 'user', text: userInput },
+      { role: 'assistant', text: '...' },
     ])
+    sendMessage(userInput)
     setUserInput('')
     setInputDisabled(true)
     // scrollToBottom()
@@ -104,23 +105,40 @@ function Chat() {
         ],
       }
     )
-    let lastBlock: blocks_pb.Block | undefined
     try {
       const res = client!.generate(req)
       for await (const r of res) {
-        lastBlock = r.blocks[r.blocks.length - 1]
+        const block = r.blocks[r.blocks.length - 1]
+        setMessages((prevMessages) => {
+          if (!block) return prevMessages
+
+          // Always update the last message if it exists, otherwise add a new one
+          const updatedMessages = [...prevMessages]
+
+          if (
+            updatedMessages.length > 0 &&
+            updatedMessages[updatedMessages.length - 1].role === 'assistant'
+          ) {
+            // Update existing assistant message
+            updatedMessages[updatedMessages.length - 1] = {
+              ...updatedMessages[updatedMessages.length - 1],
+              text: block.contents,
+            }
+            return updatedMessages
+          } else {
+            // Add new assistant message
+            return [
+              ...prevMessages,
+              { role: 'assistant', text: block.contents },
+            ]
+          }
+        })
       }
     } catch (e) {
       console.error(e)
     } finally {
       setInputDisabled(false)
     }
-
-    setMessages((prevMessages) =>
-      lastBlock
-        ? [...prevMessages, { role: 'assistant', text: lastBlock.contents }]
-        : prevMessages
-    )
   }
 
   // automatically scroll to bottom of chat
