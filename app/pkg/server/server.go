@@ -1,10 +1,14 @@
 package server
 
 import (
+	"connectrpc.com/connect"
 	"connectrpc.com/grpchealth"
+	"github.com/jlewi/cloud-assistant/app/pkg/ai"
+	"github.com/jlewi/cloud-assistant/protos/gen/cassie/cassieconnect"
 	"golang.org/x/net/http2"
+	"golang.org/x/net/http2/h2c"
 
-	//"connectrpc.com/otelconnect"
+	"connectrpc.com/otelconnect"
 	"context"
 	"fmt"
 	"github.com/go-logr/zapr"
@@ -27,15 +31,13 @@ type Server struct {
 	engine           *http.ServeMux
 	shutdownComplete chan bool
 	runner           *Runner
+	agent            *ai.Agent
 }
 
 // NewServer creates a new server
-func NewServer(cfg config.Config) (*Server, error) {
-	if cfg.OpenAI == nil {
-		return nil, errors.New("OpenAI config is nil")
-	}
-	if cfg.OpenAI.APIKeyFile == "" {
-		return nil, errors.New("OpenAI API key is empty")
+func NewServer(cfg config.Config, agent *ai.Agent) (*Server, error) {
+	if agent == nil {
+		return nil, errors.New("Agent is nil")
 	}
 
 	var runner *Runner
@@ -53,6 +55,7 @@ func NewServer(cfg config.Config) (*Server, error) {
 	s := &Server{
 		config: cfg,
 		runner: runner,
+		agent:  agent,
 	}
 	return s, nil
 }
@@ -84,7 +87,8 @@ func (s *Server) Run() error {
 		// Set timeouts to 0 to disable them because we are using websockets
 		WriteTimeout: 0,
 		ReadTimeout:  0,
-		Handler:      s.engine,
+		// We need to wrap it in h2c to support HTTP/2 without TLS
+		Handler: h2c.NewHandler(s.engine, &http2.Server{}),
 	}
 	// Enable HTTP/2 support
 	if err := http2.ConfigureServer(hServer, &http2.Server{}); err != nil {
@@ -116,7 +120,20 @@ func (s *Server) Run() error {
 }
 
 func (s *Server) registerServices() error {
+	log := zapr.NewLogger(zap.L())
 	mux := http.NewServeMux()
+
+	// Create the OTEL interceptor
+	otelInterceptor, err := otelconnect.NewInterceptor()
+	if err != nil {
+		return errors.Wrapf(err, "Failed to create otel interceptor")
+	}
+
+	interceptors := []connect.Interceptor{otelInterceptor}
+
+	aiSvcPath, aiSvcHandler := cassieconnect.NewBlocksServiceHandler(s.agent, connect.WithInterceptors(interceptors...))
+	log.Info("Setting up AI service", "path", aiSvcPath)
+	mux.Handle(aiSvcPath, aiSvcHandler)
 
 	sHandler := &WebSocketHandler{
 		runner: s.runner,

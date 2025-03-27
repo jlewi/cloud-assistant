@@ -3,20 +3,25 @@ package server
 import (
 	"connectrpc.com/connect"
 	"context"
+	"crypto/tls"
 	"fmt"
 	"github.com/go-logr/zapr"
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
+	"github.com/jlewi/cloud-assistant/app/pkg/ai"
 	"github.com/jlewi/cloud-assistant/app/pkg/application"
 	"github.com/jlewi/cloud-assistant/app/pkg/config"
 	"github.com/jlewi/cloud-assistant/app/pkg/logs"
 	"github.com/jlewi/cloud-assistant/protos/gen/cassie"
+	"github.com/jlewi/cloud-assistant/protos/gen/cassie/cassieconnect"
 	"github.com/jlewi/monogo/networking"
 	"github.com/pkg/errors"
 	v2 "github.com/stateful/runme/v3/pkg/api/gen/proto/go/runme/runner/v2"
 	"go.uber.org/zap"
+	"golang.org/x/net/http2"
 	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/protobuf/encoding/protojson"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -24,6 +29,179 @@ import (
 	"testing"
 	"time"
 )
+
+func Test_GenerateBlocks(t *testing.T) {
+	SkipIfMissing(t, "RUN_MANUAL_TESTS")
+
+	app := application.NewApp()
+	err := app.LoadConfig(nil)
+	if err != nil {
+		t.Fatalf("Error loading config; %v", err)
+	}
+	cfg := app.GetConfig()
+
+	if err := app.SetupLogging(); err != nil {
+		t.Fatalf("Error setting up logging; %v", err)
+	}
+
+	log := zapr.NewLoggerWithOptions(zap.L(), zapr.AllowZapFields(true))
+
+	port, err := networking.GetFreePort()
+	if err != nil {
+		t.Fatalf("Error getting free port; %v", err)
+	}
+
+	if cfg.AssistantServer == nil {
+		cfg.AssistantServer = &config.AssistantServerConfig{}
+	}
+	cfg.AssistantServer.Port = port
+	// N.B. Server currently needs to be started manually. Should we start it autommatically?
+	addr := fmt.Sprintf("http://localhost:%v", cfg.AssistantServer.Port)
+	go func() {
+		if err := setupAndRunServer(*cfg); err != nil {
+			log.Error(err, "Error running server")
+		}
+	}()
+
+	// N.B. There's probably a race condition here because the client might start before the server is fully up.
+	// Or maybe that's implicitly handled because the connection won't succeed until the server is up?
+	if err := waitForServer(addr); err != nil {
+		t.Fatalf("Error waiting for server; %v", err)
+	}
+
+	log.Info("Server started")
+	blocks, err := runAIClient(addr)
+
+	if err != nil {
+		t.Fatalf("Error running client for addres %v; %v", addr, err)
+	}
+
+	if len(blocks) < 2 {
+		t.Errorf("Expected at least 2 blocks; got %d blocks", len(blocks))
+	}
+
+	// Ensure there is a filesearch results block and that the filenames are set. This is intended
+	// to catch various bugs with the SDK; e.g.
+	// https://openai.slack.com/archives/C05C3578WQZ/p1741520938xxxxx5?thread_ts=1741090029.923169&cid=C05C3578WQZ
+	hasFSBlock := false
+	for _, b := range blocks {
+		if b.Kind == cassie.BlockKind_FILE_SEARCH_RESULTS {
+			hasFSBlock = true
+
+			if len(b.FileSearchResults) <= 0 {
+				t.Errorf("FileSearchResults block has no results")
+			}
+
+			for _, r := range b.FileSearchResults {
+				if r.FileName == "" {
+					t.Errorf("FileSearchResults block has empty filename")
+				}
+			}
+		}
+	}
+
+	if !hasFSBlock {
+		t.Errorf("There was no FileSearch block in the results.")
+	}
+
+}
+
+func runAIClient(baseURL string) (map[string]*cassie.Block, error) {
+	log := zapr.NewLoggerWithOptions(zap.L(), zapr.AllowZapFields(true))
+
+	blocks := make(map[string]*cassie.Block)
+
+	Block := cassie.Block{
+		Kind:     cassie.BlockKind_MARKUP,
+		Contents: "This is a block",
+	}
+
+	log.Info("Block", logs.ZapProto("block", &Block))
+
+	u, err := url.Parse(baseURL)
+	if err != nil {
+		log.Error(err, "Failed to parse URL")
+		return blocks, errors.Wrapf(err, "Failed to parse URL")
+	}
+
+	var client cassieconnect.BlocksServiceClient
+
+	if u.Scheme == "https" {
+		// Configure the TLS settings
+		tlsConfig := &tls.Config{
+			InsecureSkipVerify: true, // Set to true only for testing; otherwise validate the server's certificate
+		}
+
+		client = cassieconnect.NewBlocksServiceClient(
+			&http.Client{
+				Transport: &http2.Transport{
+					TLSClientConfig: tlsConfig,
+					DialTLSContext: func(ctx context.Context, network, addr string, config *tls.Config) (net.Conn, error) {
+						// Create a secure connection with TLS
+						return tls.Dial(network, addr, config)
+					},
+				},
+			},
+			baseURL,
+		)
+	} else {
+		client = cassieconnect.NewBlocksServiceClient(
+			&http.Client{
+				Transport: &http2.Transport{
+					AllowHTTP: true,
+					DialTLSContext: func(ctx context.Context, network, addr string, _ *tls.Config) (net.Conn, error) {
+						// Use the standard Dial function to create a plain TCP connection
+						return net.Dial(network, u.Host)
+					},
+				},
+			},
+			baseURL,
+		)
+	}
+
+	ctx := context.Background()
+	genReq := &cassie.GenerateRequest{
+		Blocks: []*cassie.Block{
+			{
+				Kind:     cassie.BlockKind_MARKUP,
+				Role:     cassie.BlockRole_BLOCK_ROLE_USER,
+				Contents: "Show me all the AKS clusters at OpenAI",
+			},
+		},
+	}
+	stream, err := client.Generate(ctx, connect.NewRequest(genReq))
+	if err != nil {
+		return blocks, errors.Wrapf(err, "Failed to create generate stream")
+	}
+
+	// Receive responses
+	for stream.Receive() {
+		response := stream.Msg()
+
+		for _, block := range response.Blocks {
+			blocks[block.Id] = block
+
+			options := protojson.MarshalOptions{
+				Multiline: true,
+				Indent:    "  ", // Two spaces for indentation
+			}
+
+			// Marshal the protobuf message to JSON
+			jsonData, err := options.Marshal(block)
+			if err != nil {
+				log.Error(err, "Failed to marshal block to JSON")
+			} else {
+				log.Info("Block", "block", string(jsonData))
+			}
+		}
+
+	}
+
+	if stream.Err() != nil {
+		return blocks, errors.Wrapf(stream.Err(), "Error receiving response")
+	}
+	return blocks, nil
+}
 
 func Test_ExecuteWithRunme(t *testing.T) {
 	SkipIfMissing(t, "RUN_MANUAL_TESTS")
@@ -126,7 +304,21 @@ func Test_ExecuteWithRunmeConcurrent(t *testing.T) {
 
 func setupAndRunServer(cfg config.Config) error {
 	log := zapr.NewLogger(zap.L())
-	srv, err := NewServer(cfg)
+
+	client, err := ai.NewClient(cfg)
+
+	if err != nil {
+		return errors.Wrap(err, "Failed to create client")
+	}
+
+	agent, err := ai.NewAgent(cfg.CloudAssistant, client)
+
+	if err != nil {
+		return err
+	}
+
+	srv, err := NewServer(cfg, agent)
+	
 	if err != nil {
 		return errors.Wrap(err, "Failed to create server")
 	}

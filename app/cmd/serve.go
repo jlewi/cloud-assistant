@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"github.com/jlewi/cloud-assistant/app/pkg/ai"
 	"github.com/jlewi/cloud-assistant/app/pkg/application"
 	"github.com/jlewi/cloud-assistant/app/pkg/server"
 	"github.com/spf13/cobra"
@@ -22,7 +23,16 @@ func NewServeCmd() *cobra.Command {
 				return err
 			}
 
-			s, err := server.NewServer(*app.Config)
+			client, err := ai.NewClient(*app.Config)
+			if err != nil {
+				return err
+			}
+
+			agent, err := ai.NewAgent(app.Config.CloudAssistant, client)
+			if err != nil {
+				return err
+			}
+			s, err := server.NewServer(*app.Config, agent)
 			if err != nil {
 				return err
 			}

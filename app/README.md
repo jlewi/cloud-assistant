@@ -4,6 +4,7 @@ This is the server for the Cloud Assistant project. The server performs two func
 
 1. It acts as a "proxy" between the Web Client and Runme.
 2. It serves the Web Client.
+3. It is the "Agent"  orchestrating calls to the OpenAI server and post processing the results
 
 [Runme](https://github.com/runmedev/runme) provides a gRPC serve and relies on bidirectional streaming
 for the [Execute Request](https://github.com/runmedev/runme/blob/35cb336a37a4e81d3a4623644dfbe39916a2e824/pkg/api/proto/runme/runner/v2/runner.proto#L438).
