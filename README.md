@@ -28,7 +28,7 @@ assistantServer:
     port: 0
     httpMaxReadTimeout: 0s
     httpMaxWriteTimeout: 0s
-    staticAssets: /Users/${USER}/git_cloud-assistant/web-clean/dist
+    staticAssets: /Users/${USER}/git_cloud-assistant/web/dist
     runnerService: true
     corsOrigins:
     - "http://localhost:5173"
@@ -41,13 +41,13 @@ assistantServer:
 
 ```sh
  cd ${REPOSITORY}
-./app/.build/cas config set assistantServer.staticAssets=$(PWD)/web-clean/dist
+./app/.build/cas config set assistantServer.staticAssets=$(PWD)/web/dist
 ```
 
 ### Build the static assets
 
 ```sh
-cd /Users/${USER}/git_cloud-assistant/web-clean/
+cd /Users/${USER}/git_cloud-assistant/web/
 npm install
 npm run build
 ```

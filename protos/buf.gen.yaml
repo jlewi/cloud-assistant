@@ -22,7 +22,7 @@ plugins:
     # out/es
     # We put the generated files in the cloud-assistant-ui project so that we can use that package.json
     # because I'm not sure how to create a package.json file for just the generated code
-    out: ../web-clean/src/gen/es
+    out: ../web/src/gen/es
     #opt: target=ts
     # N.B. From https://github.com/bufbuild/protobuf-es/issues/953
      # https://github.com/bufbuild/protobuf-es/tree/main/packages/protoc-gen-es#import_extensionjs
