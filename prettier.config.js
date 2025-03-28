@@ -7,6 +7,13 @@ module.exports = {
   semi: false,
   singleQuote: true,
   arrowParens: 'always',
+  importOrder: [
+    "^react",
+    "^@?\\w",
+    "^[./]"
+  ],
+  importOrderSeparation: true,
+  importOrderSortSpecifiers: true,
   overrides: [
     {
       files: 'Routes.*',
@@ -17,4 +24,5 @@ module.exports = {
   ],
   // tailwindConfig: './web/config/tailwind.config.js',
   // plugins: [require('prettier-plugin-tailwindcss')],
+  plugins: ['@trivago/prettier-plugin-sort-imports'],
 }

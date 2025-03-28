@@ -1,9 +1,11 @@
-import { TextField, Button, Flex, Callout } from '@radix-ui/themes'
-import { MagnifyingGlassIcon } from '@radix-ui/react-icons'
 import { useEffect, useRef, useState } from 'react'
 import Markdown from 'react-markdown'
-import { useClient as useAgentClient } from '../../contexts/AgentContext'
+
 import { create as createMessage } from '@bufbuild/protobuf'
+import { MagnifyingGlassIcon } from '@radix-ui/react-icons'
+import { Button, Callout, Flex, TextField } from '@radix-ui/themes'
+
+import { useClient as useAgentClient } from '../../contexts/AgentContext'
 import * as blocks_pb from '../../gen/es/cassie/blocks_pb'
 
 type MessageProps = {

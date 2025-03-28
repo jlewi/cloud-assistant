@@ -1,8 +1,10 @@
 import { memo, useState } from 'react'
-import { Box, Button, Card } from '@radix-ui/themes'
+
 import Editor from '@monaco-editor/react'
-import Console from './Runme/Console'
+import { Box, Button, Card } from '@radix-ui/themes'
 import { v4 as uuidv4 } from 'uuid'
+
+import Console from './Runme/Console'
 
 type props = {
   value: string

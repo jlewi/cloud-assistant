@@ -1,28 +1,31 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import './runme-vscode.css'
-import './renderers/client'
-// @ts-expect-error because the webcomponents are not typed
-import { setContext, ClientMessages } from './renderers/client'
-import { RendererContext } from 'vscode-notebook-renderer'
+import { useEffect } from 'react'
+
 import {
   ExecuteResponse,
   SessionStrategy,
 } from '@buf/stateful_runme.bufbuild_es/runme/runner/v2/runner_pb'
-import { fromJson, toJson } from '@bufbuild/protobuf'
-import { useEffect } from 'react'
 import {
   ExecuteRequest,
   ExecuteRequestSchema,
 } from '@buf/stateful_runme.bufbuild_es/runme/runner/v2/runner_pb'
+import { fromJson, toJson } from '@bufbuild/protobuf'
+import { create } from '@bufbuild/protobuf'
+import { ulid } from 'ulid'
+import { RendererContext } from 'vscode-notebook-renderer'
+import { VSCodeEvent } from 'vscode-notebook-renderer/events'
+
 import {
   SocketRequest,
   SocketRequestSchema,
-  SocketResponseSchema,
   SocketResponse,
+  SocketResponseSchema,
 } from '../../gen/es/cassie/sockets_pb'
-import { create } from '@bufbuild/protobuf'
-import { VSCodeEvent } from 'vscode-notebook-renderer/events'
-import { ulid } from 'ulid'
+import './renderers/client'
+// @ts-expect-error because the webcomponents are not typed
+import { ClientMessages, setContext } from './renderers/client'
+import './runme-vscode.css'
+
 let socket: WebSocket
 
 // A queue for socket requests.

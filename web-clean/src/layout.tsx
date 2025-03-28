@@ -1,4 +1,4 @@
-import { Flex, Box, ScrollArea, Text } from '@radix-ui/themes'
+import { Box, Flex, ScrollArea, Text } from '@radix-ui/themes'
 
 import openaiLogo from './assets/openai.svg'
 

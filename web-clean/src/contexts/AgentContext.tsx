@@ -1,16 +1,17 @@
 import {
-  createContext,
   Dispatch,
   FC,
   ReactNode,
   SetStateAction,
+  createContext,
   useContext,
   useEffect,
   useState,
 } from 'react'
 
-import { createClient, Client } from '@connectrpc/connect'
+import { Client, createClient } from '@connectrpc/connect'
 import { createGrpcWebTransport } from '@connectrpc/connect-web'
+
 // Should we rename this to Blocks* vs Agent*?
 import * as blocks_pb from '../gen/es/cassie/blocks_pb'
 

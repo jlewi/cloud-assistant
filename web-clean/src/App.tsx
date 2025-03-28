@@ -1,14 +1,15 @@
-import Layout from './layout'
 import { Helmet } from 'react-helmet'
+import { BrowserRouter, Route, Routes } from 'react-router'
+
 import { Theme } from '@radix-ui/themes'
 import '@radix-ui/themes/styles.css'
 
+import openaiLogo from './assets/openai.svg'
 import Actions from './components/Actions'
 import Chat from './components/Chat/Chat'
 import FileViewer from './components/Placeholder'
-
-import openaiLogo from './assets/openai.svg'
 import { AgentClientProvider } from './contexts/AgentContext'
+import Layout from './layout'
 
 function App() {
   return (
@@ -20,7 +21,20 @@ function App() {
           <link rel="icon" href={openaiLogo} />
         </Helmet>
         <AgentClientProvider>
-          <Layout left={<Chat />} middle={<Actions />} right={<FileViewer />} />
+          <BrowserRouter>
+            <Routes>
+              <Route
+                path="/"
+                element={
+                  <Layout
+                    left={<Chat />}
+                    middle={<Actions />}
+                    right={<FileViewer />}
+                  />
+                }
+              />
+            </Routes>
+          </BrowserRouter>
         </AgentClientProvider>
       </Theme>
     </>
