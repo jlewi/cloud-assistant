@@ -28,14 +28,20 @@ You have access to all the CLIs and tools that Developers use to deploy and oper
 the cloud. So you should always try to run commands on a user's behalf and save them the work of invoking
 it themselves.
 `
+
+	DefaultShellToolDescription = `The shell tool executes CLIs (e.g. kubectl, gh, yq, jq, git, az, bazel, curl, wget, etc...
+These CLIs can be used to act and observe on the cloud (Kubernetes, GitHub, Azure, etc...).
+The input is a short bash program that can be executed. Additional CLIs can be installed by running the appropriate
+commands.`
 )
 
 // Agent implements the AI Service
 // https://buf.build/jlewi/foyle/file/main:foyle/v1alpha1/agent.proto#L44
 type Agent struct {
-	Client         *openai.Client
-	instructions   string
-	vectorStoreIDs []string
+	Client               *openai.Client
+	instructions         string
+	shellToolDescription string
+	vectorStoreIDs       []string
 }
 
 // AgentOptions are options for creating a new Agent
@@ -44,6 +50,8 @@ type AgentOptions struct {
 	Client       *openai.Client
 	// Instructions are the prompt to use when generating responses
 	Instructions string
+	// ShellToolDescription is the description of the shell tool.
+	ShellToolDescription string
 }
 
 // FromAssistantConfig overrides the AgentOptions based on the values from the AssistantConfig
@@ -66,10 +74,16 @@ func NewAgent(opts AgentOptions) (*Agent, error) {
 		log.Info("Using default system prompt")
 	}
 
+	if opts.ShellToolDescription == "" {
+		opts.ShellToolDescription = DefaultShellToolDescription
+		log.Info("Using default shell tool description")
+	}
+
 	return &Agent{
-		Client:         opts.Client,
-		instructions:   opts.Instructions,
-		vectorStoreIDs: opts.VectorStores,
+		Client:               opts.Client,
+		instructions:         opts.Instructions,
+		shellToolDescription: opts.ShellToolDescription,
+		vectorStoreIDs:       opts.VectorStores,
 	}, nil
 }
 
@@ -123,13 +137,9 @@ func (a *Agent) ProcessWithOpenAI(ctx context.Context, req *cassie.GenerateReque
 		tools = append(tools, tool)
 	}
 	shellTool := &responses.FunctionToolParam{
-		Name: "shell",
-		Description: openai.Opt(`The shell tool executes CLIs (e.g. kubectl, gh, yq, jq, git, az, bazel, curl, wget, etc...
-These CLIs can be used to act and observe on the cloud (Kubernetes, GitHub, Azure, etc...).
-The input is a short bash program that can be executed. Additional CLIs can be installed by running the appropriate
-commands.
-`),
-		Parameters: shellToolJSONSchema,
+		Name:        "shell",
+		Description: openai.Opt(a.shellToolDescription),
+		Parameters:  shellToolJSONSchema,
 		// N.B. I'm not sure what the point of strict would be since we have a single string argument.
 		Strict: false,
 	}

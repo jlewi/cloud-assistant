@@ -40,7 +40,12 @@ func NewServeCmd() *cobra.Command {
       if err != nil {
         return err
       }
-      s, err := server.NewServer(*app.Config, agent)
+
+      serverOptions := &server.Options{
+        Telemetry: app.Config.Telemetry,
+        Server:    app.Config.AssistantServer,
+      }
+      s, err := server.NewServer(*serverOptions, agent)
       if err != nil {
         return err
       }
