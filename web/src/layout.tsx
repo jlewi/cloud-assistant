@@ -12,7 +12,7 @@ function Layout({
   right: React.ReactNode
 }) {
   return (
-    <Box className="w-screen h-screen max-w-[80%] mx-auto overflow-hidden flex flex-col">
+    <Box className="w-screen h-screen max-w-full mx-auto overflow-hidden flex flex-col">
       {/* Navbar, links are just a facade for now */}
       <Box
         className="w-full p-3 mb-1 border-b"

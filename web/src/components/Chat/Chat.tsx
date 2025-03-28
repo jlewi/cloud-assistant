@@ -18,13 +18,13 @@ const MessageContainer = ({
   role: 'user' | 'assistant' | 'code'
   children: React.ReactNode
 }) => {
-  const self = role !== 'user' ? 'start' : 'end'
+  const self = role !== 'user' ? 'self-start' : 'self-end'
   const color = role !== 'user' ? 'gray' : 'indigo'
   return (
     <Callout.Root
       highContrast
       color={color}
-      className={`self-${self} max-w-[80%] break-words m-1`}
+      className={`${self} max-w-[80%] break-words m-1`}
     >
       <Callout.Text>{children}</Callout.Text>
     </Callout.Root>
