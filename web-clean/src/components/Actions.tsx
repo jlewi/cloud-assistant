@@ -80,7 +80,7 @@ function RunActionButton({
   )
 }
 
-const CommandsConsole = memo(
+const CodeConsole = memo(
   ({
     value,
     runID,
@@ -196,10 +196,13 @@ function Action({ value, title }: props) {
             </div>
             <CodeEditor
               value={editorValue}
-              onChange={(v) => setEditorValue(v)}
+              onChange={(v) => {
+                setExitCode(null)
+                setEditorValue(v)
+              }}
               runCode={runCode}
             />
-            <CommandsConsole
+            <CodeConsole
               key={exec.runID}
               runID={exec.runID}
               value={exec.value}
