@@ -4,7 +4,10 @@ import './renderers/client'
 // @ts-expect-error because the webcomponents are not typed
 import { setContext, ClientMessages } from './renderers/client'
 import { RendererContext } from 'vscode-notebook-renderer'
-import { ExecuteResponse } from '@buf/stateful_runme.bufbuild_es/runme/runner/v2/runner_pb'
+import {
+  ExecuteResponse,
+  SessionStrategy,
+} from '@buf/stateful_runme.bufbuild_es/runme/runner/v2/runner_pb'
 import { fromJson, toJson } from '@bufbuild/protobuf'
 import { useEffect } from 'react'
 import {
@@ -49,7 +52,7 @@ function sendExecuteRequest(socket: WebSocket, execReq: ExecuteRequest) {
 function buildExecuteRequest(): ExecuteRequest {
   const blockID = ulid()
   return create(ExecuteRequestSchema, {
-    // sessionStrategy: SessionStrategy.MOST_RECENT, // without this every exec gets its own session
+    sessionStrategy: SessionStrategy.MOST_RECENT, // without this every exec gets its own session
     storeStdoutInEnv: true,
     config: {
       programName: '/bin/zsh', // unset uses system shell
