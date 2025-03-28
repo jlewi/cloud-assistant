@@ -1,12 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import Markdown from 'react-markdown'
 
-import { create as createMessage } from '@bufbuild/protobuf'
 import { MagnifyingGlassIcon } from '@radix-ui/react-icons'
 import { Button, Callout, Flex, TextField } from '@radix-ui/themes'
 
-import { useClient as useAgentClient } from '../../contexts/AgentContext'
-import * as blocks_pb from '../../gen/es/cassie/blocks_pb'
+import { useMessage } from '../../contexts/MessageContext'
 
 type MessageProps = {
   role: 'user' | 'assistant' | 'code'
@@ -72,75 +70,14 @@ const Message = ({ role, text }: MessageProps) => {
 }
 
 function Chat() {
-  const { client } = useAgentClient()
+  const { messages, sendMessage, isInputDisabled } = useMessage()
   const [userInput, setUserInput] = useState('')
-  const [messages, setMessages] = useState<MessageProps[]>([])
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [inputDisabled, setInputDisabled] = useState(false)
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [threadId, setThreadId] = useState('1') // dummy thread id
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (!userInput.trim()) return
-    setMessages((prevMessages) => [
-      ...prevMessages,
-      { role: 'user', text: userInput },
-      { role: 'assistant', text: '...' },
-    ])
     sendMessage(userInput)
     setUserInput('')
-    setInputDisabled(true)
-    // scrollToBottom()
-  }
-
-  const sendMessage = async (text: string) => {
-    const req: blocks_pb.GenerateRequest = createMessage(
-      blocks_pb.GenerateRequestSchema,
-      {
-        blocks: [
-          {
-            role: blocks_pb.BlockRole.USER,
-            kind: blocks_pb.BlockKind.MARKUP,
-            contents: text,
-          },
-        ],
-      }
-    )
-    try {
-      const res = client!.generate(req)
-      for await (const r of res) {
-        const block = r.blocks[r.blocks.length - 1]
-        setMessages((prevMessages) => {
-          if (!block) return prevMessages
-
-          // Always update the last message if it exists, otherwise add a new one
-          const updatedMessages = [...prevMessages]
-
-          if (
-            updatedMessages.length > 0 &&
-            updatedMessages[updatedMessages.length - 1].role === 'assistant'
-          ) {
-            // Update existing assistant message
-            updatedMessages[updatedMessages.length - 1] = {
-              ...updatedMessages[updatedMessages.length - 1],
-              text: block.contents,
-            }
-            return updatedMessages
-          } else {
-            // Add new assistant message
-            return [
-              ...prevMessages,
-              { role: 'assistant', text: block.contents },
-            ]
-          }
-        })
-      }
-    } catch (e) {
-      console.error(e)
-    } finally {
-      setInputDisabled(false)
-    }
   }
 
   // automatically scroll to bottom of chat
@@ -181,8 +118,8 @@ function Chat() {
               </IconButton>
             </TextField.Slot> */}
           </TextField.Root>
-          <Button type="submit" disabled={inputDisabled}>
-            {inputDisabled ? 'Thinking' : 'Send'}
+          <Button type="submit" disabled={isInputDisabled}>
+            {isInputDisabled ? 'Thinking' : 'Send'}
           </Button>
         </Flex>
       </form>
