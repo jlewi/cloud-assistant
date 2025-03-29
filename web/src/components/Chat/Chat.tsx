@@ -104,11 +104,16 @@ function Chat() {
     scrollToBottom()
   }, [chatBlocks])
 
+  let markupBlocks = chatBlocks.get(BlockKind.MARKUP)
+  if (!markupBlocks) {
+    markupBlocks = []
+  }
+
   return (
     <div className="flex flex-col-reverse h-full w-full">
-      {chatBlocks.length > 0 && (
+      {markupBlocks.length > 0 && (
         <div className="flex-grow overflow-y-auto p-1 flex flex-col order-2 whitespace-pre-wrap">
-          {chatBlocks.map((blockId) => {
+          {markupBlocks.map((blockId) => {
             const block = blocks.get(blockId) // Lookup block in the map
             return block ? (
               <Message key={blockId} block={block} />

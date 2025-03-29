@@ -18,11 +18,10 @@ type BlockContextType = {
 
   setBlock: React.Dispatch<React.SetStateAction<Map<string, Block>>>
 
-  // TODO(jlewi): We probably need to split this into two different states to store the positions
-  // of the "MARKUP" blocks and the "CODE" blocks. Separately
-  // Block positions contains the IDs of the blocks in the order they should be presented.
-  blockPositions: string[]
-  setPositions: React.Dispatch<React.SetStateAction<string[]>>
+  // Block positions is map from BlockKind to the list of block IDs
+  // for that Kind. These are arrayed in the order they should be displayed
+  blockPositions: Map<BlockKind, string[]>
+  setPositions: React.Dispatch<React.SetStateAction<Map<BlockKind, string[]>>>
 
   // Define additional functions to update the state
   // This way they can be set in the provider and passed down to the components
@@ -47,7 +46,9 @@ export const useBlock = () => {
 export const BlockProvider = ({ children }: { children: ReactNode }) => {
   const { client } = useAgentClient()
   const [blocks, setBlock] = useState<Map<string, Block>>(new Map())
-  const [blockPositions, setPositions] = useState<string[]>([])
+  const [blockPositions, setPositions] = useState<Map<BlockKind, string[]>>(
+    new Map()
+  )
 
   const [isInputDisabled, setIsInputDisabled] = useState(false)
 
@@ -60,7 +61,18 @@ export const BlockProvider = ({ children }: { children: ReactNode }) => {
       blocks.set(block.id, block)
 
       // Since this is the first time we see this block add it to the end of the list of blocks
-      setPositions((prevBlocksPos) => [...prevBlocksPos, block.id])
+      setPositions((prevBlocksPos) => {
+        if (!prevBlocksPos.has(block.kind)) {
+          prevBlocksPos.set(block.kind, [])
+        }
+        let ids = prevBlocksPos.get(block.kind)
+        if (!ids) {
+          ids = []
+        }
+        ids = [...ids, block.id]
+        prevBlocksPos.set(block.kind, ids)
+        return prevBlocksPos
+      })
     }
     setBlock((prevBlocks) => {
       console.log(`Setblocks called with ${prevBlocks.size} elements`)
