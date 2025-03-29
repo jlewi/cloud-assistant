@@ -1,4 +1,4 @@
-import { memo, useState } from 'react'
+import { memo, useCallback, useEffect, useRef, useState } from 'react'
 
 import Editor from '@monaco-editor/react'
 import { Box, Button, Card } from '@radix-ui/themes'
@@ -118,13 +118,21 @@ const CodeEditor = memo(
   ({
     value,
     onChange,
-    runCode,
+    onEnter,
   }: {
     value: string
     onChange: (value: string) => void
-    runCode: () => void
+    onEnter: () => void
   }) => {
     const [key] = useState(uuidv4())
+    // Store the latest onEnter in a ref to ensure late binding
+    const onEnterRef = useRef(onEnter)
+
+    // Keep the ref updated with the latest onEnter
+    useEffect(() => {
+      onEnterRef.current = onEnter
+    }, [onEnter])
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const editorDidMount = (editor: any, monaco: any) => {
       if (!monaco?.editor) {
@@ -138,7 +146,8 @@ const CodeEditor = memo(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       editor.onKeyDown((event: any) => {
         if (event.ctrlKey && event.keyCode === 3) {
-          runCode()
+          // Use the ref to ensure we always have the latest onEnter
+          onEnterRef.current()
         }
       })
     }
@@ -169,9 +178,9 @@ function Action({ value, title }: props) {
   })
   const [exitCode, setExitCode] = useState<number | null>(null)
 
-  const runCode = () => {
+  const runCode = useCallback(() => {
     setExec({ value: editorValue, runID: uuidv4() })
-  }
+  }, [editorValue])
 
   let output = ''
   const outputHandler = (data: Uint8Array): void => {
@@ -200,7 +209,7 @@ function Action({ value, title }: props) {
                 setExitCode(null)
                 setEditorValue(v)
               }}
-              runCode={runCode}
+              onEnter={runCode}
             />
             <CodeConsole
               key={exec.runID}
