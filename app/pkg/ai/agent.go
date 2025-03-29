@@ -42,6 +42,7 @@ type Agent struct {
 	instructions         string
 	shellToolDescription string
 	vectorStoreIDs       []string
+	filenameToLink       func(string) string
 }
 
 // AgentOptions are options for creating a new Agent
@@ -52,6 +53,9 @@ type AgentOptions struct {
 	Instructions string
 	// ShellToolDescription is the description of the shell tool.
 	ShellToolDescription string
+
+	// FilenameToLink is an optional function that converts a filename to a link to be displayed in the UI.
+	FilenameToLink func(string) string
 }
 
 // FromAssistantConfig overrides the AgentOptions based on the values from the AssistantConfig
@@ -83,6 +87,7 @@ func NewAgent(opts AgentOptions) (*Agent, error) {
 		Client:               opts.Client,
 		instructions:         opts.Instructions,
 		shellToolDescription: opts.ShellToolDescription,
+		filenameToLink:       opts.FilenameToLink,
 		vectorStoreIDs:       opts.VectorStores,
 	}, nil
 }
@@ -176,7 +181,7 @@ func (a *Agent) ProcessWithOpenAI(ctx context.Context, req *cassie.GenerateReque
 
 	eStream := a.Client.Responses.NewStreaming(context.TODO(), createResponse)
 
-	builder := NewBlocksBuilder()
+	builder := NewBlocksBuilder(a.filenameToLink)
 
 	return builder.HandleEvents(ctx, eStream, sender)
 }

@@ -16,6 +16,8 @@ import (
 // blocks to be streamed back to the frontend. This is a stateful operation because responses are deltas
 // to be added to previous responses
 type BlocksBuilder struct {
+	filenameToLink func(string) string
+
 	// Map from block ID to block
 	blocks map[string]*cassie.Block
 	// Events from OpenAI reference blocks by index, so we need to keep track of the mapping
@@ -23,9 +25,10 @@ type BlocksBuilder struct {
 	mu sync.Mutex
 }
 
-func NewBlocksBuilder() *BlocksBuilder {
+func NewBlocksBuilder(filenameToLink func(string) string) *BlocksBuilder {
 	return &BlocksBuilder{
-		blocks: make(map[string]*cassie.Block),
+		blocks:         make(map[string]*cassie.Block),
+		filenameToLink: filenameToLink,
 		//indexToID: make(map[int]string),
 	}
 }
@@ -218,12 +221,17 @@ func (b *BlocksBuilder) fileSearchDoneItemToBlock(ctx context.Context, item resp
 		if _, ok := existing[r.FileID]; ok {
 			continue
 		}
+
+		link := r.Filename
+		if b.filenameToLink != nil {
+			link = b.filenameToLink(r.Filename)
+		}
+
 		block.FileSearchResults = append(block.FileSearchResults, &cassie.FileSearchResult{
 			FileID:   r.FileID,
 			Score:    r.Score,
 			FileName: r.Filename,
-			// TODO(jlewi): Should really be a link to the file
-			Link: r.Filename,
+			Link:     link,
 		})
 
 		existing[r.FileID] = true
