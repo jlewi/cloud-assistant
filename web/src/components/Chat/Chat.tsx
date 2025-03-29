@@ -1,54 +1,56 @@
 import { useEffect, useRef, useState } from 'react'
 import Markdown from 'react-markdown'
 
-import { create as createMessage } from '@bufbuild/protobuf'
 import { MagnifyingGlassIcon } from '@radix-ui/react-icons'
 import { Button, Callout, Flex, TextField } from '@radix-ui/themes'
 
-import { useClient as useAgentClient } from '../../contexts/AgentContext'
-import * as blocks_pb from '../../gen/es/cassie/blocks_pb'
+import {
+  Block,
+  BlockKind,
+  BlockRole,
+  useBlock,
+} from '../../contexts/BlockContext'
 
 type MessageProps = {
-  role: 'user' | 'assistant' | 'code'
-  text: string
+  block: Block
 }
 
 const MessageContainer = ({
   role,
   children,
 }: {
-  role: 'user' | 'assistant' | 'code'
+  role: BlockRole
   children: React.ReactNode
 }) => {
-  const self = role !== 'user' ? 'start' : 'end'
-  const color = role !== 'user' ? 'gray' : 'indigo'
+  const self = role === BlockRole.USER ? 'self-end' : 'self-start'
+  const color = role === BlockRole.USER ? 'indigo' : 'gray'
   return (
     <Callout.Root
       highContrast
       color={color}
-      className={`self-${self} max-w-[80%] break-words m-1`}
+      className={`${self} max-w-[80%] break-words m-1`}
     >
       <Callout.Text>{children}</Callout.Text>
     </Callout.Root>
   )
 }
 
-const UserMessage = ({ text }: { text: string }) => {
-  return <MessageContainer role="user">{text}</MessageContainer>
+const UserMessage = ({ contents }: { contents: string }) => {
+  return <MessageContainer role={BlockRole.USER}>{contents}</MessageContainer>
 }
 
-const AssistantMessage = ({ text }: { text: string }) => {
+const AssistantMessage = ({ contents }: { contents: string }) => {
   return (
-    <MessageContainer role="assistant">
-      <Markdown>{text}</Markdown>
+    <MessageContainer role={BlockRole.ASSISTANT}>
+      <Markdown>{contents}</Markdown>
     </MessageContainer>
   )
 }
 
-const CodeMessage = ({ text }: { text: string }) => {
+const CodeMessage = ({ contents }: { contents: string }) => {
   return (
-    <MessageContainer role="code">
-      {text.split('\n').map((line, index) => (
+    <MessageContainer role={BlockRole.ASSISTANT}>
+      {contents.split('\n').map((line, index) => (
         <div key={index} className="mt-1">
           <span className="text-[#b8b8b8] mr-2">{`${index + 1}. `}</span>
           {line}
@@ -58,89 +60,34 @@ const CodeMessage = ({ text }: { text: string }) => {
   )
 }
 
-const Message = ({ role, text }: MessageProps) => {
-  switch (role) {
-    case 'user':
-      return <UserMessage text={text} />
-    case 'assistant':
-      return <AssistantMessage text={text} />
-    case 'code':
-      return <CodeMessage text={text} />
+const Message = ({ block }: MessageProps) => {
+  if (block.kind === BlockKind.CODE) {
+    return <CodeMessage contents={block.contents} />
+  }
+
+  switch (block.role) {
+    case BlockRole.USER:
+      return <UserMessage contents={block.contents} />
+    case BlockRole.ASSISTANT:
+      return <AssistantMessage contents={block.contents} />
     default:
       return null
   }
 }
 
 function Chat() {
-  const { client } = useAgentClient()
+  const {
+    blocks: messages,
+    sendUserBlock: sendMessage,
+    isInputDisabled,
+  } = useBlock()
   const [userInput, setUserInput] = useState('')
-  const [messages, setMessages] = useState<MessageProps[]>([])
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [inputDisabled, setInputDisabled] = useState(false)
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [threadId, setThreadId] = useState('1') // dummy thread id
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (!userInput.trim()) return
-    setMessages((prevMessages) => [
-      ...prevMessages,
-      { role: 'user', text: userInput },
-      { role: 'assistant', text: '...' },
-    ])
     sendMessage(userInput)
     setUserInput('')
-    setInputDisabled(true)
-    // scrollToBottom()
-  }
-
-  const sendMessage = async (text: string) => {
-    const req: blocks_pb.GenerateRequest = createMessage(
-      blocks_pb.GenerateRequestSchema,
-      {
-        blocks: [
-          {
-            role: blocks_pb.BlockRole.USER,
-            kind: blocks_pb.BlockKind.MARKUP,
-            contents: text,
-          },
-        ],
-      }
-    )
-    try {
-      const res = client!.generate(req)
-      for await (const r of res) {
-        const block = r.blocks[r.blocks.length - 1]
-        setMessages((prevMessages) => {
-          if (!block) return prevMessages
-
-          // Always update the last message if it exists, otherwise add a new one
-          const updatedMessages = [...prevMessages]
-
-          if (
-            updatedMessages.length > 0 &&
-            updatedMessages[updatedMessages.length - 1].role === 'assistant'
-          ) {
-            // Update existing assistant message
-            updatedMessages[updatedMessages.length - 1] = {
-              ...updatedMessages[updatedMessages.length - 1],
-              text: block.contents,
-            }
-            return updatedMessages
-          } else {
-            // Add new assistant message
-            return [
-              ...prevMessages,
-              { role: 'assistant', text: block.contents },
-            ]
-          }
-        })
-      }
-    } catch (e) {
-      console.error(e)
-    } finally {
-      setInputDisabled(false)
-    }
   }
 
   // automatically scroll to bottom of chat
@@ -157,7 +104,7 @@ function Chat() {
       {messages.length > 0 && (
         <div className="flex-grow overflow-y-auto p-1 flex flex-col order-2 whitespace-pre-wrap">
           {messages.map((msg, index) => (
-            <Message key={index} role={msg.role} text={msg.text} />
+            <Message key={index} block={msg} />
           ))}
           <div ref={messagesEndRef} />
         </div>
@@ -175,14 +122,9 @@ function Chat() {
             <TextField.Slot>
               <MagnifyingGlassIcon height="16" width="16" />
             </TextField.Slot>
-            {/* <TextField.Slot pr="3">
-              <IconButton size="2" variant="ghost">
-                <DotsHorizontalIcon height="16" width="16" />
-              </IconButton>
-            </TextField.Slot> */}
           </TextField.Root>
-          <Button type="submit" disabled={inputDisabled}>
-            {inputDisabled ? 'Thinking' : 'Send'}
+          <Button type="submit" disabled={isInputDisabled}>
+            {isInputDisabled ? 'Thinking' : 'Send'}
           </Button>
         </Flex>
       </form>
