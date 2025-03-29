@@ -4,22 +4,26 @@ import Markdown from 'react-markdown'
 import { MagnifyingGlassIcon } from '@radix-ui/react-icons'
 import { Button, Callout, Flex, TextField } from '@radix-ui/themes'
 
-import { useMessage } from '../../contexts/MessageContext'
+import {
+  Block,
+  BlockKind,
+  BlockRole,
+  useBlock,
+} from '../../contexts/BlockContext'
 
 type MessageProps = {
-  role: 'user' | 'assistant' | 'code'
-  text: string
+  block: Block
 }
 
 const MessageContainer = ({
   role,
   children,
 }: {
-  role: 'user' | 'assistant' | 'code'
+  role: BlockRole
   children: React.ReactNode
 }) => {
-  const self = role !== 'user' ? 'self-start' : 'self-end'
-  const color = role !== 'user' ? 'gray' : 'indigo'
+  const self = role === BlockRole.USER ? 'self-end' : 'self-start'
+  const color = role === BlockRole.USER ? 'indigo' : 'gray'
   return (
     <Callout.Root
       highContrast
@@ -31,22 +35,22 @@ const MessageContainer = ({
   )
 }
 
-const UserMessage = ({ text }: { text: string }) => {
-  return <MessageContainer role="user">{text}</MessageContainer>
+const UserMessage = ({ contents }: { contents: string }) => {
+  return <MessageContainer role={BlockRole.USER}>{contents}</MessageContainer>
 }
 
-const AssistantMessage = ({ text }: { text: string }) => {
+const AssistantMessage = ({ contents }: { contents: string }) => {
   return (
-    <MessageContainer role="assistant">
-      <Markdown>{text}</Markdown>
+    <MessageContainer role={BlockRole.ASSISTANT}>
+      <Markdown>{contents}</Markdown>
     </MessageContainer>
   )
 }
 
-const CodeMessage = ({ text }: { text: string }) => {
+const CodeMessage = ({ contents }: { contents: string }) => {
   return (
-    <MessageContainer role="code">
-      {text.split('\n').map((line, index) => (
+    <MessageContainer role={BlockRole.ASSISTANT}>
+      {contents.split('\n').map((line, index) => (
         <div key={index} className="mt-1">
           <span className="text-[#b8b8b8] mr-2">{`${index + 1}. `}</span>
           {line}
@@ -56,21 +60,27 @@ const CodeMessage = ({ text }: { text: string }) => {
   )
 }
 
-const Message = ({ role, text }: MessageProps) => {
-  switch (role) {
-    case 'user':
-      return <UserMessage text={text} />
-    case 'assistant':
-      return <AssistantMessage text={text} />
-    case 'code':
-      return <CodeMessage text={text} />
+const Message = ({ block }: MessageProps) => {
+  if (block.kind === BlockKind.CODE) {
+    return <CodeMessage contents={block.contents} />
+  }
+
+  switch (block.role) {
+    case BlockRole.USER:
+      return <UserMessage contents={block.contents} />
+    case BlockRole.ASSISTANT:
+      return <AssistantMessage contents={block.contents} />
     default:
       return null
   }
 }
 
 function Chat() {
-  const { messages, sendMessage, isInputDisabled } = useMessage()
+  const {
+    blocks: messages,
+    sendUserBlock: sendMessage,
+    isInputDisabled,
+  } = useBlock()
   const [userInput, setUserInput] = useState('')
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
@@ -94,7 +104,7 @@ function Chat() {
       {messages.length > 0 && (
         <div className="flex-grow overflow-y-auto p-1 flex flex-col order-2 whitespace-pre-wrap">
           {messages.map((msg, index) => (
-            <Message key={index} role={msg.role} text={msg.text} />
+            <Message key={index} block={msg} />
           ))}
           <div ref={messagesEndRef} />
         </div>
@@ -112,11 +122,6 @@ function Chat() {
             <TextField.Slot>
               <MagnifyingGlassIcon height="16" width="16" />
             </TextField.Slot>
-            {/* <TextField.Slot pr="3">
-              <IconButton size="2" variant="ghost">
-                <DotsHorizontalIcon height="16" width="16" />
-              </IconButton>
-            </TextField.Slot> */}
           </TextField.Root>
           <Button type="submit" disabled={isInputDisabled}>
             {isInputDisabled ? 'Thinking' : 'Send'}

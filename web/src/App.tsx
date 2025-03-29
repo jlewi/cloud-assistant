@@ -9,7 +9,7 @@ import Actions from './components/Actions'
 import Chat from './components/Chat/Chat'
 import FileViewer from './components/Placeholder'
 import { AgentClientProvider } from './contexts/AgentContext'
-import { MessageProvider } from './contexts/MessageContext'
+import { BlockProvider } from './contexts/BlockContext'
 import Layout from './layout'
 
 function App() {
@@ -22,7 +22,7 @@ function App() {
           <link rel="icon" href={openaiLogo} />
         </Helmet>
         <AgentClientProvider>
-          <MessageProvider>
+          <BlockProvider>
             <BrowserRouter>
               <Routes>
                 <Route
@@ -37,7 +37,7 @@ function App() {
                 />
               </Routes>
             </BrowserRouter>
-          </MessageProvider>
+          </BlockProvider>
         </AgentClientProvider>
       </Theme>
     </>

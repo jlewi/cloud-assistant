@@ -69,7 +69,7 @@ function RunActionButton({
             dominantBaseline="middle"
             textAnchor="middle"
             fill="#ef4444"
-            fontSize="14"
+            fontSize="10"
             fontWeight="bold"
           >
             {exitCode}
@@ -228,14 +228,14 @@ function Action({ value, title }: props) {
 function Actions() {
   // should come out of Context
   const dummies = [
-    {
-      title: "To begin, let's use shell to say hello",
-      value: "echo 'Hello, world!'",
-    },
-    {
-      title: "What's the time?",
-      value: 'date',
-    },
+    // {
+    //   title: "To begin, let's use shell to say hello",
+    //   value: "echo 'Hello, world!'",
+    // },
+    // {
+    //   title: "What's the time?",
+    //   value: 'date',
+    // },
     {
       title: 'Here are the nodes in your cluster',
       value: 'kubectl get nodes',
