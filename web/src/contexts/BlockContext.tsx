@@ -13,8 +13,23 @@ import {
 import { useClient as useAgentClient } from './AgentContext'
 
 type BlockContextType = {
-  blocks: Block[]
+  // Blocks is a map of all blocks from their ID to the actual proto
+  blocks: Map<string, Block>
+
+  setBlock: React.Dispatch<React.SetStateAction<Map<string, Block>>>
+
+  // TODO(jlewi): We probably need to split this into two different states to store the positions
+  // of the "MARKUP" blocks and the "CODE" blocks. Separately
+  // Block positions contains the IDs of the blocks in the order they should be presented.
+  blockPositions: string[]
+  setPositions: React.Dispatch<React.SetStateAction<string[]>>
+
+  // Define additional functions to update the state
+  // This way they can be set in the provider and passed down to the components
+  updateBlock: (block: Block) => void
+
   sendUserBlock: (text: string) => Promise<void>
+  // Keep track of whether the input is disabled
   isInputDisabled: boolean
 }
 
@@ -31,9 +46,33 @@ export const useBlock = () => {
 
 export const BlockProvider = ({ children }: { children: ReactNode }) => {
   const { client } = useAgentClient()
-  const [blocks, setBlocks] = useState<Block[]>([])
+  const [blocks, setBlock] = useState<Map<string, Block>>(new Map())
+  const [blockPositions, setPositions] = useState<string[]>([])
+
   const [isInputDisabled, setIsInputDisabled] = useState(false)
 
+  const updateBlock = (block: Block) => {
+    if (!blocks.has(block.id)) {
+      console.log(`adding block: ${block.id}`)
+
+      // Is it ok to do this or is this violating the fact that state should only
+      // be mutated by React state functions
+      blocks.set(block.id, block)
+
+      // Since this is the first time we see this block add it to the end of the list of blocks
+      setPositions((prevBlocksPos) => [...prevBlocksPos, block.id])
+    }
+    setBlock((prevBlocks) => {
+      console.log(`Setblocks called with ${prevBlocks.size} elements`)
+      console.log(`Setblocks called to add ${block.id}`)
+      const newBlocks = new Map(prevBlocks) // Create a new Map instance
+      newBlocks.set(block.id, block) // Remove the block
+      return newBlocks // Set the new state
+    })
+  }
+
+  // sendUserBlock is a function that turns the text in the chat window into a block
+  // which is then sent to the server
   const sendUserBlock = async (text: string) => {
     if (!text.trim()) return
 
@@ -43,13 +82,21 @@ export const BlockProvider = ({ children }: { children: ReactNode }) => {
       contents: text,
     })
 
-    const assistantBlock = create(BlockSchema, {
-      role: BlockRole.ASSISTANT,
-      kind: BlockKind.MARKUP,
-      contents: '...',
-    })
+    // Add the user block to the blocks map and positions
+    updateBlock(userBlock)
 
-    setBlocks((prevBlocks) => [...prevBlocks, userBlock, assistantBlock])
+    // TODO(jlewi): Sebastien had added an assistant block with "..." to indicate
+    // the AI is thinking. This is a nice UX. How do we that properly?
+    // Do we just do it on the frontend and remove the block as soon as we get a response from the backend?
+    // Do we do it on the backend? So backend sends back a block with "..." and this block then gets updated
+    // subsequently? I think I like that aproach
+    // const assistantBlock = create(BlockSchema, {
+    //   role: BlockRole.ASSISTANT,
+    //   kind: BlockKind.MARKUP,
+    //   contents: '...',
+    // })
+
+    //setBlocks((prevBlocks) => [...prevBlocks, userBlock, assistantBlock])
     setIsInputDisabled(true)
 
     const req: GenerateRequest = create(GenerateRequestSchema, {
@@ -59,22 +106,9 @@ export const BlockProvider = ({ children }: { children: ReactNode }) => {
     try {
       const res = client!.generate(req)
       for await (const r of res) {
-        const block = r.blocks[r.blocks.length - 1]
-        setBlocks((prevBlocks) => {
-          if (!block) return prevBlocks
-
-          const updatedBlocks = [...prevBlocks]
-
-          if (
-            updatedBlocks.length > 0 &&
-            updatedBlocks[updatedBlocks.length - 1].role === BlockRole.ASSISTANT
-          ) {
-            updatedBlocks[updatedBlocks.length - 1] = block
-            return updatedBlocks
-          } else {
-            return [...prevBlocks, block]
-          }
-        })
+        for (const b of r.blocks) {
+          updateBlock(b)
+        }
       }
     } catch (e) {
       console.error(e)
@@ -84,7 +118,17 @@ export const BlockProvider = ({ children }: { children: ReactNode }) => {
   }
 
   return (
-    <BlockContext.Provider value={{ blocks, sendUserBlock, isInputDisabled }}>
+    <BlockContext.Provider
+      value={{
+        blocks,
+        blockPositions,
+        setBlock,
+        setPositions,
+        updateBlock,
+        sendUserBlock,
+        isInputDisabled,
+      }}
+    >
       {children}
     </BlockContext.Provider>
   )

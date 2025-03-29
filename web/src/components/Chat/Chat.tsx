@@ -76,8 +76,11 @@ const Message = ({ block }: MessageProps) => {
 }
 
 function Chat() {
+  // The code below is using "destructuring" assignment to assign certain values from the
+  // context object return by useBlock to local variables.
   const {
-    blocks: messages,
+    blocks: blocks,
+    blockPositions: chatBlocks,
     sendUserBlock: sendMessage,
     isInputDisabled,
   } = useBlock()
@@ -95,17 +98,24 @@ function Chat() {
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }
+
+  // TODO(jlewi): Why do we pass in chatBlocks as a dependency?
   useEffect(() => {
     scrollToBottom()
-  }, [messages])
+  }, [chatBlocks])
 
   return (
     <div className="flex flex-col-reverse h-full w-full">
-      {messages.length > 0 && (
+      {chatBlocks.length > 0 && (
         <div className="flex-grow overflow-y-auto p-1 flex flex-col order-2 whitespace-pre-wrap">
-          {messages.map((msg, index) => (
-            <Message key={index} block={msg} />
-          ))}
+          {chatBlocks.map((blockId) => {
+            const block = blocks.get(blockId) // Lookup block in the map
+            return block ? (
+              <Message key={blockId} block={block} />
+            ) : (
+              <p key={blockId}>Block not found: {blockId}</p>
+            )
+          })}
           <div ref={messagesEndRef} />
         </div>
       )}
