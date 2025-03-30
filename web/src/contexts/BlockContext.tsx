@@ -146,4 +146,7 @@ export const BlockProvider = ({ children }: { children: ReactNode }) => {
   )
 }
 
+// TODO(jlewi): Why are we exporting the protos here? Why would libraries
+// import these types from BlockContext.tsx rather than from from
+// the proto libraries directly?
 export { type Block, BlockRole, BlockKind }

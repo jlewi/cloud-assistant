@@ -4,6 +4,7 @@ import Editor from '@monaco-editor/react'
 import { Box, Button, Card } from '@radix-ui/themes'
 import { v4 as uuidv4 } from 'uuid'
 
+import { Block, BlockKind, BlockRole, useBlock } from '../contexts/BlockContext'
 import Console from './Runme/Console'
 
 type props = {
@@ -226,26 +227,55 @@ function Action({ value, title }: props) {
 }
 
 function Actions() {
-  // should come out of Context
-  const dummies = [
-    // {
-    //   title: "To begin, let's use shell to say hello",
-    //   value: "echo 'Hello, world!'",
-    // },
-    // {
-    //   title: "What's the time?",
-    //   value: 'date',
-    // },
-    {
-      title: 'Here are the nodes in your cluster',
-      value: 'kubectl get nodes',
-    },
-  ]
+  // The code below is using "destructuring" assignment to assign certain values from the
+  // context object return by useBlock to local variables.
+  const { blocks: blocks, blockPositions: chatBlocks } = useBlock()
+
+  // TODO(jlewi): Should we add some logic to scroll to the end as in Chat.tsx?
+
+  let codeBlocks = chatBlocks.get(BlockKind.CODE)
+  if (!codeBlocks) {
+    codeBlocks = []
+  }
+
+  const actionParams: { blockId: string; title: string; value: string }[] = []
+
+  codeBlocks.map((blockId, index) => {
+    const block = blocks.get(blockId) // Lookup block in the map
+    if (!block) {
+      return
+    }
+    console.log(`Action blockId: ${blockId}; contents: ${block.contents}`)
+    const action = {
+      blockId: blockId,
+      title: `Action ${index}`,
+      value: block.contents,
+    }
+    actionParams.push(action)
+  })
+
+  // TODO(jlewi): Does this work?
+  // automatically scroll to bottom of chat
+  const messagesEndRef = useRef<HTMLDivElement | null>(null)
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }
+
+  // TODO(jlewi): Why do we pass in chatBlocks as a dependency?
+  useEffect(() => {
+    scrollToBottom()
+  }, [actionParams])
+
   return (
     <>
-      {dummies.map((dummy, index) => (
-        <Action key={index} {...dummy} />
-      ))}
+      {actionParams.length > 0 && (
+        <>
+          {actionParams.map((action) => (
+            <Action key={action.blockId} {...action} />
+          ))}
+          <div ref={messagesEndRef} />
+        </>
+      )}
     </>
   )
 }
