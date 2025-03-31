@@ -8,6 +8,7 @@ import {
   Block,
   BlockKind,
   BlockRole,
+  TypingBlock,
   useBlock,
 } from '../../contexts/BlockContext'
 
@@ -76,13 +77,13 @@ const Message = ({ block }: MessageProps) => {
 }
 
 function Chat() {
-  const { useColumns, sendUserBlock: sendMessage, isInputDisabled } = useBlock()
+  const { useColumns, sendUserBlock, isInputDisabled, isTyping } = useBlock()
   const [userInput, setUserInput] = useState('')
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (!userInput.trim()) return
-    sendMessage(userInput)
+    sendUserBlock(userInput)
     setUserInput('')
   }
 
@@ -93,6 +94,7 @@ function Chat() {
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }
+
   useEffect(() => {
     scrollToBottom()
   }, [chat]) // if we passed empty array, it would only run once onMount
@@ -100,10 +102,15 @@ function Chat() {
   return (
     <div className="flex flex-col-reverse h-full w-full">
       {chat.length > 0 && (
-        <div className="flex-grow overflow-y-auto p-1 flex flex-col order-2 whitespace-pre-wrap">
+        <div className="overflow-y-clip p-1 flex flex-col order-2 whitespace-pre-wrap">
           {chat.map((msg, index) => (
             <Message key={index} block={msg} />
           ))}
+          {isTyping && (
+            <div className="flex justify-start items-center h-full">
+              <Message block={TypingBlock} />
+            </div>
+          )}
           <div ref={messagesEndRef} />
         </div>
       )}

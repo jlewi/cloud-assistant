@@ -28,6 +28,7 @@ type BlockContextType = {
   sendUserBlock: (text: string) => Promise<void>
   // Keep track of whether the input is disabled
   isInputDisabled: boolean
+  isTyping: boolean
 }
 
 const BlockContext = createContext<BlockContextType | undefined>(undefined)
@@ -48,6 +49,7 @@ interface BlockState {
 
 export const BlockProvider = ({ children }: { children: ReactNode }) => {
   const [isInputDisabled, setIsInputDisabled] = useState(false)
+  const [isTyping, setIsTyping] = useState(false)
 
   const { client } = useAgentClient()
   const [state, setState] = useState<BlockState>({
@@ -140,6 +142,7 @@ export const BlockProvider = ({ children }: { children: ReactNode }) => {
 
     //setBlocks((prevBlocks) => [...prevBlocks, userBlock, assistantBlock])
     setIsInputDisabled(true)
+    setIsTyping(true)
 
     const req: GenerateRequest = create(GenerateRequestSchema, {
       blocks: [userBlock],
@@ -149,12 +152,14 @@ export const BlockProvider = ({ children }: { children: ReactNode }) => {
       const res = client!.generate(req)
       for await (const r of res) {
         for (const b of r.blocks) {
+          setIsTyping(false)
           updateBlock(b)
         }
       }
     } catch (e) {
       console.error(e)
     } finally {
+      setIsTyping(false)
       setIsInputDisabled(false)
     }
   }
@@ -166,6 +171,7 @@ export const BlockProvider = ({ children }: { children: ReactNode }) => {
         updateBlock,
         sendUserBlock,
         isInputDisabled,
+        isTyping,
       }}
     >
       {children}
@@ -173,4 +179,10 @@ export const BlockProvider = ({ children }: { children: ReactNode }) => {
   )
 }
 
-export { type Block, BlockRole, BlockKind }
+const TypingBlock = create(BlockSchema, {
+  kind: BlockKind.MARKUP,
+  role: BlockRole.ASSISTANT,
+  contents: '...',
+})
+
+export { type Block, BlockRole, BlockKind, TypingBlock }
