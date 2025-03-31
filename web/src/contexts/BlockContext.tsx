@@ -136,6 +136,7 @@ export const BlockProvider = ({ children }: { children: ReactNode }) => {
     //   kind: BlockKind.MARKUP,
     //   contents: '...',
     // })
+    // todo(sebastian): we'll use UI state for this inside Chat when input's disabled
 
     //setBlocks((prevBlocks) => [...prevBlocks, userBlock, assistantBlock])
     setIsInputDisabled(true)
