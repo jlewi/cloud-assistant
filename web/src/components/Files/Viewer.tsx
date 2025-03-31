@@ -37,6 +37,7 @@ const FileViewer = () => {
   }, [files])
 
   // TODO(jlewi): Why do we pass in chatBlocks as a dependency?
+  // sebastian: because otherwise it won't rerender when the block changes
   useEffect(() => {
     scrollToBottom()
   }, [oneBlock])
