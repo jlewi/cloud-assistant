@@ -187,7 +187,7 @@ const CodeEditor = memo(
       })
     }
     return (
-      <div className="p-1 w-full">
+      <div className="pb-1 w-full">
         <Editor
           key={id}
           height="140px"
