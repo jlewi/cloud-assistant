@@ -229,6 +229,7 @@ function Action({ block }: { block: Block }) {
     console.log('Output:', output)
     console.log(`Exit code: ${code}`)
     setExitCode(code)
+    setPid(null)
     output = ''
   }
 
