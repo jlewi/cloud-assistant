@@ -151,7 +151,7 @@ func (s *Server) Run() error {
 // handlerWithCORS adds CORS support to a Connect HTTP handler.
 func (s *Server) handlerWithCORS(connectHandler http.Handler) http.Handler {
 	log := zapr.NewLogger(zap.L())
-	origins := s.config.AssistantServer.CorsOrigins
+	origins := s.serverConfig.CorsOrigins
 	if len(origins) == 0 {
 		log.Info("No additional CORS origins specified")
 		return connectHandler
