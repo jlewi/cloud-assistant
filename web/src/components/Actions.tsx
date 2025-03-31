@@ -274,9 +274,7 @@ function Action({ block }: { block: Block }) {
               runID={exec.runID}
               value={exec.value}
               outputHandler={(data: Uint8Array) =>
-                setOutput((prev) => {
-                  return prev + new TextDecoder().decode(data)
-                })
+                setOutput((prev) => prev + new TextDecoder().decode(data))
               }
               pidHandler={setPid}
               exitCodeHandler={setExitCode}
