@@ -11,7 +11,6 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GO111MODULE=on \
     -ldflags "${LDFLAGS}" \
     -a -o /app/cas github.com/jlewi/cloud-assistant/app
 
-
 FROM node:18-alpine AS builder
 
 # Check https://github.com/nodejs/docker-node/tree/b4117f9333da4138b03a546ec926ef50a31506c3#nodealpine to understand why libc6-compat might be needed.
@@ -19,7 +18,6 @@ FROM node:18-alpine AS builder
 RUN apk add --no-cache libc6-compat
 
 # Install dependencies based on the preferred package manager
-# COPY api/cloud-assistant/cloud-assistant-ui/package.json api/cloud-assistant/cloud-assistant-ui/yarn.lock* api/cloud-assistant/cloud-assistant-ui/package-lock.json* api/cloud-assistant/cloud-assistant-ui/pnpm-lock.yaml* ./
 COPY web ./web
 WORKDIR web
 
