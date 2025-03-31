@@ -76,11 +76,7 @@ const Message = ({ block }: MessageProps) => {
 }
 
 function Chat() {
-  const {
-    blocks: messages,
-    sendUserBlock: sendMessage,
-    isInputDisabled,
-  } = useBlock()
+  const { blocks, sendUserBlock: sendMessage, isInputDisabled } = useBlock()
   const [userInput, setUserInput] = useState('')
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
@@ -97,20 +93,20 @@ function Chat() {
   }
   useEffect(() => {
     scrollToBottom()
-  }, [messages])
+  }, [blocks])
 
   return (
     <div className="flex flex-col-reverse h-full w-full">
-      {messages.length > 0 && (
+      {blocks.length > 0 && (
         <div className="flex-grow overflow-y-auto p-1 flex flex-col order-2 whitespace-pre-wrap">
-          {messages.map((msg, index) => (
+          {blocks.map((msg, index) => (
             <Message key={index} block={msg} />
           ))}
           <div ref={messagesEndRef} />
         </div>
       )}
       <form onSubmit={handleSubmit} className="flex w-full pb-10 order-1">
-        <Flex className="w-full flex flex-nowrap items-center p-2">
+        <Flex className="w-full flex flex-nowrap items-center">
           <TextField.Root
             name="userInput"
             value={userInput}

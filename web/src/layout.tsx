@@ -12,7 +12,7 @@ function Layout({
   right: React.ReactNode
 }) {
   return (
-    <Box className="w-screen h-screen max-w-[95%] mx-auto overflow-hidden flex flex-col">
+    <Box className="w-screen h-[95vh] max-w-[95%] mx-auto flex flex-col">
       {/* Navbar, links are just a facade for now */}
       <Box
         className="w-full p-3 mb-1 border-b"
@@ -80,31 +80,33 @@ function Layout({
       </Box>
 
       {/* Main content */}
-      <Flex className="w-full flex-1 gap-4 justify-between overflow-hidden p-2">
+      <Flex className="w-full h-[95%] flex-1 gap-2">
         {/* Left */}
-        <Box className="flex-1 h-full flex flex-col">
+        <Box className="flex-1 flex flex-col h-full">
           <Text size="5" weight="bold" className="mb-2">
             How can I help you?
           </Text>
-          <ScrollArea className="h-[calc(100%-40px)] flex-1">{left}</ScrollArea>
+          <ScrollArea type="auto" scrollbars="vertical" className="flex-1 p-4">
+            {left}
+          </ScrollArea>
         </Box>
 
         {/* Middle */}
-        <Box className="flex-1 h-full flex flex-col">
+        <Box className="flex-1 flex flex-col h-full">
           <Text size="5" weight="bold" className="mb-2">
             Actions
           </Text>
-          <ScrollArea className="h-[calc(100%-40px)] flex-1">
+          <ScrollArea type="auto" scrollbars="vertical" className="flex-1 p-2">
             {middle}
           </ScrollArea>
         </Box>
 
         {/* Right */}
-        <Box className="flex-1 h-full flex flex-col">
+        <Box className="flex-1 flex flex-col h-full">
           <Text size="5" weight="bold" className="mb-2">
             Files
           </Text>
-          <ScrollArea className="h-[calc(100%-40px)] flex-1">
+          <ScrollArea type="auto" scrollbars="vertical" className="flex-1 p-2">
             {right}
           </ScrollArea>
         </Box>

@@ -241,11 +241,23 @@ function Actions() {
       value: 'kubectl get nodes',
     },
   ]
+
+  const actionsEndRef = useRef<HTMLDivElement | null>(null)
+  // automatically scroll to bottom of chat
+  const scrollToBottom = () => {
+    actionsEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }
+
+  useEffect(() => {
+    scrollToBottom()
+  }, [])
+
   return (
     <>
       {dummies.map((dummy, index) => (
         <Action key={index} {...dummy} />
       ))}
+      <div ref={actionsEndRef} className="h-1" />
     </>
   )
 }
