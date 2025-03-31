@@ -3,7 +3,6 @@ package application
 import (
 	"fmt"
 	"github.com/jlewi/cloud-assistant/app/pkg/config"
-	"github.com/jlewi/monogo/gcp/logging"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
@@ -50,11 +49,7 @@ func (a *App) SetupLogging() error {
 	if a.Config.Logging.JSON {
 		c = zap.NewProductionConfig()
 	}
-	// Use the keys used by cloud logging
-	// https://cloud.google.com/logging/docs/structured-logging
-	c.EncoderConfig.LevelKey = logging.SeverityField
-	c.EncoderConfig.TimeKey = logging.TimeField
-	c.EncoderConfig.MessageKey = logging.MessageField
+
 	// We attach the function key to the logs because that is useful for identifying the function that generated the log.
 	c.EncoderConfig.FunctionKey = "function"
 
