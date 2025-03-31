@@ -106,7 +106,7 @@ function Layout({
           <Text size="5" weight="bold" className="mb-2">
             Files
           </Text>
-          <ScrollArea type="auto" scrollbars="vertical" className="flex-1 p-2">
+          <ScrollArea type="auto" scrollbars="vertical" className="flex-1 pt-4">
             {right}
           </ScrollArea>
         </Box>
