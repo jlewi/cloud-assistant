@@ -117,12 +117,14 @@ const CodeConsole = memo(
     outputHandler,
     exitCodeHandler,
     pidHandler,
+    mimeTypeHandler,
   }: {
     value: string
     runID: string
     outputHandler: (data: Uint8Array) => void
     exitCodeHandler: (code: number) => void
     pidHandler: (pid: number) => void
+    mimeTypeHandler: (mimeType: string) => void
   }) => {
     return (
       value != '' &&
@@ -134,6 +136,7 @@ const CodeConsole = memo(
           onStdout={outputHandler}
           onStderr={outputHandler}
           onExitCode={exitCodeHandler}
+          onMimeType={mimeTypeHandler}
         />
       )
     )
@@ -159,7 +162,6 @@ const CodeEditor = memo(
     onChange: (value: string) => void
     onEnter: () => void
   }) => {
-    console.log('value', value)
     // Store the latest onEnter in a ref to ensure late binding
     const onEnterRef = useRef(onEnter)
 
@@ -212,6 +214,7 @@ const CodeEditor = memo(
 
 // Action is an editor and an optional Runme console
 function Action({ block }: { block: Block }) {
+  const { updateOutputBlock } = useBlock()
   const [editorValue, setEditorValue] = useState(block.contents)
   const [exec, setExec] = useState<{ value: string; runID: string }>({
     value: '',
@@ -219,24 +222,27 @@ function Action({ block }: { block: Block }) {
   })
   const [pid, setPid] = useState<number | null>(null)
   const [exitCode, setExitCode] = useState<number | null>(null)
+  const [mimeType, setMimeType] = useState<string | null>(null)
+  const [output, setOutput] = useState<string>('')
 
   const runCode = useCallback(() => {
+    setOutput('')
     setPid(null)
     setExitCode(null)
     setExec({ value: editorValue, runID: uuidv4() })
   }, [editorValue])
 
-  let output = ''
-  const outputHandler = (data: Uint8Array): void => {
-    output += new TextDecoder().decode(data)
-  }
-
-  const exitCodeHandler = (code: number): void => {
-    console.log('Output:', output)
-    console.log(`Exit code: ${code}`)
-    setExitCode(code)
-    output = ''
-  }
+  useEffect(() => {
+    if (exitCode === null || !Number.isInteger(exitCode)) {
+      return
+    }
+    updateOutputBlock(block, {
+      mimeType: mimeType || 'text/plain',
+      textData: output,
+      exitCode,
+      runID: exec.runID,
+    })
+  }, [output, exitCode, mimeType, exec.runID, block, updateOutputBlock])
 
   useEffect(() => {
     setEditorValue(block.contents)
@@ -267,9 +273,14 @@ function Action({ block }: { block: Block }) {
               key={exec.runID}
               runID={exec.runID}
               value={exec.value}
-              outputHandler={outputHandler}
+              outputHandler={(data: Uint8Array) =>
+                setOutput((prev) => {
+                  return prev + new TextDecoder().decode(data)
+                })
+              }
               pidHandler={setPid}
-              exitCodeHandler={exitCodeHandler}
+              exitCodeHandler={setExitCode}
+              mimeTypeHandler={setMimeType}
             />
           </Card>
         </div>

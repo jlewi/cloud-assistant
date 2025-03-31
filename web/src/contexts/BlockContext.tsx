@@ -1,11 +1,13 @@
 import { ReactNode, createContext, useContext, useMemo, useState } from 'react'
 
-import { create } from '@bufbuild/protobuf'
+import { clone, create } from '@bufbuild/protobuf'
 import { v4 as uuidv4 } from 'uuid'
 
 import {
   Block,
   BlockKind,
+  BlockOutputItemSchema,
+  BlockOutputSchema,
   BlockRole,
   BlockSchema,
   GenerateRequest,
@@ -23,8 +25,15 @@ type BlockContextType = {
 
   // Define additional functions to update the state
   // This way they can be set in the provider and passed down to the components
-  updateBlock: (block: Block) => void
-
+  updateOutputBlock: (
+    inputBlock: Block,
+    {
+      mimeType,
+      textData,
+      exitCode,
+      runID,
+    }: { mimeType: string; textData: string; exitCode: number; runID: string }
+  ) => void
   sendUserBlock: (text: string) => Promise<void>
   // Keep track of whether the input is disabled
   isInputDisabled: boolean
@@ -85,6 +94,46 @@ export const BlockProvider = ({ children }: { children: ReactNode }) => {
       chat: chatBlocks,
       actions: actionBlocks,
       files: fileBlocks,
+    }
+  }
+
+  const updateOutputBlock = (
+    inputBlock: Block,
+    {
+      mimeType,
+      textData,
+    }: { mimeType: string; textData: string; exitCode: number; runID: string }
+  ) => {
+    const b = clone(BlockSchema, inputBlock)
+    b.outputs = [
+      create(BlockOutputSchema, {
+        items: [
+          ...(b.outputs?.[0]?.items || []),
+          create(BlockOutputItemSchema, {
+            mime: mimeType,
+            textData,
+          }),
+        ],
+      }),
+    ]
+
+    sendOutputBlock(b)
+  }
+
+  const sendOutputBlock = async (block: Block) => {
+    const req: GenerateRequest = create(GenerateRequestSchema, {
+      blocks: [block],
+    })
+
+    try {
+      const res = client!.generate(req)
+      for await (const r of res) {
+        for (const b of r.blocks) {
+          updateBlock(b)
+        }
+      }
+    } catch (e) {
+      console.error(e)
     }
   }
 
@@ -168,7 +217,7 @@ export const BlockProvider = ({ children }: { children: ReactNode }) => {
     <BlockContext.Provider
       value={{
         useColumns,
-        updateBlock,
+        updateOutputBlock,
         sendUserBlock,
         isInputDisabled,
         isTyping,

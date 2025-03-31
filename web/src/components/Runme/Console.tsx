@@ -95,6 +95,7 @@ function Console({
   onStderr,
   onExitCode,
   onPid,
+  onMimeType,
 }: {
   commands: string[]
   rows?: number
@@ -102,6 +103,7 @@ function Console({
   onStderr?: (data: Uint8Array) => void
   onExitCode?: (code: number) => void
   onPid?: (pid: number) => void
+  onMimeType?: (mimeType: string) => void
 }) {
   const execReq = buildExecuteRequest()
   const defaults = {
@@ -216,13 +218,32 @@ function Console({
           onPid(response.pid)
         }
       }
+
+      if (response.mimeType) {
+        const parts = response.mimeType.split(';')
+        const mimeType = parts[0]
+        if (onMimeType) {
+          onMimeType(mimeType)
+        }
+        // todo(sebastian): charset (usually utf8) is only applicable for text mime types
+        // const charset =
+        //   parts.length > 1 ? parts[1].split('=')[1].trim() : undefined
+      }
     }
 
     return () => {
       console.log(new Date(), 'Disconnected from WebSocket server')
       socket.close()
     }
-  }, [callback, execReq.config, onExitCode, onPid, onStderr, onStdout])
+  }, [
+    callback,
+    execReq.config,
+    onExitCode,
+    onPid,
+    onStderr,
+    onStdout,
+    onMimeType,
+  ])
 
   useEffect(() => {
     console.log('useEffect invoked - Commands changed:', commands)
