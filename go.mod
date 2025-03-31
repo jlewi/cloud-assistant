@@ -5,7 +5,7 @@ go 1.23.1
 toolchain go1.23.7
 
 // Use: https://github.com/runmedev/runme/tree/seb/env-collector
-replace github.com/stateful/runme/v3 => github.com/runmedev/runme/v3 v3.12.7-0.20250328164414-751ffb5eb6bd
+replace github.com/stateful/runme/v3 => github.com/runmedev/runme/v3 v3.12.7-0.20250331220551-44d398274863
 
 require (
 	connectrpc.com/connect v1.18.1
@@ -34,13 +34,10 @@ require (
 )
 
 require (
-	cloud.google.com/go v0.118.2 // indirect
 	cloud.google.com/go/auth v0.15.0 // indirect
 	cloud.google.com/go/auth/oauth2adapt v0.2.7 // indirect
 	cloud.google.com/go/compute/metadata v0.6.0 // indirect
 	cloud.google.com/go/iam v1.4.0 // indirect
-	cloud.google.com/go/logging v1.13.0 // indirect
-	cloud.google.com/go/longrunning v0.6.4 // indirect
 	cloud.google.com/go/secretmanager v1.14.5 // indirect
 	dario.cat/mergo v1.0.1 // indirect
 	github.com/Masterminds/semver/v3 v3.3.1 // indirect

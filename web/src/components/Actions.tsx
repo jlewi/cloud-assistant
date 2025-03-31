@@ -187,14 +187,18 @@ const CodeEditor = memo(
       })
     }
     return (
-      <div className="p-1 h-100px w-full">
+      <div className="p-1 w-full">
         <Editor
           key={id}
-          height="100px"
+          height="140px"
           width="100%"
           defaultLanguage="shellscript"
           value={value}
-          options={{ minimap: { enabled: false }, theme: 'vs-dark' }}
+          options={{
+            minimap: { enabled: false },
+            theme: 'vs-dark',
+            wordWrap: 'wordWrapColumn',
+          }}
           onChange={(v) => v && onChange?.(v)}
           onMount={editorDidMount}
         />
@@ -217,6 +221,8 @@ function Action({ block }: { block: Block }) {
   const [exitCode, setExitCode] = useState<number | null>(null)
 
   const runCode = useCallback(() => {
+    setPid(null)
+    setExitCode(null)
     setExec({ value: editorValue, runID: uuidv4() })
   }, [editorValue])
 
@@ -229,7 +235,6 @@ function Action({ block }: { block: Block }) {
     console.log('Output:', output)
     console.log(`Exit code: ${code}`)
     setExitCode(code)
-    setPid(null)
     output = ''
   }
 
@@ -252,6 +257,7 @@ function Action({ block }: { block: Block }) {
               id={block.id}
               value={editorValue}
               onChange={(v) => {
+                setPid(null)
                 setExitCode(null)
                 setEditorValue(v)
               }}

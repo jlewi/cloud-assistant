@@ -222,7 +222,7 @@ function Console({
       console.log(new Date(), 'Disconnected from WebSocket server')
       socket.close()
     }
-  }, [])
+  }, [callback, execReq.config, onExitCode, onPid, onStderr, onStdout])
 
   useEffect(() => {
     console.log('useEffect invoked - Commands changed:', commands)
