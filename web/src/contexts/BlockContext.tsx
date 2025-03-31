@@ -129,7 +129,8 @@ export const BlockProvider = ({ children }: { children: ReactNode }) => {
       const res = client!.generate(req)
       for await (const r of res) {
         for (const b of r.blocks) {
-          updateBlock(b)
+          console.log('b', JSON.stringify(b, null, 1))
+          // updateBlock(b)
         }
       }
     } catch (e) {
