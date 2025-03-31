@@ -75,6 +75,8 @@ latest static assets.
 
 ## Build the docker container
 
+The image is published in GHCR https://github.com/jlewi/cloud-assistant/pkgs/container/cloud-assistant
+
 ```bash {"terminalRows":"21"}
 docker build -t cas:latest  -f Dockerfile ./
 ```
