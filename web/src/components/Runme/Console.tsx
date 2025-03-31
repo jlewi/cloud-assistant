@@ -94,12 +94,14 @@ function Console({
   onStdout,
   onStderr,
   onExitCode,
+  onPid,
 }: {
   commands: string[]
   rows?: number
   onStdout?: (data: Uint8Array) => void
   onStderr?: (data: Uint8Array) => void
   onExitCode?: (code: number) => void
+  onPid?: (pid: number) => void
 }) {
   const execReq = buildExecuteRequest()
   const defaults = {
@@ -206,6 +208,12 @@ function Console({
       if (response.exitCode !== undefined) {
         if (onExitCode) {
           onExitCode(response.exitCode)
+        }
+      }
+
+      if (response.pid !== undefined) {
+        if (onPid) {
+          onPid(response.pid)
         }
       }
     }

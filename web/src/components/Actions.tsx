@@ -8,15 +8,17 @@ import { Block, useBlock } from '../contexts/BlockContext'
 import Console from './Runme/Console'
 
 function RunActionButton({
+  pid,
   exitCode,
   onClick,
 }: {
+  pid: number | null
   exitCode: number | null
   onClick: () => void
 }) {
   return (
     <Button variant="soft" onClick={onClick}>
-      {exitCode === null && (
+      {exitCode === null && pid === null && (
         <svg
           width="15"
           height="15"
@@ -32,6 +34,38 @@ function RunActionButton({
             stroke="currentColor"
             strokeWidth="0.5"
           ></path>
+        </svg>
+      )}
+      {exitCode === null && pid !== null && (
+        <svg
+          width="15"
+          height="15"
+          viewBox="0 0 15 15"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+          className="animate-spin"
+        >
+          <path
+            d="M7.5 1.5C4.5 1.5 2 4 2 7C2 8.9 3 10.5 4.5 11.5L4 12.5C2 11.5 1 9.2 1 7C1 3.5 4 0.5 7.5 0.5C11 0.5 14 3.5 14 7C14 9.2 13 11.5 11 12.5L10.5 11.5C12 10.5 13 8.9 13 7C13 4 10.5 1.5 7.5 1.5Z"
+            fill="currentColor"
+            fillRule="evenodd"
+            clipRule="evenodd"
+          />
+          <style>
+            {`
+            @keyframes spin {
+              from {
+                transform: rotate(0deg);
+              }
+              to {
+                transform: rotate(360deg);
+              }
+            }
+            .animate-spin {
+              animation: spin 1s linear infinite;
+            }
+            `}
+          </style>
         </svg>
       )}
       {exitCode !== null && exitCode === 0 && (
@@ -82,11 +116,13 @@ const CodeConsole = memo(
     runID,
     outputHandler,
     exitCodeHandler,
+    pidHandler,
   }: {
     value: string
     runID: string
     outputHandler: (data: Uint8Array) => void
     exitCodeHandler: (code: number) => void
+    pidHandler: (pid: number) => void
   }) => {
     return (
       value != '' &&
@@ -94,6 +130,7 @@ const CodeConsole = memo(
         <Console
           rows={10}
           commands={value.split('\n')}
+          onPid={pidHandler}
           onStdout={outputHandler}
           onStderr={outputHandler}
           onExitCode={exitCodeHandler}
@@ -176,6 +213,7 @@ function Action({ block }: { block: Block }) {
     value: '',
     runID: '',
   })
+  const [pid, setPid] = useState<number | null>(null)
   const [exitCode, setExitCode] = useState<number | null>(null)
 
   const runCode = useCallback(() => {
@@ -202,7 +240,7 @@ function Action({ block }: { block: Block }) {
     <div>
       <Box className="w-full p-2">
         <div className="flex justify-between items-top">
-          <RunActionButton exitCode={exitCode} onClick={runCode} />
+          <RunActionButton pid={pid} exitCode={exitCode} onClick={runCode} />
           <Card className="whitespace-nowrap overflow-hidden flex-1 ml-2">
             {/* {title && (
               <div className="flex items-center m-1">
@@ -223,6 +261,7 @@ function Action({ block }: { block: Block }) {
               runID={exec.runID}
               value={exec.value}
               outputHandler={outputHandler}
+              pidHandler={setPid}
               exitCodeHandler={exitCodeHandler}
             />
           </Card>
