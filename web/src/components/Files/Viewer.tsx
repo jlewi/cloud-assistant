@@ -5,14 +5,6 @@ import { create } from '@bufbuild/protobuf'
 import { Block, useBlock } from '../../contexts/BlockContext'
 import { BlockSchema } from '../../gen/es/cassie/blocks_pb'
 
-// FileSearchResult is used to hold the values in the result of the FileSearchToolcall.
-// TODO(jlewi): Does the TS SDK define this type already?
-export type FileSearchResult = {
-  file_id: string
-  file_name: string
-  score: number
-}
-
 const FileViewer = () => {
   // The code below is using "destructuring" assignment to assign certain values from the
   // context object return by useBlock to local variables.
