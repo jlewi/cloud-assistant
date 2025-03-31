@@ -34,7 +34,8 @@ import (
 
 // Server is the main server for the cloud assistant
 type Server struct {
-	config           config.Config
+	telemetry        *config.TelemetryConfig
+	serverConfig     *config.AssistantServerConfig
 	hServer          *http.Server
 	engine           *http.ServeMux
 	shutdownComplete chan bool
@@ -42,15 +43,20 @@ type Server struct {
 	agent            *ai.Agent
 }
 
+type Options struct {
+	Telemetry *config.TelemetryConfig
+	Server    *config.AssistantServerConfig
+}
+
 // NewServer creates a new server
-func NewServer(cfg config.Config, agent *ai.Agent) (*Server, error) {
+func NewServer(opts Options, agent *ai.Agent) (*Server, error) {
 	if agent == nil {
 		return nil, errors.New("Agent is nil")
 	}
 
 	var runner *Runner
 	log := zapr.NewLogger(zap.L())
-	if cfg.AssistantServer.RunnerService {
+	if opts.Server.RunnerService {
 		var err error
 		runner, err = NewRunner(zap.L())
 		if err != nil {
@@ -75,9 +81,10 @@ func NewServer(cfg config.Config, agent *ai.Agent) (*Server, error) {
 	}
 
 	s := &Server{
-		config: cfg,
-		runner: runner,
-		agent:  agent,
+		telemetry:    opts.Telemetry,
+		serverConfig: opts.Server,
+		runner:       runner,
+		agent:        agent,
 	}
 	return s, nil
 }
@@ -95,7 +102,7 @@ func (s *Server) Run() error {
 		return errors.Wrapf(err, "Failed to register services")
 	}
 
-	serverConfig := s.config.AssistantServer
+	serverConfig := s.serverConfig
 	if serverConfig == nil {
 		serverConfig = &config.AssistantServerConfig{}
 	}
@@ -193,7 +200,7 @@ func (s *Server) registerServices() error {
 
 func (s *Server) addStaticAssets() {
 	log := zapr.NewLogger(zap.L())
-	staticAssets := s.config.AssistantServer.StaticAssets
+	staticAssets := s.serverConfig.StaticAssets
 	if staticAssets == "" {
 		log.Info("No static assets to serve")
 	}

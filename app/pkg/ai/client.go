@@ -12,7 +12,7 @@ import (
 )
 
 // NewClient helper function to create a new OpenAI client from  a config
-func NewClient(cfg config.Config) (*openai.Client, error) {
+func NewClient(cfg config.OpenAIConfig) (*openai.Client, error) {
 	// ************************************************************************
 	// Setup middleware
 	// ************************************************************************
@@ -23,17 +23,13 @@ func NewClient(cfg config.Config) (*openai.Client, error) {
 	retryClient := retryablehttp.NewClient()
 	httpClient := retryClient.StandardClient()
 
-	if cfg.OpenAI == nil {
-		return nil, errors.New("OpenAI config is nil")
-	}
-
-	if cfg.OpenAI.APIKeyFile == "" {
+	if cfg.APIKeyFile == "" {
 		return nil, errors.New("OpenAI API key is empty")
 	}
 
-	b, err := os.ReadFile(cfg.OpenAI.APIKeyFile)
+	b, err := os.ReadFile(cfg.APIKeyFile)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to read OpenAI API key file: %s", cfg.OpenAI.APIKeyFile)
+		return nil, errors.Wrapf(err, "failed to read OpenAI API key file: %s", cfg.APIKeyFile)
 	}
 
 	key := strings.TrimSpace(string(b))

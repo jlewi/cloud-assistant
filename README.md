@@ -72,3 +72,21 @@ Open up `http://localhost:8080`.
 If you make changes to the UI you need to rerun `npm run build` to recompile the static assets.
 However, you don't need to restart the GoLang server; it is sufficient to refresh the page to pick up the
 latest static assets.
+
+## Build the docker container
+
+The image is published in GHCR https://github.com/jlewi/cloud-assistant/pkgs/container/cloud-assistant
+
+```bash {"terminalRows":"21"}
+docker build -t cas:latest  -f Dockerfile ./
+```
+
+To run the image
+
+```bash
+docker run --mount type=bind,src=${HOME}/.cloud-assistant/config.yaml,target=/config/config.yaml \
+    -it \
+    cas:latest \    
+    /cas serve --config=/config/config.yaml
+
+```

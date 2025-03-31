@@ -3,33 +3,92 @@ package ai
 import (
 	"connectrpc.com/connect"
 	"context"
+	"github.com/go-logr/zapr"
 	"github.com/jlewi/cloud-assistant/app/pkg/config"
 	"github.com/jlewi/cloud-assistant/app/pkg/logs"
 	"github.com/openai/openai-go"
 	"github.com/openai/openai-go/responses"
+	"go.uber.org/zap"
 
 	"github.com/jlewi/cloud-assistant/protos/gen/cassie"
 	"github.com/pkg/errors"
 	"go.opentelemetry.io/otel/trace"
 )
 
+const (
+	// DefaultInstructions is the default system prompt to use when generating responses
+	DefaultInstructions = `You are an internal Cloud Assistant. Your job is to help developers deploy and operate
+their software on their Company's internal cloud. The Cloud consists of Kubernetes clusters, Azure, GitHub, etc...
+uses Datadog for monitoring. You have access to CLIs like kubectl, gh, yq, jq, git, az, bazel, curl, wget, etc...
+If you need a user to run a command to act or observe the cloud you should respond with the shell tool call.
+You also have access to internal documentation which you can use to search for information about
+how to use the cloud.
+
+You have access to all the CLIs and tools that Developers use to deploy and operate their software on
+the cloud. So you should always try to run commands on a user's behalf and save them the work of invoking
+it themselves.
+`
+
+	DefaultShellToolDescription = `The shell tool executes CLIs (e.g. kubectl, gh, yq, jq, git, az, bazel, curl, wget, etc...
+These CLIs can be used to act and observe on the cloud (Kubernetes, GitHub, Azure, etc...).
+The input is a short bash program that can be executed. Additional CLIs can be installed by running the appropriate
+commands.`
+)
+
 // Agent implements the AI Service
 // https://buf.build/jlewi/foyle/file/main:foyle/v1alpha1/agent.proto#L44
 type Agent struct {
-	Config *config.CloudAssistantConfig
-	Client *openai.Client
+	Client               *openai.Client
+	instructions         string
+	shellToolDescription string
+	vectorStoreIDs       []string
+	filenameToLink       func(string) string
 }
 
-func NewAgent(cfg *config.CloudAssistantConfig, client *openai.Client) (*Agent, error) {
-	if cfg == nil {
-		return nil, errors.New("Config is nil")
-	}
-	if client == nil {
+// AgentOptions are options for creating a new Agent
+type AgentOptions struct {
+	VectorStores []string
+	Client       *openai.Client
+	// Instructions are the prompt to use when generating responses
+	Instructions string
+	// ShellToolDescription is the description of the shell tool.
+	ShellToolDescription string
+
+	// FilenameToLink is an optional function that converts a filename to a link to be displayed in the UI.
+	FilenameToLink func(string) string
+}
+
+// FromAssistantConfig overrides the AgentOptions based on the values from the AssistantConfig
+func (o *AgentOptions) FromAssistantConfig(cfg config.CloudAssistantConfig) error {
+	o.VectorStores = cfg.VectorStores
+
+	// TODO(jlewi): We should allow the user to specify the instructions in the config as a path to a file containing
+	// the instructions.
+	return nil
+}
+
+func NewAgent(opts AgentOptions) (*Agent, error) {
+
+	if opts.Client == nil {
 		return nil, errors.New("Client is nil")
 	}
+	log := zapr.NewLogger(zap.L())
+	if opts.Instructions == "" {
+		opts.Instructions = DefaultInstructions
+		log.Info("Using default system prompt")
+	}
+
+	if opts.ShellToolDescription == "" {
+		opts.ShellToolDescription = DefaultShellToolDescription
+		log.Info("Using default shell tool description")
+	}
+
 	return &Agent{
-		Config: cfg,
-		Client: client,
+		Client:               opts.Client,
+		instructions:         opts.Instructions,
+		shellToolDescription: opts.ShellToolDescription,
+		filenameToLink:       opts.FilenameToLink,
+		vectorStoreIDs:       opts.VectorStores,
 	}, nil
 }
 
@@ -41,7 +100,7 @@ var (
 		"properties": map[string]interface{}{
 			"shell": map[string]interface{}{
 				"type":        "string",
-				"description": "A short Bash program to be executed in bash",
+				"description": "A short bash program to be executed by bash",
 			},
 		},
 		"required":             []string{"shell"},
@@ -66,15 +125,15 @@ func (a *Agent) ProcessWithOpenAI(ctx context.Context, req *cassie.GenerateReque
 
 	tools := make([]responses.ToolUnionParam, 0, 1)
 
-	if len(a.Config.VectorStores) > 1 {
+	if len(a.vectorStoreIDs) > 1 {
 		// TODO(jlewi): Does OpenAI support multiple vector stores?
 		return connect.NewError(connect.CodeInternal, errors.New("Expected at most one vector store"))
 	}
 
-	if len(a.Config.VectorStores) > 0 {
+	if len(a.vectorStoreIDs) > 0 {
 		fileSearchTool := &responses.FileSearchToolParam{
 			MaxNumResults:  openai.Opt(int64(5)),
-			VectorStoreIDs: []string{a.Config.VectorStores[0]},
+			VectorStoreIDs: a.vectorStoreIDs,
 		}
 
 		tool := responses.ToolUnionParam{
@@ -83,13 +142,9 @@ func (a *Agent) ProcessWithOpenAI(ctx context.Context, req *cassie.GenerateReque
 		tools = append(tools, tool)
 	}
 	shellTool := &responses.FunctionToolParam{
-		Name: "shell",
-		Description: openai.Opt(`The shell tool executes CLIs (e.g. kubectl, gh, yq, jq, git, az, bazel, curl, wget, etc...
-These CLIs can be used to act and observe on the cloud (Kubernetes, GitHub, Azure, etc...).
-The input is a short bash program that can be executed. Additional CLIs can be installed by running the appropriate
-commands.
-`),
-		Parameters: shellToolJSONSchema,
+		Name:        "shell",
+		Description: openai.Opt(a.shellToolDescription),
+		Parameters:  shellToolJSONSchema,
 		// N.B. I'm not sure what the point of strict would be since we have a single string argument.
 		Strict: false,
 	}
@@ -104,24 +159,6 @@ commands.
 		return connect.NewError(connect.CodeInvalidArgument, errors.New("First block must be user input"))
 	}
 
-	// TODO(jlewi): I think we should use the instructions field to provide instructions.
-	// However, it looks like that's currently not in the golang SDK client.
-	// https://platform.openai.com/docs/api-reference/responses/create
-
-	// TODO(jlewi): We should probably make the prompt configurable. So you can include the company name
-	// It could just be a file
-	const system = `You are an internal Cloud Assistant. Your job is to help developers deploy and operate
-their software on their Company's internal cloud. The Cloud consists of Kubernetes clusters, Azure, GitHub, etc...
-uses Datadog for monitoring. You have access to CLIs like kubectl, gh, yq, jq, git, az, bazel, curl, wget, etc...
-If you need a user to run a command to act or observe the cloud you should respond with the shell tool call.
-You also have access to internal documentation which you can use to search for information about
-how to use the cloud.
-
-You have access to all the CLIs and tools that Developers use to deploy and operate their software on 
-the cloud. So you should always try to run commands on a user's behalf and save them the work of invoking
-it themselves.
-`
-
 	toolChoice := responses.ResponseNewParamsToolChoiceUnion{
 		OfToolChoiceMode: openai.Opt(responses.ToolChoiceOptionsAuto),
 	}
@@ -132,7 +169,7 @@ it themselves.
 
 	createResponse := responses.ResponseNewParams{
 		Input:             input,
-		Instructions:      openai.Opt(system),
+		Instructions:      openai.Opt(a.instructions),
 		Model:             openai.ChatModelGPT4oMini,
 		Tools:             tools,
 		ParallelToolCalls: openai.Bool(true),
@@ -144,7 +181,7 @@ it themselves.
 
 	eStream := a.Client.Responses.NewStreaming(context.TODO(), createResponse)
 
-	builder := NewBlocksBuilder()
+	builder := NewBlocksBuilder(a.filenameToLink)
 
 	return builder.HandleEvents(ctx, eStream, sender)
 }
