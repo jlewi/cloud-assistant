@@ -4,12 +4,8 @@ import Editor from '@monaco-editor/react'
 import { Box, Button, Card } from '@radix-ui/themes'
 import { v4 as uuidv4 } from 'uuid'
 
+import { Block, useBlock } from '../contexts/BlockContext'
 import Console from './Runme/Console'
-
-type props = {
-  value: string
-  title: string
-}
 
 function RunActionButton({
   exitCode,
@@ -116,15 +112,17 @@ const CodeConsole = memo(
 // CodeEditor component for editing code which won't re-render unless the value changes
 const CodeEditor = memo(
   ({
+    id,
     value,
     onChange,
     onEnter,
   }: {
+    id: string
     value: string
     onChange: (value: string) => void
     onEnter: () => void
   }) => {
-    const [key] = useState(uuidv4())
+    console.log('value', value)
     // Store the latest onEnter in a ref to ensure late binding
     const onEnterRef = useRef(onEnter)
 
@@ -154,7 +152,7 @@ const CodeEditor = memo(
     return (
       <div className="p-1 h-100px w-full">
         <Editor
-          key={key}
+          key={id}
           height="100px"
           width="100%"
           defaultLanguage="shellscript"
@@ -166,12 +164,14 @@ const CodeEditor = memo(
       </div>
     )
   },
-  (prevProps, nextProps) => prevProps.value === nextProps.value
+  (prevProps, nextProps) => {
+    return prevProps.value === nextProps.value
+  }
 )
 
 // Action is an editor and an optional Runme console
-function Action({ value, title }: props) {
-  const [editorValue, setEditorValue] = useState(value)
+function Action({ block }: { block: Block }) {
+  const [editorValue, setEditorValue] = useState(block.contents)
   const [exec, setExec] = useState<{ value: string; runID: string }>({
     value: '',
     runID: '',
@@ -194,16 +194,23 @@ function Action({ value, title }: props) {
     output = ''
   }
 
+  useEffect(() => {
+    setEditorValue(block.contents)
+  }, [block.contents])
+
   return (
     <div>
       <Box className="w-full p-2">
         <div className="flex justify-between items-top">
           <RunActionButton exitCode={exitCode} onClick={runCode} />
           <Card className="whitespace-nowrap overflow-hidden flex-1 ml-2">
-            <div className="flex items-center m-1">
-              <span>{title}</span>
-            </div>
+            {/* {title && (
+              <div className="flex items-center m-1">
+                <span>{title}</span>
+              </div>
+            )} */}
             <CodeEditor
+              id={block.id}
               value={editorValue}
               onChange={(v) => {
                 setExitCode(null)
@@ -226,21 +233,8 @@ function Action({ value, title }: props) {
 }
 
 function Actions() {
-  // should come out of Context
-  const dummies = [
-    // {
-    //   title: "To begin, let's use shell to say hello",
-    //   value: "echo 'Hello, world!'",
-    // },
-    // {
-    //   title: "What's the time?",
-    //   value: 'date',
-    // },
-    {
-      title: 'Here are the nodes in your cluster',
-      value: 'kubectl get nodes',
-    },
-  ]
+  const { useColumns } = useBlock()
+  const { actions } = useColumns()
 
   const actionsEndRef = useRef<HTMLDivElement | null>(null)
   // automatically scroll to bottom of chat
@@ -250,12 +244,12 @@ function Actions() {
 
   useEffect(() => {
     scrollToBottom()
-  }, [])
+  }, [actions])
 
   return (
     <>
-      {dummies.map((dummy, index) => (
-        <Action key={index} {...dummy} />
+      {actions.map((action) => (
+        <Action key={action.id} block={action} />
       ))}
       <div ref={actionsEndRef} className="h-1" />
     </>
