@@ -36,11 +36,13 @@ const MessageContainer = ({
   )
 }
 
-const UserMessage = ({ contents }: { contents: string }) => {
-  return <MessageContainer role={BlockRole.USER}>{contents}</MessageContainer>
+const UserMessage = ({ block }: { block: Block }) => {
+  return (
+    <MessageContainer role={BlockRole.USER}>{block.contents}</MessageContainer>
+  )
 }
 
-const AssistantMessage = ({ contents }: { contents: string }) => {
+const AssistantMessage = ({ block }: { block: Block }) => {
   return (
     <MessageContainer role={BlockRole.ASSISTANT}>
       <Markdown
@@ -54,17 +56,35 @@ const AssistantMessage = ({ contents }: { contents: string }) => {
           },
         }}
       >
-        {contents}
+        {block.contents}
       </Markdown>
     </MessageContainer>
   )
 }
 
-const CodeMessage = ({ contents }: { contents: string }) => {
-  const firstLine = contents.split('\n')[0]?.substring(0, 80) + '...'
+const CodeMessage = ({
+  block,
+  onClick,
+}: {
+  block: Block
+  onClick?: () => void
+}) => {
+  const { runCodeBlock } = useBlock()
+  const firstLine = block.contents.split(/&&|;|\n|\\n/)[0]
+
+  const handleClick = () => {
+    if (onClick) {
+      onClick()
+    } else {
+      runCodeBlock(block)
+    }
+  }
 
   return (
-    <div className="self-start flex items-center gap-2 m-1 p-2 bg-[#1e1e1e] rounded-md max-w-[80%] cursor-pointer">
+    <div
+      className="self-start flex items-center gap-2 m-1 p-2 bg-[#1e1e1e] rounded-md max-w-[80%] cursor-pointer"
+      onClick={handleClick}
+    >
       <svg
         xmlns="http://www.w3.org/2000/svg"
         width="16"
@@ -102,14 +122,14 @@ const CodeMessage = ({ contents }: { contents: string }) => {
 
 const Message = ({ block }: MessageProps) => {
   if (block.kind === BlockKind.CODE) {
-    return <CodeMessage contents={block.contents} />
+    return <CodeMessage block={block} />
   }
 
   switch (block.role) {
     case BlockRole.USER:
-      return <UserMessage contents={block.contents} />
+      return <UserMessage block={block} />
     case BlockRole.ASSISTANT:
-      return <AssistantMessage contents={block.contents} />
+      return <AssistantMessage block={block} />
     default:
       return null
   }

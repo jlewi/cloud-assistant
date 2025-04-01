@@ -38,6 +38,8 @@ type BlockContextType = {
   // Keep track of whether the input is disabled
   isInputDisabled: boolean
   isTyping: boolean
+  // Function to run a code block
+  runCodeBlock: (block: Block) => void
 }
 
 const BlockContext = createContext<BlockContextType | undefined>(undefined)
@@ -218,6 +220,18 @@ export const BlockProvider = ({ children }: { children: ReactNode }) => {
     }
   }
 
+  const runCodeBlock = (block: Block) => {
+    // Find the corresponding action block and trigger its runCode function
+    const actionBlock = actionBlocks.find((b) => b.id === block.id)
+    if (actionBlock) {
+      // This will be handled by the Action component
+      const event = new CustomEvent('runCodeBlock', {
+        detail: { blockId: block.id },
+      })
+      window.dispatchEvent(event)
+    }
+  }
+
   return (
     <BlockContext.Provider
       value={{
@@ -226,6 +240,7 @@ export const BlockProvider = ({ children }: { children: ReactNode }) => {
         sendUserBlock,
         isInputDisabled,
         isTyping,
+        runCodeBlock,
       }}
     >
       {children}

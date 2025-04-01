@@ -221,6 +221,23 @@ function Action({ block }: { block: Block }) {
     setExec({ value: editorValue, runID: uuidv4() })
   }, [editorValue])
 
+  // Listen for runCodeBlock events
+  useEffect(() => {
+    const handleRunCodeBlock = (event: CustomEvent) => {
+      if (event.detail.blockId === block.id) {
+        runCode()
+      }
+    }
+
+    window.addEventListener('runCodeBlock', handleRunCodeBlock as EventListener)
+    return () => {
+      window.removeEventListener(
+        'runCodeBlock',
+        handleRunCodeBlock as EventListener
+      )
+    }
+  }, [block.id, runCode])
+
   useEffect(() => {
     if (exitCode === null || !Number.isInteger(exitCode)) {
       return
