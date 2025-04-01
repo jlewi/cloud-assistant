@@ -35,6 +35,7 @@ type BlockContextType = {
     }: { mimeType: string; textData: string; exitCode: number; runID: string }
   ) => void
   sendUserBlock: (text: string) => Promise<void>
+  addCodeBlock: () => void
   // Keep track of whether the input is disabled
   isInputDisabled: boolean
   isTyping: boolean
@@ -169,6 +170,17 @@ export const BlockProvider = ({ children }: { children: ReactNode }) => {
     })
   }
 
+  const addCodeBlock = () => {
+    const block = create(BlockSchema, {
+      id: `code_${uuidv4()}`,
+      role: BlockRole.USER,
+      kind: BlockKind.CODE,
+      contents: '# Write your bash commands here',
+    })
+
+    updateBlock(block)
+  }
+
   // sendUserBlock is a function that turns the text in the chat window into a block
   // which is then sent to the server
   const sendUserBlock = async (text: string) => {
@@ -238,6 +250,7 @@ export const BlockProvider = ({ children }: { children: ReactNode }) => {
         useColumns,
         updateOutputBlock,
         sendUserBlock,
+        addCodeBlock,
         isInputDisabled,
         isTyping,
         runCodeBlock,

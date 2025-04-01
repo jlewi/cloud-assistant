@@ -6,7 +6,13 @@ import { v4 as uuidv4 } from 'uuid'
 
 import { Block, useBlock } from '../../contexts/BlockContext'
 import Console from '../Runme/Console'
-import { ErrorIcon, PlayIcon, SpinnerIcon, SuccessIcon } from './icons'
+import {
+  ErrorIcon,
+  PlayIcon,
+  PlusIcon,
+  SpinnerIcon,
+  SuccessIcon,
+} from './icons'
 
 const fontSize = 14
 const fontFamily = 'monospace'
@@ -295,7 +301,7 @@ function Action({ block }: { block: Block }) {
 }
 
 function Actions() {
-  const { useColumns } = useBlock()
+  const { useColumns, addCodeBlock } = useBlock()
   const { actions } = useColumns()
 
   const actionsEndRef = useRef<HTMLDivElement | null>(null)
@@ -310,9 +316,19 @@ function Actions() {
 
   return (
     <div className="flex flex-col h-full">
-      <Text size="5" weight="bold" className="mb-2">
-        Actions
-      </Text>
+      <div className="flex items-center mb-2">
+        <Text size="5" weight="bold" className="pr-2">
+          Actions
+        </Text>
+        <Button
+          variant="ghost"
+          size="1"
+          className="cursor-pointer"
+          onClick={addCodeBlock}
+        >
+          <PlusIcon />
+        </Button>
+      </div>
       <ScrollArea type="auto" scrollbars="vertical" className="flex-1 p-2">
         {actions.map((action) => (
           <Action key={action.id} block={action} />

@@ -77,3 +77,23 @@ export const ErrorIcon = ({ exitCode }: ErrorIconProps) => (
     </text>
   </svg>
 )
+
+export function PlusIcon() {
+  return (
+    <svg
+      width="15"
+      height="15"
+      viewBox="0 0 15 15"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <path
+        d="M7.5 0.75C7.91421 0.75 8.25 1.08579 8.25 1.5V7.25H14C14.4142 7.25 14.75 7.58579 14.75 8C14.75 8.41421 14.4142 8.75 14 8.75H8.25V14.5C8.25 14.9142 7.91421 15.25 7.5 15.25C7.08579 15.25 6.75 14.9142 6.75 14.5V8.75H1C0.585786 8.75 0.25 8.41421 0.25 8C0.25 7.58579 0.585786 7.25 1 7.25H6.75V1.5C6.75 1.08579 7.08579 0.75 7.5 0.75Z"
+        fill="currentColor"
+        fillRule="evenodd"
+        clipRule="evenodd"
+        strokeWidth="0.5"
+      />
+    </svg>
+  )
+}
