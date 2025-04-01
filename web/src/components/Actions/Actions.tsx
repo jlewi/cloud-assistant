@@ -57,7 +57,7 @@ const CodeConsole = memo(
       runID != '' && (
         <Console
           className={className}
-          rows={10}
+          rows={14}
           commands={value.split('\n')}
           fontSize={fontSize}
           fontFamily={fontFamily}
