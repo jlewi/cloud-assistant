@@ -72,9 +72,11 @@ const AssistantMessage = ({ block }: { block: Block }) => {
 const CodeMessage = ({
   block,
   onClick,
+  isLastCodeBlock,
 }: {
   block: Block
   onClick?: () => void
+  isLastCodeBlock?: boolean
 }) => {
   const { runCodeBlock } = useBlock()
   const firstLine = block.contents.split(/&&|;|\n|\\n/)[0]
@@ -88,48 +90,56 @@ const CodeMessage = ({
   }
 
   return (
-    <div
-      className="self-start flex items-center gap-2 m-1 p-2 bg-[#1e1e1e] rounded-md max-w-[80%] cursor-pointer"
-      onClick={handleClick}
-    >
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        width="16"
-        height="16"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="#d4d4d4"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
+    <div className="self-start flex flex-row items-center gap-1">
+      <div
+        className="flex items-center gap-2 m-1 p-2 bg-[#1e1e1e] rounded-md max-w-[80%] cursor-pointer"
+        onClick={handleClick}
       >
-        <polygon points="5 3 19 12 5 21 5 3"></polygon>
-      </svg>
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        width="16"
-        height="16"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="#d4d4d4"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        className="ml-1"
-      >
-        <polyline points="4 17 10 11 4 5"></polyline>
-        <line x1="12" y1="19" x2="20" y2="19"></line>
-      </svg>
-      <span className="text-sm text-[#d4d4d4] italic truncate max-w-2/3">
-        {firstLine}
-      </span>
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="#d4d4d4"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <polygon points="5 3 19 12 5 21 5 3"></polygon>
+        </svg>
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="#d4d4d4"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className="ml-1"
+        >
+          <polyline points="4 17 10 11 4 5"></polyline>
+          <line x1="12" y1="19" x2="20" y2="19"></line>
+        </svg>
+        <span className="text-sm text-[#d4d4d4] italic truncate max-w-2/3">
+          {firstLine}
+        </span>
+      </div>
+      {isLastCodeBlock && (
+        <span className="text-xs text-gray-400">Press CTRL+ENTER to run</span>
+      )}
     </div>
   )
 }
 
-const Message = ({ block }: MessageProps) => {
+const Message = ({
+  block,
+  isLastCodeBlock,
+}: MessageProps & { isLastCodeBlock?: boolean }) => {
   if (block.kind === BlockKind.CODE) {
-    return <CodeMessage block={block} />
+    return <CodeMessage block={block} isLastCodeBlock={isLastCodeBlock} />
   }
 
   switch (block.role) {
@@ -143,7 +153,7 @@ const Message = ({ block }: MessageProps) => {
 }
 
 const ChatMessages = () => {
-  const { useColumns, isTyping } = useBlock()
+  const { useColumns, isTyping, runCodeBlock } = useBlock()
   const { chat } = useColumns()
   const messagesEndRef = useRef<HTMLDivElement | null>(null)
 
@@ -155,12 +165,34 @@ const ChatMessages = () => {
     scrollToBottom()
   }, [chat])
 
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.ctrlKey && event.key === 'Enter') {
+        const lastBlock = chat[chat.length - 1]
+        if (lastBlock?.kind === BlockKind.CODE) {
+          runCodeBlock(lastBlock)
+        }
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [chat, runCodeBlock])
+
   if (chat.length === 0) return null
 
   return (
     <div className="overflow-y-clip p-1 flex flex-col order-2 whitespace-pre-wrap">
       {chat.map((msg: Block, index: number) => (
-        <Message key={index} block={msg} />
+        <Message
+          key={index}
+          block={msg}
+          isLastCodeBlock={
+            msg.kind === BlockKind.CODE &&
+            index === chat.length - 1 &&
+            !isTyping
+          }
+        />
       ))}
       {isTyping && (
         <div className="flex justify-start items-center h-full">
