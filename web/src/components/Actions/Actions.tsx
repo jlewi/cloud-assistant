@@ -202,13 +202,7 @@ const CodeEditor = memo(
 )
 
 // Action is an editor and an optional Runme console
-function Action({
-  block,
-  onComplete,
-}: {
-  block: Block
-  onComplete: () => void
-}) {
+function Action({ block }: { block: Block }) {
   const { updateOutputBlock } = useBlock()
   const [editorValue, setEditorValue] = useState(block.contents)
   const [exec, setExec] = useState<{ value: string; runID: string }>({
@@ -245,7 +239,6 @@ function Action({
   }, [block.id, runCode])
 
   useEffect(() => {
-    onComplete()
     if (exitCode === null || !Number.isInteger(exitCode)) {
       return
     }
@@ -255,15 +248,7 @@ function Action({
       exitCode,
       runID: exec.runID,
     })
-  }, [
-    output,
-    exitCode,
-    mimeType,
-    exec.runID,
-    block,
-    updateOutputBlock,
-    onComplete,
-  ])
+  }, [output, exitCode, mimeType, exec.runID, block, updateOutputBlock])
 
   useEffect(() => {
     setEditorValue(block.contents)
@@ -326,7 +311,7 @@ function Actions() {
   return (
     <>
       {actions.map((action) => (
-        <Action key={action.id} block={action} onComplete={scrollToBottom} />
+        <Action key={action.id} block={action} />
       ))}
       <div ref={actionsEndRef} className="h-1" />
     </>
