@@ -129,24 +129,23 @@ export const BlockProvider = ({ children }: { children: ReactNode }) => {
     // sendOutputBlock(b)
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const sendOutputBlock = async (block: Block) => {
-    const req: GenerateRequest = create(GenerateRequestSchema, {
-      blocks: [block],
-    })
+  // const sendOutputBlock = async (block: Block) => {
+  //   const req: GenerateRequest = create(GenerateRequestSchema, {
+  //     blocks: [block],
+  //   })
 
-    try {
-      const res = client!.generate(req)
-      for await (const r of res) {
-        for (const b of r.blocks) {
-          console.log('b', JSON.stringify(b, null, 1))
-          // updateBlock(b)
-        }
-      }
-    } catch (e) {
-      console.error(e)
-    }
-  }
+  //   try {
+  //     const res = client!.generate(req)
+  //     for await (const r of res) {
+  //       for (const b of r.blocks) {
+  //         console.log('b', JSON.stringify(b, null, 1))
+  //         // updateBlock(b)
+  //       }
+  //     }
+  //   } catch (e) {
+  //     console.error(e)
+  //   }
+  // }
 
   const updateBlock = (block: Block) => {
     setState((prev) => {
