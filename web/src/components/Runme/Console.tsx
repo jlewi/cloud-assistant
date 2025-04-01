@@ -91,6 +91,7 @@ function buildExecuteRequest(): ExecuteRequest {
 function Console({
   commands,
   rows = 20,
+  className,
   fontSize = 12,
   fontFamily = 'monospace',
   onStdout,
@@ -101,6 +102,7 @@ function Console({
 }: {
   commands: string[]
   rows?: number
+  className?: string
   fontSize?: number
   fontFamily?: string
   onStdout?: (data: Uint8Array) => void
@@ -268,6 +270,7 @@ function Console({
   }, [commands, execReq])
   return (
     <div
+      className={className}
       ref={(el) => {
         if (!el || el.hasChildNodes()) {
           return

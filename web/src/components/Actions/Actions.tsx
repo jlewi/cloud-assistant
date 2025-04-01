@@ -36,6 +36,7 @@ function RunActionButton({
 
 const CodeConsole = memo(
   ({
+    className,
     value,
     runID,
     outputHandler,
@@ -43,6 +44,7 @@ const CodeConsole = memo(
     pidHandler,
     mimeTypeHandler,
   }: {
+    className?: string
     value: string
     runID: string
     outputHandler: (data: Uint8Array) => void
@@ -54,6 +56,7 @@ const CodeConsole = memo(
       value != '' &&
       runID != '' && (
         <Console
+          className={className}
           rows={10}
           commands={value.split('\n')}
           fontSize={fontSize}
@@ -165,25 +168,29 @@ const CodeEditor = memo(
 
     return (
       <div className="pb-1 w-full" ref={containerRef}>
-        <Editor
-          key={id}
-          height={height}
-          width="100%"
-          defaultLanguage="shellscript"
-          value={value}
-          options={{
-            minimap: { enabled: false },
-            theme: 'vs-dark',
-            wordWrap: 'wordWrapColumn',
-            fontSize,
-            fontFamily,
-            lineHeight: 20,
-          }}
-          onChange={(v) => v && onChange?.(v)}
-          onMount={editorDidMount}
-        />
+        <div className="rounded-md overflow-hidden">
+          <Editor
+            key={id}
+            height={height}
+            width="100%"
+            defaultLanguage="shellscript"
+            value={value}
+            options={{
+              minimap: { enabled: false },
+              theme: 'vs-dark',
+              wordWrap: 'wordWrapColumn',
+              fontSize,
+              fontFamily,
+              lineHeight: 20,
+            }}
+            onChange={(v) => v && onChange?.(v)}
+            onMount={editorDidMount}
+            className="rounded-lg"
+            wrapperProps={{ className: 'rounded-lg' }}
+          />
+        </div>
         <div
-          className="h-2 w-full cursor-ns-resize bg-gray-700 hover:bg-gray-600"
+          className="h-2 w-full cursor-ns-resize"
           onMouseDown={handleResizeStart}
         />
       </div>
@@ -261,6 +268,7 @@ function Action({ block }: { block: Block }) {
               pidHandler={setPid}
               exitCodeHandler={setExitCode}
               mimeTypeHandler={setMimeType}
+              className="rounded-md overflow-hidden"
             />
           </Card>
         </div>
