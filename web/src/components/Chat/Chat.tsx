@@ -61,15 +61,42 @@ const AssistantMessage = ({ contents }: { contents: string }) => {
 }
 
 const CodeMessage = ({ contents }: { contents: string }) => {
+  const firstLine = contents.split('\n')[0]?.substring(0, 80) + '...'
+
   return (
-    <MessageContainer role={BlockRole.ASSISTANT}>
-      {contents.split('\n').map((line, index) => (
-        <div key={index} className="mt-1">
-          <span className="text-[#b8b8b8] mr-2">{`${index + 1}. `}</span>
-          {line}
-        </div>
-      ))}
-    </MessageContainer>
+    <div className="self-start flex items-center gap-2 m-1 p-2 bg-[#1e1e1e] rounded-md max-w-[80%] cursor-pointer">
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="#d4d4d4"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <polygon points="5 3 19 12 5 21 5 3"></polygon>
+      </svg>
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="#d4d4d4"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className="ml-1"
+      >
+        <polyline points="4 17 10 11 4 5"></polyline>
+        <line x1="12" y1="19" x2="20" y2="19"></line>
+      </svg>
+      <span className="text-sm text-[#d4d4d4] italic truncate max-w-2/3">
+        {firstLine}
+      </span>
+    </div>
   )
 }
 

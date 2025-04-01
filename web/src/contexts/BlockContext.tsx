@@ -53,7 +53,7 @@ export const useBlock = () => {
 
 interface BlockState {
   blocks: Record<string, Block>
-  positions: Record<string, string[]>
+  positions: string[]
 }
 
 export const BlockProvider = ({ children }: { children: ReactNode }) => {
@@ -63,30 +63,35 @@ export const BlockProvider = ({ children }: { children: ReactNode }) => {
   const { client } = useAgentClient()
   const [state, setState] = useState<BlockState>({
     blocks: {},
-    positions: {
-      [BlockKind.UNKNOWN_BLOCK_KIND]: [],
-      [BlockKind.MARKUP]: [],
-      [BlockKind.CODE]: [],
-      [BlockKind.FILE_SEARCH_RESULTS]: [],
-    },
+    positions: [],
   })
 
   const chatBlocks = useMemo(() => {
-    return state.positions[BlockKind.MARKUP]
+    return state.positions
       .map((id) => state.blocks[id])
-      .filter(Boolean)
+      .filter(
+        (block): block is Block =>
+          Boolean(block) &&
+          (block.kind === BlockKind.MARKUP || block.kind === BlockKind.CODE)
+      )
   }, [state.blocks, state.positions])
 
   const actionBlocks = useMemo(() => {
-    return state.positions[BlockKind.CODE]
+    return state.positions
       .map((id) => state.blocks[id])
-      .filter(Boolean)
+      .filter(
+        (block): block is Block =>
+          Boolean(block) && block.kind === BlockKind.CODE
+      )
   }, [state.blocks, state.positions])
 
   const fileBlocks = useMemo(() => {
-    return state.positions[BlockKind.FILE_SEARCH_RESULTS]
+    return state.positions
       .map((id) => state.blocks[id])
-      .filter(Boolean)
+      .filter(
+        (block): block is Block =>
+          Boolean(block) && block.kind === BlockKind.FILE_SEARCH_RESULTS
+      )
   }, [state.blocks, state.positions])
 
   const useColumns = () => {
@@ -148,10 +153,7 @@ export const BlockProvider = ({ children }: { children: ReactNode }) => {
             ...prev.blocks,
             [block.id]: block,
           },
-          positions: {
-            ...prev.positions,
-            [block.kind]: [...(prev.positions[block.kind] || []), block.id],
-          },
+          positions: [...prev.positions, block.id],
         }
       }
 
