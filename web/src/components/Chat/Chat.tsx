@@ -142,8 +142,38 @@ const Message = ({ block }: MessageProps) => {
   }
 }
 
-function Chat() {
-  const { useColumns, sendUserBlock, isInputDisabled, isTyping } = useBlock()
+const ChatMessages = () => {
+  const { useColumns, isTyping } = useBlock()
+  const { chat } = useColumns()
+  const messagesEndRef = useRef<HTMLDivElement | null>(null)
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }
+
+  useEffect(() => {
+    scrollToBottom()
+  }, [chat])
+
+  if (chat.length === 0) return null
+
+  return (
+    <div className="overflow-y-clip p-1 flex flex-col order-2 whitespace-pre-wrap">
+      {chat.map((msg: Block, index: number) => (
+        <Message key={index} block={msg} />
+      ))}
+      {isTyping && (
+        <div className="flex justify-start items-center h-full">
+          <Message block={TypingBlock} />
+        </div>
+      )}
+      <div ref={messagesEndRef} />
+    </div>
+  )
+}
+
+const ChatInput = () => {
+  const { sendUserBlock, isInputDisabled } = useBlock()
   const [userInput, setUserInput] = useState('')
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
@@ -153,18 +183,30 @@ function Chat() {
     setUserInput('')
   }
 
-  const { chat } = useColumns()
+  return (
+    <form onSubmit={handleSubmit} className="flex w-full order-1">
+      <Flex className="w-full flex flex-nowrap items-center">
+        <TextField.Root
+          name="userInput"
+          value={userInput}
+          onChange={(e) => setUserInput(e.target.value)}
+          placeholder="Enter your question"
+          size="2"
+          className="flex-grow min-w-0 m-2"
+        >
+          <TextField.Slot>
+            <MagnifyingGlassIcon height="16" width="16" />
+          </TextField.Slot>
+        </TextField.Root>
+        <Button type="submit" disabled={isInputDisabled}>
+          {isInputDisabled ? 'Thinking' : 'Send'}
+        </Button>
+      </Flex>
+    </form>
+  )
+}
 
-  // automatically scroll to bottom of chat
-  const messagesEndRef = useRef<HTMLDivElement | null>(null)
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }
-
-  useEffect(() => {
-    scrollToBottom()
-  }, [chat])
-
+function Chat() {
   return (
     <div className="flex flex-col h-full">
       <Text size="5" weight="bold" className="mb-2">
@@ -172,38 +214,8 @@ function Chat() {
       </Text>
       <ScrollArea type="auto" scrollbars="vertical" className="flex-1 p-4">
         <div className="flex flex-col-reverse h-full w-full">
-          {chat.length > 0 && (
-            <div className="overflow-y-clip p-1 flex flex-col order-2 whitespace-pre-wrap">
-              {chat.map((msg, index) => (
-                <Message key={index} block={msg} />
-              ))}
-              {isTyping && (
-                <div className="flex justify-start items-center h-full">
-                  <Message block={TypingBlock} />
-                </div>
-              )}
-              <div ref={messagesEndRef} />
-            </div>
-          )}
-          <form onSubmit={handleSubmit} className="flex w-full order-1">
-            <Flex className="w-full flex flex-nowrap items-center">
-              <TextField.Root
-                name="userInput"
-                value={userInput}
-                onChange={(e) => setUserInput(e.target.value)}
-                placeholder="Enter your question"
-                size="2"
-                className="flex-grow min-w-0 m-2"
-              >
-                <TextField.Slot>
-                  <MagnifyingGlassIcon height="16" width="16" />
-                </TextField.Slot>
-              </TextField.Root>
-              <Button type="submit" disabled={isInputDisabled}>
-                {isInputDisabled ? 'Thinking' : 'Send'}
-              </Button>
-            </Flex>
-          </form>
+          <ChatMessages />
+          <ChatInput />
         </div>
       </ScrollArea>
     </div>
