@@ -43,7 +43,19 @@ const UserMessage = ({ contents }: { contents: string }) => {
 const AssistantMessage = ({ contents }: { contents: string }) => {
   return (
     <MessageContainer role={BlockRole.ASSISTANT}>
-      <Markdown>{contents}</Markdown>
+      <Markdown
+        components={{
+          code: ({ children, ...props }) => {
+            return (
+              <pre className="whitespace-pre-wrap">
+                <code {...props}>{String(children).replace(/\n$/, '')}</code>
+              </pre>
+            )
+          },
+        }}
+      >
+        {contents}
+      </Markdown>
     </MessageContainer>
   )
 }
