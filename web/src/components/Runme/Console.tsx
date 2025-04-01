@@ -199,6 +199,7 @@ function Console({
           onStdout(response.stdoutData)
         }
       }
+
       if (response.stderrData) {
         callback?.({
           type: ClientMessages.terminalStderr,
@@ -339,6 +340,13 @@ function Console({
         }
 
         el.appendChild(terminalElem)
+        const terminalEnd = document.createElement('div')
+        terminalEnd.setAttribute('className', 'h-1')
+        el.appendChild(terminalEnd)
+
+        setTimeout(() => {
+          terminalEnd.scrollIntoView({ behavior: 'smooth' })
+        }, 0)
       }}
     ></div>
   )
