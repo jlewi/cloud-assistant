@@ -169,14 +169,54 @@ const CodeEditor = memo(
   }) => {
     // Store the latest onEnter in a ref to ensure late binding
     const onEnterRef = useRef(onEnter)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const editorRef = useRef<any>(null)
+    const containerRef = useRef<HTMLDivElement>(null)
+    const [height, setHeight] = useState('140px')
+    const [isResizing, setIsResizing] = useState(false)
+    const startYRef = useRef(0)
+    const startHeightRef = useRef(0)
 
     // Keep the ref updated with the latest onEnter
     useEffect(() => {
       onEnterRef.current = onEnter
     }, [onEnter])
 
+    // Handle resize events
+    useEffect(() => {
+      const handleMouseMove = (e: MouseEvent) => {
+        if (!isResizing) return
+
+        const deltaY = e.clientY - startYRef.current
+        const newHeight = Math.max(100, startHeightRef.current + deltaY)
+        setHeight(`${newHeight}px`)
+
+        // Resize the editor
+        if (editorRef.current) {
+          editorRef.current.layout()
+        }
+      }
+
+      const handleMouseUp = () => {
+        setIsResizing(false)
+        document.body.style.cursor = 'default'
+      }
+
+      if (isResizing) {
+        document.addEventListener('mousemove', handleMouseMove)
+        document.addEventListener('mouseup', handleMouseUp)
+      }
+
+      return () => {
+        document.removeEventListener('mousemove', handleMouseMove)
+        document.removeEventListener('mouseup', handleMouseUp)
+      }
+    }, [isResizing])
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const editorDidMount = (editor: any, monaco: any) => {
+      editorRef.current = editor
+
       if (!monaco?.editor) {
         return
       }
@@ -193,11 +233,20 @@ const CodeEditor = memo(
         }
       })
     }
+
+    const handleResizeStart = (e: React.MouseEvent) => {
+      setIsResizing(true)
+      startYRef.current = e.clientY
+      startHeightRef.current = containerRef.current?.clientHeight || 140
+      document.body.style.cursor = 'ns-resize'
+      e.preventDefault()
+    }
+
     return (
-      <div className="pb-1 w-full">
+      <div className="pb-1 w-full" ref={containerRef}>
         <Editor
           key={id}
-          height="140px"
+          height={height}
           width="100%"
           defaultLanguage="shellscript"
           value={value}
@@ -211,6 +260,10 @@ const CodeEditor = memo(
           }}
           onChange={(v) => v && onChange?.(v)}
           onMount={editorDidMount}
+        />
+        <div
+          className="h-2 w-full cursor-ns-resize bg-gray-700 hover:bg-gray-600"
+          onMouseDown={handleResizeStart}
         />
       </div>
     )
