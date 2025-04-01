@@ -5,7 +5,7 @@ import { Theme } from '@radix-ui/themes'
 import '@radix-ui/themes/styles.css'
 
 import openaiLogo from './assets/openai.svg'
-import Actions from './components/Actions'
+import Actions from './components/Actions/Actions'
 import Chat from './components/Chat/Chat'
 import FileViewer from './components/Files/Viewer'
 import { AgentClientProvider } from './contexts/AgentContext'
