@@ -117,9 +117,11 @@ export const BlockProvider = ({ children }: { children: ReactNode }) => {
       }),
     ]
 
-    sendOutputBlock(b)
+    // TODO: Disabled until it's clear how the API expects us to handle output
+    // sendOutputBlock(b)
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const sendOutputBlock = async (block: Block) => {
     const req: GenerateRequest = create(GenerateRequestSchema, {
       blocks: [block],
