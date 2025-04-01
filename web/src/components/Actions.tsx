@@ -7,6 +7,9 @@ import { v4 as uuidv4 } from 'uuid'
 import { Block, useBlock } from '../contexts/BlockContext'
 import Console from './Runme/Console'
 
+const fontSize = 14
+const fontFamily = 'monospace'
+
 function RunActionButton({
   pid,
   exitCode,
@@ -132,6 +135,8 @@ const CodeConsole = memo(
         <Console
           rows={10}
           commands={value.split('\n')}
+          fontSize={fontSize}
+          fontFamily={fontFamily}
           onPid={pidHandler}
           onStdout={outputHandler}
           onStderr={outputHandler}
@@ -200,6 +205,9 @@ const CodeEditor = memo(
             minimap: { enabled: false },
             theme: 'vs-dark',
             wordWrap: 'wordWrapColumn',
+            fontSize,
+            fontFamily,
+            lineHeight: 20,
           }}
           onChange={(v) => v && onChange?.(v)}
           onMount={editorDidMount}

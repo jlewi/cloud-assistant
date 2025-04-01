@@ -91,6 +91,8 @@ function buildExecuteRequest(): ExecuteRequest {
 function Console({
   commands,
   rows = 20,
+  fontSize = 12,
+  fontFamily = 'monospace',
   onStdout,
   onStderr,
   onExitCode,
@@ -99,6 +101,8 @@ function Console({
 }: {
   commands: string[]
   rows?: number
+  fontSize?: number
+  fontFamily?: string
   onStdout?: (data: Uint8Array) => void
   onStderr?: (data: Uint8Array) => void
   onExitCode?: (code: number) => void
@@ -109,8 +113,8 @@ function Console({
   const defaults = {
     output: {
       'runme.dev/id': execReq.config?.knownId,
-      fontFamily: 'monospace',
-      fontSize: 12,
+      fontFamily: fontFamily || 'monospace',
+      fontSize: fontSize || 12,
       cursorStyle: 'block',
       cursorBlink: true,
       cursorWidth: 1,
