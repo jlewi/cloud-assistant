@@ -114,7 +114,7 @@ function Chat() {
           <div ref={messagesEndRef} />
         </div>
       )}
-      <form onSubmit={handleSubmit} className="flex w-full pb-10 order-1">
+      <form onSubmit={handleSubmit} className="flex w-full order-1">
         <Flex className="w-full flex flex-nowrap items-center">
           <TextField.Root
             name="userInput"
