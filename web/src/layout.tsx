@@ -1,4 +1,4 @@
-import { Box, Flex, ScrollArea, Text } from '@radix-ui/themes'
+import { Box, Flex, Text } from '@radix-ui/themes'
 
 import openaiLogo from './assets/openai.svg'
 
@@ -83,33 +83,16 @@ function Layout({
       <Flex className="w-full h-[95%] flex-1 gap-2">
         {/* Left */}
         <Box className="flex-2 flex flex-col h-full p-2 border-r border-gray-400">
-          <Text size="5" weight="bold" className="mb-2">
-            How can I help you?
-          </Text>
-          <ScrollArea type="auto" scrollbars="vertical" className="flex-1 p-4">
-            {left}
-          </ScrollArea>
+          {left}
         </Box>
 
         {/* Middle */}
         <Box className="flex-3 flex flex-col h-full p-2 border-r border-gray-400">
-          <Text size="5" weight="bold" className="mb-2">
-            Actions
-          </Text>
-          <ScrollArea type="auto" scrollbars="vertical" className="flex-1 p-2">
-            {middle}
-          </ScrollArea>
+          {middle}
         </Box>
 
         {/* Right */}
-        <Box className="flex-1 flex flex-col h-full p-2">
-          <Text size="5" weight="bold" className="mb-2">
-            Files
-          </Text>
-          <ScrollArea type="auto" scrollbars="vertical" className="flex-1 pt-4">
-            {right}
-          </ScrollArea>
-        </Box>
+        <Box className="flex-1 flex flex-col h-full p-2">{right}</Box>
       </Flex>
     </Box>
   )

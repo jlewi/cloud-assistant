@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react'
 
 import { create } from '@bufbuild/protobuf'
-import { Box, Link, Text } from '@radix-ui/themes'
+import { Box, Link, ScrollArea, Text } from '@radix-ui/themes'
 
 import { Block, useBlock } from '../../contexts/BlockContext'
 import { BlockSchema } from '../../gen/es/cassie/blocks_pb'
@@ -37,40 +37,44 @@ const FileViewer = () => {
 
   const hasSearchResults = oneBlock.fileSearchResults.length > 0
 
-  if (!hasSearchResults) {
-    return (
-      <div>
-        <div>
-          <div>No search results yet</div>
-          <div ref={filesEndRef} className="h-1" />
-        </div>
-      </div>
-    )
-  }
-
   return (
-    <div>
-      <div className="grow">
-        {oneBlock.fileSearchResults.map((b) => (
-          <div key={b.FileID} className="mb-2">
-            <Box
-              p="2"
-              style={{ borderRadius: '6px', border: '1px solid var(--gray-5)' }}
-            >
-              <Text size="2" weight="medium">
-                <Link
-                  href={b.Link}
-                  target="_blank"
-                  className="text-blue-500 hover:underline"
-                >
-                  {b.FileName}
-                </Link>
-              </Text>
-            </Box>
+    <div className="flex flex-col h-full">
+      <Text size="5" weight="bold" className="mb-2">
+        Files
+      </Text>
+      <ScrollArea type="auto" scrollbars="vertical" className="flex-1 pt-4">
+        {!hasSearchResults ? (
+          <div>
+            <div>No search results yet</div>
+            <div ref={filesEndRef} className="h-1" />
           </div>
-        ))}
-        <div ref={filesEndRef} className="h-1" />
-      </div>
+        ) : (
+          <div className="grow">
+            {oneBlock.fileSearchResults.map((b) => (
+              <div key={b.FileID} className="mb-2">
+                <Box
+                  p="2"
+                  style={{
+                    borderRadius: '6px',
+                    border: '1px solid var(--gray-5)',
+                  }}
+                >
+                  <Text size="2" weight="medium">
+                    <Link
+                      href={b.Link}
+                      target="_blank"
+                      className="text-blue-500 hover:underline"
+                    >
+                      {b.FileName}
+                    </Link>
+                  </Text>
+                </Box>
+              </div>
+            ))}
+            <div ref={filesEndRef} className="h-1" />
+          </div>
+        )}
+      </ScrollArea>
     </div>
   )
 }

@@ -2,7 +2,14 @@ import { useEffect, useRef, useState } from 'react'
 import Markdown from 'react-markdown'
 
 import { MagnifyingGlassIcon } from '@radix-ui/react-icons'
-import { Button, Callout, Flex, TextField } from '@radix-ui/themes'
+import {
+  Button,
+  Callout,
+  Flex,
+  ScrollArea,
+  Text,
+  TextField,
+} from '@radix-ui/themes'
 
 import {
   Block,
@@ -156,42 +163,49 @@ function Chat() {
 
   useEffect(() => {
     scrollToBottom()
-  }, [chat]) // if we passed empty array, it would only run once onMount
+  }, [chat])
 
   return (
-    <div className="flex flex-col-reverse h-full w-full">
-      {chat.length > 0 && (
-        <div className="overflow-y-clip p-1 flex flex-col order-2 whitespace-pre-wrap">
-          {chat.map((msg, index) => (
-            <Message key={index} block={msg} />
-          ))}
-          {isTyping && (
-            <div className="flex justify-start items-center h-full">
-              <Message block={TypingBlock} />
+    <div className="flex flex-col h-full">
+      <Text size="5" weight="bold" className="mb-2">
+        How can I help you?
+      </Text>
+      <ScrollArea type="auto" scrollbars="vertical" className="flex-1 p-4">
+        <div className="flex flex-col-reverse h-full w-full">
+          {chat.length > 0 && (
+            <div className="overflow-y-clip p-1 flex flex-col order-2 whitespace-pre-wrap">
+              {chat.map((msg, index) => (
+                <Message key={index} block={msg} />
+              ))}
+              {isTyping && (
+                <div className="flex justify-start items-center h-full">
+                  <Message block={TypingBlock} />
+                </div>
+              )}
+              <div ref={messagesEndRef} />
             </div>
           )}
-          <div ref={messagesEndRef} />
+          <form onSubmit={handleSubmit} className="flex w-full order-1">
+            <Flex className="w-full flex flex-nowrap items-center">
+              <TextField.Root
+                name="userInput"
+                value={userInput}
+                onChange={(e) => setUserInput(e.target.value)}
+                placeholder="Enter your question"
+                size="2"
+                className="flex-grow min-w-0 m-2"
+              >
+                <TextField.Slot>
+                  <MagnifyingGlassIcon height="16" width="16" />
+                </TextField.Slot>
+              </TextField.Root>
+              <Button type="submit" disabled={isInputDisabled}>
+                {isInputDisabled ? 'Thinking' : 'Send'}
+              </Button>
+            </Flex>
+          </form>
         </div>
-      )}
-      <form onSubmit={handleSubmit} className="flex w-full order-1">
-        <Flex className="w-full flex flex-nowrap items-center">
-          <TextField.Root
-            name="userInput"
-            value={userInput}
-            onChange={(e) => setUserInput(e.target.value)}
-            placeholder="Enter your question"
-            size="2"
-            className="flex-grow min-w-0 m-2"
-          >
-            <TextField.Slot>
-              <MagnifyingGlassIcon height="16" width="16" />
-            </TextField.Slot>
-          </TextField.Root>
-          <Button type="submit" disabled={isInputDisabled}>
-            {isInputDisabled ? 'Thinking' : 'Send'}
-          </Button>
-        </Flex>
-      </form>
+      </ScrollArea>
     </div>
   )
 }

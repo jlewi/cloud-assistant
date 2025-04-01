@@ -1,7 +1,7 @@
 import { memo, useCallback, useEffect, useRef, useState } from 'react'
 
 import Editor from '@monaco-editor/react'
-import { Box, Button, Card } from '@radix-ui/themes'
+import { Box, Button, Card, ScrollArea, Text } from '@radix-ui/themes'
 import { v4 as uuidv4 } from 'uuid'
 
 import { Block, useBlock } from '../../contexts/BlockContext'
@@ -309,12 +309,17 @@ function Actions() {
   }, [actions])
 
   return (
-    <>
-      {actions.map((action) => (
-        <Action key={action.id} block={action} />
-      ))}
-      <div ref={actionsEndRef} className="h-1" />
-    </>
+    <div className="flex flex-col h-full">
+      <Text size="5" weight="bold" className="mb-2">
+        Actions
+      </Text>
+      <ScrollArea type="auto" scrollbars="vertical" className="flex-1 p-2">
+        {actions.map((action) => (
+          <Action key={action.id} block={action} />
+        ))}
+        <div ref={actionsEndRef} className="h-1" />
+      </ScrollArea>
+    </div>
   )
 }
 
