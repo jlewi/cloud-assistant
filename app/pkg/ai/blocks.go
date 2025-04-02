@@ -4,6 +4,7 @@ import (
 	"connectrpc.com/connect"
 	"context"
 	"encoding/json"
+	"github.com/jlewi/cloud-assistant/app/pkg/docs"
 	"github.com/jlewi/cloud-assistant/app/pkg/logs"
 	"github.com/jlewi/cloud-assistant/protos/gen/cassie"
 	"github.com/openai/openai-go/packages/ssestream"
@@ -161,13 +162,13 @@ func (b *BlocksBuilder) ProcessEvent(ctx context.Context, e responses.ResponseSt
 	case responses.ResponseOutputItemDoneEvent:
 		item := e.AsResponseOutputItemDone()
 		log.Info("Output item done", "item", item)
-		block, err := b.itemDoneToBlock(ctx, item.Item)
+		blocks, err := b.itemDoneToBlock(ctx, item.Item)
 		if err != nil {
 			return err
 		}
 
-		if block != nil {
-			resp.Blocks = append(resp.Blocks, block)
+		if blocks != nil {
+			resp.Blocks = append(resp.Blocks, blocks...)
 		}
 	//case responses.ResponseFileSearchCallCompletedEvent:
 
@@ -187,13 +188,38 @@ func (b *BlocksBuilder) ProcessEvent(ctx context.Context, e responses.ResponseSt
 	return nil
 }
 
-func (b *BlocksBuilder) itemDoneToBlock(ctx context.Context, item responses.ResponseOutputItemUnion) (*cassie.Block, error) {
+func (b *BlocksBuilder) itemDoneToBlock(ctx context.Context, item responses.ResponseOutputItemUnion) ([]*cassie.Block, error) {
+	log := logs.FromContext(ctx)
+	results := make([]*cassie.Block, 0, 5)
 	switch item.AsAny().(type) {
 	case responses.ResponseOutputMessage:
+		// For regular output messages we want to parse out any code blocks and turn them into code blocks
+		// so they get rendered as executable code. This is a bit of a hack to make them executable.
+		m := item.AsMessage()
+		for _, message := range m.Content {
+			if message.Text == "" {
+				continue
+			}
+
+			parsedBlocks, err := docs.MarkdownToBlocks(message.Text)
+			if err != nil {
+				log.Error(err, "Failed to parse markdown", "text", message.Text)
+				continue
+			}
+
+			for _, b := range parsedBlocks {
+				if b.Kind == cassie.BlockKind_CODE {
+					results = append(results, b)
+				}
+			}
+		}
+		return results, nil
 	case responses.ResponseFileSearchToolCall:
-		return b.fileSearchDoneItemToBlock(ctx, item.AsFileSearchCall())
+		b, err := b.fileSearchDoneItemToBlock(ctx, item.AsFileSearchCall())
+		results = append(results, b)
+		return results, err
 	}
-	return nil, nil
+	return results, nil
 }
 
 // N.B. It doesn't look like the file search call actually has the results in it. I think its the item done.
