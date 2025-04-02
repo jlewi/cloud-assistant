@@ -189,6 +189,7 @@ func (b *BlocksBuilder) ProcessEvent(ctx context.Context, e responses.ResponseSt
 
 func (b *BlocksBuilder) itemDoneToBlock(ctx context.Context, item responses.ResponseOutputItemUnion) (*cassie.Block, error) {
 	switch item.AsAny().(type) {
+	case responses.ResponseOutputMessage:
 	case responses.ResponseFileSearchToolCall:
 		return b.fileSearchDoneItemToBlock(ctx, item.AsFileSearchCall())
 	}
