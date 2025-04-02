@@ -50,12 +50,16 @@ type Options struct {
 
 // NewServer creates a new server
 func NewServer(opts Options, agent *ai.Agent) (*Server, error) {
+	log := zapr.NewLogger(zap.L())
 	if agent == nil {
-		return nil, errors.New("Agent is nil")
+		if !opts.Server.RunnerService {
+			return nil, errors.New("Agent and Runner service are both disabled")
+		}
+		log.Info("Agent is nil; continuing without AI service")
 	}
 
 	var runner *Runner
-	log := zapr.NewLogger(zap.L())
+
 	if opts.Server.RunnerService {
 		var err error
 		runner, err = NewRunner(zap.L())
@@ -179,16 +183,23 @@ func (s *Server) registerServices() error {
 
 	interceptors := []connect.Interceptor{otelInterceptor}
 
-	aiSvcPath, aiSvcHandler := cassieconnect.NewBlocksServiceHandler(s.agent, connect.WithInterceptors(interceptors...))
-	log.Info("Setting up AI service", "path", aiSvcPath)
-	mux.Handle(aiSvcPath, s.handlerWithCORS(aiSvcHandler))
-
-	sHandler := &WebSocketHandler{
-		runner: s.runner,
+	if s.agent != nil {
+		aiSvcPath, aiSvcHandler := cassieconnect.NewBlocksServiceHandler(s.agent, connect.WithInterceptors(interceptors...))
+		log.Info("Setting up AI service", "path", aiSvcPath)
+		mux.Handle(aiSvcPath, s.handlerWithCORS(aiSvcHandler))
+	} else {
+		log.Info("Agent is nil; AI service is disabled")
 	}
-	// Mount other Connect handlers
-	mux.Handle("/ws", http.HandlerFunc(sHandler.Handler))
 
+	if s.runner != nil {
+		sHandler := &WebSocketHandler{
+			runner: s.runner,
+		}
+		// Mount other Connect handlers
+		mux.Handle("/ws", http.HandlerFunc(sHandler.Handler))
+
+		log.Info("Setting up runner service", "path", "/ws")
+	}
 	checker := grpchealth.NewStaticChecker()
 	mux.Handle(grpchealth.NewHandler(checker))
 
