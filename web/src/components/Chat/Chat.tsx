@@ -156,6 +156,7 @@ const ChatMessages = () => {
   const { useColumns, isTyping, runCodeBlock } = useBlock()
   const { chat } = useColumns()
   const messagesEndRef = useRef<HTMLDivElement | null>(null)
+  const outerDivRef = useRef<HTMLDivElement>(null)
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -175,14 +176,20 @@ const ChatMessages = () => {
       }
     }
 
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
+    const outerDiv = outerDivRef.current
+    if (outerDiv) {
+      outerDiv.addEventListener('keydown', handleKeyDown)
+      return () => outerDiv.removeEventListener('keydown', handleKeyDown)
+    }
   }, [chat, runCodeBlock])
 
   if (chat.length === 0) return null
 
   return (
-    <div className="overflow-y-clip p-1 flex flex-col order-2 whitespace-pre-wrap">
+    <div
+      ref={outerDivRef}
+      className="overflow-y-clip p-1 flex flex-col order-2 whitespace-pre-wrap"
+    >
       {chat.map((msg: Block, index: number) => (
         <Message
           key={index}
@@ -239,8 +246,40 @@ const ChatInput = () => {
 }
 
 function Chat() {
+  const { useColumns, runCodeBlock } = useBlock()
+  const { chat } = useColumns()
+  const messagesEndRef = useRef<HTMLDivElement | null>(null)
+  const outerDivRef = useRef<HTMLDivElement>(null)
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }
+
+  useEffect(() => {
+    scrollToBottom()
+  }, [chat])
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.ctrlKey && event.key === 'Enter') {
+        const lastBlock = chat[chat.length - 1]
+        if (lastBlock?.kind === BlockKind.CODE) {
+          runCodeBlock(lastBlock)
+        }
+      }
+    }
+
+    const outerDiv = outerDivRef.current
+    if (outerDiv) {
+      outerDiv.addEventListener('keydown', handleKeyDown)
+      return () => outerDiv.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [chat, runCodeBlock])
+
+  if (chat.length === 0) return null
+
   return (
-    <div className="flex flex-col h-full">
+    <div ref={outerDivRef} className="flex flex-col h-full">
       <Text size="5" weight="bold" className="mb-2">
         How can I help you?
       </Text>

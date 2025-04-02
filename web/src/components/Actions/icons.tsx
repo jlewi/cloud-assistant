@@ -47,6 +47,8 @@ export const SuccessIcon = () => (
       fill="#22c55e"
       fillRule="evenodd"
       clipRule="evenodd"
+      stroke="#22c55e"
+      strokeWidth="1"
     />
   </svg>
 )
