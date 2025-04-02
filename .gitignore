@@ -16,3 +16,4 @@ dist/
 **/.vite
 experiments/runs/**
 tools/stripmetadata/stripmetadata
+app/pkg/server/dist/**

@@ -217,7 +217,7 @@ func (s *Server) addStaticAssets() {
 	}
 
 	log.Info("Adding static assets", "dir", staticAssets)
-	fileServer := http.FileServer(http.Dir(staticAssets))
+	fileServer := getAssetHandler(staticAssets)
 
 	s.engine.Handle("/", fileServer)
 }
