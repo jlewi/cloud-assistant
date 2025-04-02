@@ -21,6 +21,7 @@ build-assets:
 	@cd ../web && npm run build
 	@rm -rf pkg/server/dist
 	@mkdir -p pkg/server/dist
+	@git checkout -f pkg/server/dist
 	@cp -rv ../web/dist/index.* pkg/server/dist/
 
 tidy:
