@@ -67,6 +67,13 @@ export declare type Block = Message<"Block"> & {
    * @generated from field: repeated BlockOutput outputs = 11;
    */
   outputs: BlockOutput[];
+
+  /**
+   * Call ID is the id of this function call as set by OpenAI
+   *
+   * @generated from field: string call_id = 12;
+   */
+  callId: string;
 };
 
 /**
@@ -125,6 +132,13 @@ export declare type BlockJson = {
    * @generated from field: repeated BlockOutput outputs = 11;
    */
   outputs?: BlockOutputJson[];
+
+  /**
+   * Call ID is the id of this function call as set by OpenAI
+   *
+   * @generated from field: string call_id = 12;
+   */
+  callId?: string;
 };
 
 /**

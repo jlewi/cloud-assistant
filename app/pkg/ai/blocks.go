@@ -77,8 +77,12 @@ func (b *BlocksBuilder) ProcessEvent(ctx context.Context, e responses.ResponseSt
 	log.V(logs.Debug).Info("Processing event", "event", e)
 
 	resp := &cassie.GenerateResponse{
-		Blocks: make([]*cassie.Block, 0, 5),
+		ResponseId: e.Response.ID,
+		Blocks:     make([]*cassie.Block, 0, 5),
 	}
+
+	// CallID should be set for function calls
+	callID := e.Item.CallID
 
 	switch e.AsAny().(type) {
 	case responses.ResponseTextDeltaEvent:
@@ -122,6 +126,7 @@ func (b *BlocksBuilder) ProcessEvent(ctx context.Context, e responses.ResponseSt
 				Kind:     cassie.BlockKind_CODE,
 				Contents: "",
 				Role:     cassie.BlockRole_BLOCK_ROLE_ASSISTANT,
+				CallId:   callID,
 			}
 			b.blocks[itemID] = block
 		}
@@ -147,6 +152,7 @@ func (b *BlocksBuilder) ProcessEvent(ctx context.Context, e responses.ResponseSt
 				Kind:     cassie.BlockKind_CODE,
 				Contents: "",
 				Role:     cassie.BlockRole_BLOCK_ROLE_ASSISTANT,
+				CallId:   callID,
 			}
 			b.blocks[itemID] = block
 		}

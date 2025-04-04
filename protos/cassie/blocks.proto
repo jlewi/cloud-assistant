@@ -30,6 +30,9 @@ message Block {
   repeated FileSearchResult file_search_results = 10;
 
   repeated BlockOutput outputs = 11;
+
+  // Call ID is the id of this function call as set by OpenAI
+  string call_id = 12;
 }
 
 enum BlockKind {

@@ -188,8 +188,10 @@ type Block struct {
 	Role              BlockRole           `protobuf:"varint,9,opt,name=role,proto3,enum=BlockRole" json:"role,omitempty"`
 	FileSearchResults []*FileSearchResult `protobuf:"bytes,10,rep,name=file_search_results,json=fileSearchResults,proto3" json:"file_search_results,omitempty"`
 	Outputs           []*BlockOutput      `protobuf:"bytes,11,rep,name=outputs,proto3" json:"outputs,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	// Call ID is the id of this function call as set by OpenAI
+	CallId        string `protobuf:"bytes,12,opt,name=call_id,json=callId,proto3" json:"call_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Block) Reset() {
@@ -276,6 +278,13 @@ func (x *Block) GetOutputs() []*BlockOutput {
 		return x.Outputs
 	}
 	return nil
+}
+
+func (x *Block) GetCallId() string {
+	if x != nil {
+		return x.CallId
+	}
+	return ""
 }
 
 // BlockOutput represents the output of a block.
@@ -502,7 +511,7 @@ var File_cassie_blocks_proto protoreflect.FileDescriptor
 
 const file_cassie_blocks_proto_rawDesc = "" +
 	"\n" +
-	"\x13cassie/blocks.proto\x1a\x17cassie/filesearch.proto\"\xe9\x02\n" +
+	"\x13cassie/blocks.proto\x1a\x17cassie/filesearch.proto\"\x82\x03\n" +
 	"\x05Block\x12\x1e\n" +
 	"\x04kind\x18\x01 \x01(\x0e2\n" +
 	".BlockKindR\x04kind\x12\x1a\n" +
@@ -514,7 +523,8 @@ const file_cassie_blocks_proto_rawDesc = "" +
 	".BlockRoleR\x04role\x12A\n" +
 	"\x13file_search_results\x18\n" +
 	" \x03(\v2\x11.FileSearchResultR\x11fileSearchResults\x12&\n" +
-	"\aoutputs\x18\v \x03(\v2\f.BlockOutputR\aoutputs\x1a;\n" +
+	"\aoutputs\x18\v \x03(\v2\f.BlockOutputR\aoutputs\x12\x17\n" +
+	"\acall_id\x18\f \x01(\tR\x06callId\x1a;\n" +
 	"\rMetadataEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"[\n" +
