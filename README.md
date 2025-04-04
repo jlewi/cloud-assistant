@@ -28,8 +28,7 @@ assistantServer:
     port: 0
     httpMaxReadTimeout: 0s
     httpMaxWriteTimeout: 0s
-    # Unless embedded assets are used, set the path to the static assets to the location where you checked out the repository
-    #staticAssets: /Users/${USER}/git_cloud-assistant/web/dist
+    staticAssets: /Users/${USER}/git_cloud-assistant/web/dist
     runnerService: true
     corsOrigins:
     - "http://localhost:5173"
@@ -38,20 +37,32 @@ assistantServer:
 
 * set **apiKeyFile** to the path of your OpenAI API key
 * set **vectoreStores** to contain the ID of your OpenAI API vector store
+* Change the path to the static assets to the location where you checked out the repository
+
+```sh
+ cd ${REPOSITORY}
+./app/.build/cas config set assistantServer.staticAssets=$(PWD)/web/dist
+```
+
+### Build the static assets
+
+```sh
+cd /Users/${USER}/git_cloud-assistant/web/
+npm install
+npm run build
+```
 
 ### Build and start the server
 
-```bash {"name":"build"}
-cd web
-npm install
-cd ../app
+```bash
+cd app
 make build
 ```
 
 ### Start the server
 
-```bash {"background":"true","name":"serve","terminalRows":"22"}
-./app/.build/cas serve
+```bash
+./app/.build/cas
 ```
 
 Open up `http://localhost:8080`.
@@ -75,7 +86,7 @@ To run the image
 ```bash
 docker run --mount type=bind,src=${HOME}/.cloud-assistant/config.yaml,target=/config/config.yaml \
     -it \
-    cas:latest \    
+    cas:latest \
     /cas serve --config=/config/config.yaml
 
 ```
