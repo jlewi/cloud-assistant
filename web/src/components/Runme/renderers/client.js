@@ -55029,6 +55029,7 @@ let TerminalView = class TerminalView extends lit_1.LitElement {
         this.rows = 10;
         this.isShareReady = false;
         this.buttons = true;
+        this.takeFocus = true;
         this.isLoading = false;
         this.isCreatingEscalation = false;
         this.isUpdatedReady = false;
@@ -55217,7 +55218,9 @@ let TerminalView = class TerminalView extends lit_1.LitElement {
             __classPrivateFieldGet(this, _TerminalView_instances, "m", _TerminalView_onFocusWindow).call(this, false);
         });
         this.terminal.open(terminalContainer);
-        this.terminal.focus();
+        if (this.takeFocus) {
+            this.terminal.focus();
+        }
         __classPrivateFieldGet(this, _TerminalView_instances, "m", _TerminalView_resizeTerminal).call(this);
         __classPrivateFieldGet(this, _TerminalView_instances, "m", _TerminalView_updateTerminalTheme).call(this);
         terminalContainer.appendChild(__classPrivateFieldGet(this, _TerminalView_instances, "m", _TerminalView_createResizeHandle).call(this));
@@ -55812,6 +55815,9 @@ __decorate([
 __decorate([
     (0, decorators_js_1.property)({ type: Boolean, converter: (value) => value !== 'false' })
 ], TerminalView.prototype, "buttons", void 0);
+__decorate([
+    (0, decorators_js_1.property)({ type: Boolean, converter: (value) => value !== 'false' })
+], TerminalView.prototype, "takeFocus", void 0);
 __decorate([
     (0, decorators_js_1.property)({ type: String })
 ], TerminalView.prototype, "fontFamily", void 0);
