@@ -7,6 +7,7 @@ import {
   Block,
   BlockKind,
   BlockOutputItemSchema,
+  BlockOutputKind,
   BlockOutputSchema,
   BlockRole,
   BlockSchema,
@@ -25,22 +26,8 @@ type BlockContextType = {
 
   // Define additional functions to update the state
   // This way they can be set in the provider and passed down to the components
-  updateOutputBlock: (
-    inputBlock: Block,
-    {
-      mimeType,
-      textData,
-      exitCode,
-      runID,
-      pid,
-    }: {
-      mimeType: string
-      textData: string
-      exitCode: number
-      runID: string
-      pid: number
-    }
-  ) => void
+  sendOutputBlock: (outputBlock: Block) => Promise<void>
+  createOutputBlock: (inputBlock: Block) => Block
   sendUserBlock: (text: string) => Promise<void>
   addCodeBlock: () => void
   // Keep track of whether the input is disabled
@@ -69,6 +56,7 @@ interface BlockState {
 export const BlockProvider = ({ children }: { children: ReactNode }) => {
   const [isInputDisabled, setIsInputDisabled] = useState(false)
   const [isTyping, setIsTyping] = useState(false)
+  const [previousResponseId, setPreviousResponseId] = useState('')
 
   const { client } = useAgentClient()
   const [state, setState] = useState<BlockState>({
@@ -112,47 +100,74 @@ export const BlockProvider = ({ children }: { children: ReactNode }) => {
     }
   }
 
-  const updateOutputBlock = (
-    inputBlock: Block,
-    {
-      mimeType,
-      textData,
-    }: { mimeType: string; textData: string; exitCode: number; runID: string }
-  ) => {
+  const createOutputBlock = (inputBlock: Block) => {
     const b = clone(BlockSchema, inputBlock)
-    b.outputs = [
+    b.outputs = inputBlock.outputs.map((o) =>
       create(BlockOutputSchema, {
-        items: [
-          ...(b.outputs?.[0]?.items || []),
-          create(BlockOutputItemSchema, {
-            mime: mimeType,
-            textData,
-          }),
-        ],
-      }),
-    ]
-
-    // TODO: Disabled until it's clear how the API expects us to handle output
-    // sendOutputBlock(b)
+        items: o.items.map((i) => create(BlockOutputItemSchema, i)),
+        kind: o.kind,
+      })
+    )
+    return b
   }
 
-  // const sendOutputBlock = async (block: Block) => {
-  //   const req: GenerateRequest = create(GenerateRequestSchema, {
-  //     blocks: [block],
-  //   })
+  const streamGenerateResults = async (blocks: Block[]) => {
+    const req: GenerateRequest = create(GenerateRequestSchema, {
+      blocks,
+      previousResponseId: previousResponseId || undefined,
+    })
 
-  //   try {
-  //     const res = client!.generate(req)
-  //     for await (const r of res) {
-  //       for (const b of r.blocks) {
-  //         console.log('b', JSON.stringify(b, null, 1))
-  //         // updateBlock(b)
-  //       }
-  //     }
-  //   } catch (e) {
-  //     console.error(e)
-  //   }
-  // }
+    try {
+      const res = client!.generate(req)
+      for await (const r of res) {
+        for (const b of r.blocks) {
+          setIsTyping(false)
+          updateBlock(b)
+        }
+        setPreviousResponseId(r.responseId)
+      }
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setIsTyping(false)
+      setIsInputDisabled(false)
+    }
+  }
+
+  const sendUserBlock = async (text: string) => {
+    if (!text.trim()) return
+
+    const userBlock = create(BlockSchema, {
+      id: `user_${uuidv4()}`,
+      role: BlockRole.USER,
+      kind: BlockKind.MARKUP,
+      contents: text,
+    })
+
+    // Add the user block to the blocks map and positions
+    updateBlock(userBlock)
+    setIsInputDisabled(true)
+    setIsTyping(true)
+
+    await streamGenerateResults([userBlock])
+  }
+
+  const sendOutputBlock = async (outputBlock: Block) => {
+    if (outputBlock.outputs.length === 0) {
+      return
+    }
+
+    console.log(
+      'sending output block',
+      outputBlock.id,
+      'previousResponseId',
+      previousResponseId
+    )
+    setIsInputDisabled(true)
+    setIsTyping(true)
+
+    await streamGenerateResults([outputBlock])
+  }
 
   const updateBlock = (block: Block) => {
     setState((prev) => {
@@ -187,57 +202,6 @@ export const BlockProvider = ({ children }: { children: ReactNode }) => {
     updateBlock(block)
   }
 
-  // sendUserBlock is a function that turns the text in the chat window into a block
-  // which is then sent to the server
-  const sendUserBlock = async (text: string) => {
-    if (!text.trim()) return
-
-    const userBlock = create(BlockSchema, {
-      id: `user_${uuidv4()}`,
-      role: BlockRole.USER,
-      kind: BlockKind.MARKUP,
-      contents: text,
-    })
-
-    // Add the user block to the blocks map and positions
-    updateBlock(userBlock)
-
-    // TODO(jlewi): Sebastien had added an assistant block with "..." to indicate
-    // the AI is thinking. This is a nice UX. How do we that properly?
-    // Do we just do it on the frontend and remove the block as soon as we get a response from the backend?
-    // Do we do it on the backend? So backend sends back a block with "..." and this block then gets updated
-    // subsequently? I think I like that aproach
-    // const assistantBlock = create(BlockSchema, {
-    //   role: BlockRole.ASSISTANT,
-    //   kind: BlockKind.MARKUP,
-    //   contents: '...',
-    // })
-    // todo(sebastian): we'll use UI state for this inside Chat when input's disabled
-
-    //setBlocks((prevBlocks) => [...prevBlocks, userBlock, assistantBlock])
-    setIsInputDisabled(true)
-    setIsTyping(true)
-
-    const req: GenerateRequest = create(GenerateRequestSchema, {
-      blocks: [userBlock],
-    })
-
-    try {
-      const res = client!.generate(req)
-      for await (const r of res) {
-        for (const b of r.blocks) {
-          setIsTyping(false)
-          updateBlock(b)
-        }
-      }
-    } catch (e) {
-      console.error(e)
-    } finally {
-      setIsTyping(false)
-      setIsInputDisabled(false)
-    }
-  }
-
   const runCodeBlock = (block: Block) => {
     // Find the corresponding action block and trigger its runCode function
     const actionBlock = actionBlocks.find((b) => b.id === block.id)
@@ -254,7 +218,8 @@ export const BlockProvider = ({ children }: { children: ReactNode }) => {
     <BlockContext.Provider
       value={{
         useColumns,
-        updateOutputBlock,
+        sendOutputBlock,
+        createOutputBlock,
         sendUserBlock,
         addCodeBlock,
         isInputDisabled,
@@ -273,4 +238,4 @@ const TypingBlock = create(BlockSchema, {
   contents: '...',
 })
 
-export { type Block, BlockRole, BlockKind, TypingBlock }
+export { type Block, BlockRole, BlockKind, BlockOutputKind, TypingBlock }
