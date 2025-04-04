@@ -55211,9 +55211,11 @@ let TerminalView = class TerminalView extends lit_1.LitElement {
     firstUpdated(props) {
         super.firstUpdated(props);
         const terminalContainer = __classPrivateFieldGet(this, _TerminalView_instances, "m", _TerminalView_getTerminalElement).call(this);
-        window.addEventListener('focus', () => {
-            __classPrivateFieldGet(this, _TerminalView_instances, "m", _TerminalView_onFocusWindow).call(this);
-        });
+        if (this.takeFocus) {
+            window.addEventListener('focus', () => {
+                __classPrivateFieldGet(this, _TerminalView_instances, "m", _TerminalView_onFocusWindow).call(this);
+            });
+        }
         window.addEventListener('click', () => {
             __classPrivateFieldGet(this, _TerminalView_instances, "m", _TerminalView_onFocusWindow).call(this, false);
         });

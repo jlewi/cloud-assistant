@@ -45,6 +45,7 @@ const CodeConsole = memo(
     className,
     value,
     runID,
+    takeFocus = false,
     onStdout,
     onStderr,
     onExitCode,
@@ -54,6 +55,7 @@ const CodeConsole = memo(
     className?: string
     value: string
     runID: string
+    takeFocus?: boolean
     onStdout: (data: Uint8Array) => void
     onStderr: (data: Uint8Array) => void
     onExitCode: (code: number) => void
@@ -69,6 +71,7 @@ const CodeConsole = memo(
           commands={value.split('\n')}
           fontSize={fontSize}
           fontFamily={fontFamily}
+          takeFocus={takeFocus}
           onPid={onPid}
           onStdout={onStdout}
           onStderr={onStderr}
@@ -213,6 +216,7 @@ const CodeEditor = memo(
 function Action({ block }: { block: Block }) {
   const { createOutputBlock, sendOutputBlock } = useBlock()
   const [editorValue, setEditorValue] = useState(block.contents)
+  const [takeFocus, setTakeFocus] = useState(false)
   const [exec, setExec] = useState<{ value: string; runID: string }>({
     value: '',
     runID: '',
@@ -224,13 +228,17 @@ function Action({ block }: { block: Block }) {
   const [stderr, setStderr] = useState<string>('')
   const [lastRunID, setLastRunID] = useState<string>('')
 
-  const runCode = useCallback(() => {
-    setStdout('')
-    setStderr('')
-    setPid(null)
-    setExitCode(null)
-    setExec({ value: editorValue, runID: uuidv4() })
-  }, [editorValue])
+  const runCode = useCallback(
+    (takeFocus = false) => {
+      setStdout('')
+      setStderr('')
+      setPid(null)
+      setExitCode(null)
+      setExec({ value: editorValue, runID: uuidv4() })
+      setTakeFocus(takeFocus)
+    },
+    [editorValue]
+  )
 
   // Listen for runCodeBlock events
   useEffect(() => {
@@ -318,7 +326,13 @@ function Action({ block }: { block: Block }) {
     <div>
       <Box className="w-full p-2">
         <div className="flex justify-between items-top">
-          <RunActionButton pid={pid} exitCode={exitCode} onClick={runCode} />
+          <RunActionButton
+            pid={pid}
+            exitCode={exitCode}
+            onClick={() => {
+              runCode(true)
+            }}
+          />
           <Card className="whitespace-nowrap overflow-hidden flex-1 ml-2">
             <CodeEditor
               id={block.id}
@@ -334,6 +348,7 @@ function Action({ block }: { block: Block }) {
               key={exec.runID}
               runID={exec.runID}
               value={exec.value}
+              takeFocus={takeFocus}
               onStdout={(data: Uint8Array) =>
                 setStdout((prev) => prev + new TextDecoder().decode(data))
               }
