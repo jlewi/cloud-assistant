@@ -5,7 +5,7 @@ go 1.23.1
 toolchain go1.23.7
 
 // Use: https://github.com/runmedev/runme/tree/seb/env-collector
-replace github.com/stateful/runme/v3 => github.com/runmedev/runme/v3 v3.12.7-0.20250401222817-f3fcbae68653
+replace github.com/runmedev/runme/v3 => github.com/jlewi/runme/v3 v3.0.0-20250404160548-32db243f3a52
 
 require (
 	connectrpc.com/connect v1.18.1
@@ -22,9 +22,9 @@ require (
 	github.com/openai/openai-go v0.1.0-alpha.66.0.20250320204127-9377508e45ae
 	github.com/pkg/errors v0.9.1
 	github.com/rs/cors v1.11.1
+	github.com/runmedev/runme/v3 v3.12.6
 	github.com/spf13/cobra v1.9.1
 	github.com/spf13/viper v1.19.0
-	github.com/stateful/runme/v3 v3.12.6
 	go.opentelemetry.io/otel/trace v1.35.0
 	go.uber.org/zap v1.27.0
 	golang.org/x/net v0.35.0

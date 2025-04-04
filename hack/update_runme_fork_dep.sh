@@ -4,7 +4,7 @@ set -ex
 
 
 repo_url=https://github.com/jlewi/runme.git
-branch=jlewi/grpcweb
+branch=jlewi/cloud-assistant
 owner=jlewi
 repo=runme
 

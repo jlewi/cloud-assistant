@@ -8,3 +8,6 @@ NEW="github.com\/runmedev\/runme"
 find ./ -name "*.go"  -exec  sed -i ".bak" "s/${ORIGINAL}/${NEW}/g" {} ";"
 # Find and update all go.mod files
 find ./ -name "go.mod"  -exec sed -i ".bak" "s/${ORIGINAL}/${NEW}/g" {} ";"
+
+find ./ -name "*.bak" -exec rm {} ";"
+
