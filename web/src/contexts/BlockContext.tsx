@@ -32,7 +32,14 @@ type BlockContextType = {
       textData,
       exitCode,
       runID,
-    }: { mimeType: string; textData: string; exitCode: number; runID: string }
+      pid,
+    }: {
+      mimeType: string
+      textData: string
+      exitCode: number
+      runID: string
+      pid: number
+    }
   ) => void
   sendUserBlock: (text: string) => Promise<void>
   addCodeBlock: () => void

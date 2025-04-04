@@ -245,7 +245,12 @@ function Action({ block }: { block: Block }) {
   }, [block.id, runCode])
 
   useEffect(() => {
-    if (exitCode === null || !Number.isInteger(exitCode)) {
+    if (
+      pid === null ||
+      exitCode === null ||
+      !Number.isFinite(pid) ||
+      !Number.isInteger(exitCode)
+    ) {
       return
     }
     updateOutputBlock(block, {
@@ -253,8 +258,9 @@ function Action({ block }: { block: Block }) {
       textData: output,
       exitCode,
       runID: exec.runID,
+      pid,
     })
-  }, [output, exitCode, mimeType, exec.runID, block, updateOutputBlock])
+  }, [output, exitCode, mimeType, exec.runID, block, updateOutputBlock, pid])
 
   useEffect(() => {
     setEditorValue(block.contents)
