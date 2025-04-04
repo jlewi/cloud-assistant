@@ -56,7 +56,9 @@ interface BlockState {
 export const BlockProvider = ({ children }: { children: ReactNode }) => {
   const [isInputDisabled, setIsInputDisabled] = useState(false)
   const [isTyping, setIsTyping] = useState(false)
-  const [previousResponseId, setPreviousResponseId] = useState('')
+  const [previousResponseId, setPreviousResponseId] = useState<
+    string | undefined
+  >()
 
   const { client } = useAgentClient()
   const [state, setState] = useState<BlockState>({
@@ -114,7 +116,7 @@ export const BlockProvider = ({ children }: { children: ReactNode }) => {
   const streamGenerateResults = async (blocks: Block[]) => {
     const req: GenerateRequest = create(GenerateRequestSchema, {
       blocks,
-      previousResponseId: previousResponseId || undefined,
+      previousResponseId: previousResponseId,
     })
 
     try {
