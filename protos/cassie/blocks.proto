@@ -45,12 +45,20 @@ enum BlockRole {
   BLOCK_ROLE_ASSISTANT = 2;
 }
 
+
+enum BlockOutputKind {
+  UNKNOWN_BLOCK_OUTPUT_KIND = 0;
+  STDOUT = 1;
+  STDERR = 2;
+}
+
 // BlockOutput represents the output of a block.
 // It corresponds to a VSCode NotebookCellOutput
 // https://github.com/microsoft/vscode/blob/98332892fd2cb3c948ced33f542698e20c6279b9/src/vscode-dts/vscode.d.ts#L14835
 message BlockOutput {
   // items is the output items. Each item is the different representation of the same output data
   repeated BlockOutputItem items = 1;
+  BlockOutputKind kind = 2;
 }
 
 // BlockOutputItem represents an item in a block output.
@@ -74,8 +82,10 @@ service BlocksService {
 
 message GenerateRequest {
   repeated Block blocks = 1;
+  string previous_response_id = 2;
 }
 
 message GenerateResponse {
   repeated Block blocks = 1;
+  string response_id = 2;
 }
