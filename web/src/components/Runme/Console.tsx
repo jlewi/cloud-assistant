@@ -377,11 +377,21 @@ function isInViewport(element: Element) {
 }
 
 function createWebSocket(): WebSocket {
-  // TODO(jlewi): Should make this default to an address based on the current origin
-  const ws = new WebSocket('ws://localhost:8080/ws')
+  const wsUrl = new URL(window.location.href)
+  const protocol = wsUrl.protocol === 'https:' ? 'wss:' : 'ws:'
+
+  // Handle port replacement for development
+  if (wsUrl.port === '5173') {
+    wsUrl.port = '8080'
+  }
+
+  wsUrl.protocol = protocol
+  wsUrl.pathname = `${wsUrl.pathname}ws`
+  const wsUri = wsUrl.href
+  const ws = new WebSocket(wsUri)
 
   ws.onopen = () => {
-    console.log(new Date(), '✅ Connected to Runme WebSocket server')
+    console.log(new Date(), '✅ Connected to Runme WebSocket server at', wsUri)
 
     if (sendQueue.length > 0) {
       console.log('Sending queued messages')
