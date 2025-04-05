@@ -94,6 +94,7 @@ function Console({
   className,
   fontSize = 12,
   fontFamily = 'monospace',
+  takeFocus = true,
   onStdout,
   onStderr,
   onExitCode,
@@ -105,6 +106,7 @@ function Console({
   className?: string
   fontSize?: number
   fontFamily?: string
+  takeFocus?: boolean
   onStdout?: (data: Uint8Array) => void
   onStderr?: (data: Uint8Array) => void
   onExitCode?: (code: number) => void
@@ -120,6 +122,7 @@ function Console({
       cursorStyle: 'block',
       cursorBlink: true,
       cursorWidth: 1,
+      takeFocus,
       // smoothScrollDuration: 100,
       scrollback: 1000,
       initialRows: rows,
@@ -302,6 +305,14 @@ function Console({
             defaults.output.cursorWidth.toString()
           )
         }
+
+        if (typeof defaults.output.takeFocus === 'boolean') {
+          terminalElem.setAttribute(
+            'takeFocus',
+            defaults.output.takeFocus ? 'true' : 'false'
+          )
+        }
+
         // if (typeof defaults.output.smoothScrollDuration === 'number') {
         //   terminalElem.setAttribute(
         //     'smoothScrollDuration',

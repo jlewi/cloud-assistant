@@ -122,6 +122,55 @@ func (BlockRole) EnumDescriptor() ([]byte, []int) {
 	return file_cassie_blocks_proto_rawDescGZIP(), []int{1}
 }
 
+type BlockOutputKind int32
+
+const (
+	BlockOutputKind_UNKNOWN_BLOCK_OUTPUT_KIND BlockOutputKind = 0
+	BlockOutputKind_STDOUT                    BlockOutputKind = 1
+	BlockOutputKind_STDERR                    BlockOutputKind = 2
+)
+
+// Enum value maps for BlockOutputKind.
+var (
+	BlockOutputKind_name = map[int32]string{
+		0: "UNKNOWN_BLOCK_OUTPUT_KIND",
+		1: "STDOUT",
+		2: "STDERR",
+	}
+	BlockOutputKind_value = map[string]int32{
+		"UNKNOWN_BLOCK_OUTPUT_KIND": 0,
+		"STDOUT":                    1,
+		"STDERR":                    2,
+	}
+)
+
+func (x BlockOutputKind) Enum() *BlockOutputKind {
+	p := new(BlockOutputKind)
+	*p = x
+	return p
+}
+
+func (x BlockOutputKind) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (BlockOutputKind) Descriptor() protoreflect.EnumDescriptor {
+	return file_cassie_blocks_proto_enumTypes[2].Descriptor()
+}
+
+func (BlockOutputKind) Type() protoreflect.EnumType {
+	return &file_cassie_blocks_proto_enumTypes[2]
+}
+
+func (x BlockOutputKind) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use BlockOutputKind.Descriptor instead.
+func (BlockOutputKind) EnumDescriptor() ([]byte, []int) {
+	return file_cassie_blocks_proto_rawDescGZIP(), []int{2}
+}
+
 // Block represents the data in an element in the UI.
 type Block struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -139,8 +188,10 @@ type Block struct {
 	Role              BlockRole           `protobuf:"varint,9,opt,name=role,proto3,enum=BlockRole" json:"role,omitempty"`
 	FileSearchResults []*FileSearchResult `protobuf:"bytes,10,rep,name=file_search_results,json=fileSearchResults,proto3" json:"file_search_results,omitempty"`
 	Outputs           []*BlockOutput      `protobuf:"bytes,11,rep,name=outputs,proto3" json:"outputs,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	// Call ID is the id of this function call as set by OpenAI
+	CallId        string `protobuf:"bytes,12,opt,name=call_id,json=callId,proto3" json:"call_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Block) Reset() {
@@ -229,6 +280,13 @@ func (x *Block) GetOutputs() []*BlockOutput {
 	return nil
 }
 
+func (x *Block) GetCallId() string {
+	if x != nil {
+		return x.CallId
+	}
+	return ""
+}
+
 // BlockOutput represents the output of a block.
 // It corresponds to a VSCode NotebookCellOutput
 // https://github.com/microsoft/vscode/blob/98332892fd2cb3c948ced33f542698e20c6279b9/src/vscode-dts/vscode.d.ts#L14835
@@ -236,6 +294,7 @@ type BlockOutput struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// items is the output items. Each item is the different representation of the same output data
 	Items         []*BlockOutputItem `protobuf:"bytes,1,rep,name=items,proto3" json:"items,omitempty"`
+	Kind          BlockOutputKind    `protobuf:"varint,2,opt,name=kind,proto3,enum=BlockOutputKind" json:"kind,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -275,6 +334,13 @@ func (x *BlockOutput) GetItems() []*BlockOutputItem {
 		return x.Items
 	}
 	return nil
+}
+
+func (x *BlockOutput) GetKind() BlockOutputKind {
+	if x != nil {
+		return x.Kind
+	}
+	return BlockOutputKind_UNKNOWN_BLOCK_OUTPUT_KIND
 }
 
 // BlockOutputItem represents an item in a block output.
@@ -338,10 +404,11 @@ func (x *BlockOutputItem) GetTextData() string {
 }
 
 type GenerateRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Blocks        []*Block               `protobuf:"bytes,1,rep,name=blocks,proto3" json:"blocks,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state              protoimpl.MessageState `protogen:"open.v1"`
+	Blocks             []*Block               `protobuf:"bytes,1,rep,name=blocks,proto3" json:"blocks,omitempty"`
+	PreviousResponseId string                 `protobuf:"bytes,2,opt,name=previous_response_id,json=previousResponseId,proto3" json:"previous_response_id,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *GenerateRequest) Reset() {
@@ -381,9 +448,17 @@ func (x *GenerateRequest) GetBlocks() []*Block {
 	return nil
 }
 
+func (x *GenerateRequest) GetPreviousResponseId() string {
+	if x != nil {
+		return x.PreviousResponseId
+	}
+	return ""
+}
+
 type GenerateResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Blocks        []*Block               `protobuf:"bytes,1,rep,name=blocks,proto3" json:"blocks,omitempty"`
+	ResponseId    string                 `protobuf:"bytes,2,opt,name=response_id,json=responseId,proto3" json:"response_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -425,11 +500,18 @@ func (x *GenerateResponse) GetBlocks() []*Block {
 	return nil
 }
 
+func (x *GenerateResponse) GetResponseId() string {
+	if x != nil {
+		return x.ResponseId
+	}
+	return ""
+}
+
 var File_cassie_blocks_proto protoreflect.FileDescriptor
 
 const file_cassie_blocks_proto_rawDesc = "" +
 	"\n" +
-	"\x13cassie/blocks.proto\x1a\x17cassie/filesearch.proto\"\xe9\x02\n" +
+	"\x13cassie/blocks.proto\x1a\x17cassie/filesearch.proto\"\x82\x03\n" +
 	"\x05Block\x12\x1e\n" +
 	"\x04kind\x18\x01 \x01(\x0e2\n" +
 	".BlockKindR\x04kind\x12\x1a\n" +
@@ -441,19 +523,24 @@ const file_cassie_blocks_proto_rawDesc = "" +
 	".BlockRoleR\x04role\x12A\n" +
 	"\x13file_search_results\x18\n" +
 	" \x03(\v2\x11.FileSearchResultR\x11fileSearchResults\x12&\n" +
-	"\aoutputs\x18\v \x03(\v2\f.BlockOutputR\aoutputs\x1a;\n" +
+	"\aoutputs\x18\v \x03(\v2\f.BlockOutputR\aoutputs\x12\x17\n" +
+	"\acall_id\x18\f \x01(\tR\x06callId\x1a;\n" +
 	"\rMetadataEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"5\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"[\n" +
 	"\vBlockOutput\x12&\n" +
-	"\x05items\x18\x01 \x03(\v2\x10.BlockOutputItemR\x05items\"B\n" +
+	"\x05items\x18\x01 \x03(\v2\x10.BlockOutputItemR\x05items\x12$\n" +
+	"\x04kind\x18\x02 \x01(\x0e2\x10.BlockOutputKindR\x04kind\"B\n" +
 	"\x0fBlockOutputItem\x12\x12\n" +
 	"\x04mime\x18\x01 \x01(\tR\x04mime\x12\x1b\n" +
-	"\ttext_data\x18\x02 \x01(\tR\btextData\"1\n" +
+	"\ttext_data\x18\x02 \x01(\tR\btextData\"c\n" +
 	"\x0fGenerateRequest\x12\x1e\n" +
-	"\x06blocks\x18\x01 \x03(\v2\x06.BlockR\x06blocks\"2\n" +
+	"\x06blocks\x18\x01 \x03(\v2\x06.BlockR\x06blocks\x120\n" +
+	"\x14previous_response_id\x18\x02 \x01(\tR\x12previousResponseId\"S\n" +
 	"\x10GenerateResponse\x12\x1e\n" +
-	"\x06blocks\x18\x01 \x03(\v2\x06.BlockR\x06blocks*R\n" +
+	"\x06blocks\x18\x01 \x03(\v2\x06.BlockR\x06blocks\x12\x1f\n" +
+	"\vresponse_id\x18\x02 \x01(\tR\n" +
+	"responseId*R\n" +
 	"\tBlockKind\x12\x16\n" +
 	"\x12UNKNOWN_BLOCK_KIND\x10\x00\x12\n" +
 	"\n" +
@@ -463,7 +550,13 @@ const file_cassie_blocks_proto_rawDesc = "" +
 	"\tBlockRole\x12\x16\n" +
 	"\x12BLOCK_ROLE_UNKNOWN\x10\x00\x12\x13\n" +
 	"\x0fBLOCK_ROLE_USER\x10\x01\x12\x18\n" +
-	"\x14BLOCK_ROLE_ASSISTANT\x10\x022D\n" +
+	"\x14BLOCK_ROLE_ASSISTANT\x10\x02*H\n" +
+	"\x0fBlockOutputKind\x12\x1d\n" +
+	"\x19UNKNOWN_BLOCK_OUTPUT_KIND\x10\x00\x12\n" +
+	"\n" +
+	"\x06STDOUT\x10\x01\x12\n" +
+	"\n" +
+	"\x06STDERR\x10\x022D\n" +
 	"\rBlocksService\x123\n" +
 	"\bGenerate\x12\x10.GenerateRequest\x1a\x11.GenerateResponse\"\x000\x01BCB\vBlocksProtoP\x01Z2github.com/jlewi/cloud-assistant/protos/gen/cassieb\x06proto3"
 
@@ -479,35 +572,37 @@ func file_cassie_blocks_proto_rawDescGZIP() []byte {
 	return file_cassie_blocks_proto_rawDescData
 }
 
-var file_cassie_blocks_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
+var file_cassie_blocks_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
 var file_cassie_blocks_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
 var file_cassie_blocks_proto_goTypes = []any{
 	(BlockKind)(0),           // 0: BlockKind
 	(BlockRole)(0),           // 1: BlockRole
-	(*Block)(nil),            // 2: Block
-	(*BlockOutput)(nil),      // 3: BlockOutput
-	(*BlockOutputItem)(nil),  // 4: BlockOutputItem
-	(*GenerateRequest)(nil),  // 5: GenerateRequest
-	(*GenerateResponse)(nil), // 6: GenerateResponse
-	nil,                      // 7: Block.MetadataEntry
-	(*FileSearchResult)(nil), // 8: FileSearchResult
+	(BlockOutputKind)(0),     // 2: BlockOutputKind
+	(*Block)(nil),            // 3: Block
+	(*BlockOutput)(nil),      // 4: BlockOutput
+	(*BlockOutputItem)(nil),  // 5: BlockOutputItem
+	(*GenerateRequest)(nil),  // 6: GenerateRequest
+	(*GenerateResponse)(nil), // 7: GenerateResponse
+	nil,                      // 8: Block.MetadataEntry
+	(*FileSearchResult)(nil), // 9: FileSearchResult
 }
 var file_cassie_blocks_proto_depIdxs = []int32{
-	0, // 0: Block.kind:type_name -> BlockKind
-	7, // 1: Block.metadata:type_name -> Block.MetadataEntry
-	1, // 2: Block.role:type_name -> BlockRole
-	8, // 3: Block.file_search_results:type_name -> FileSearchResult
-	3, // 4: Block.outputs:type_name -> BlockOutput
-	4, // 5: BlockOutput.items:type_name -> BlockOutputItem
-	2, // 6: GenerateRequest.blocks:type_name -> Block
-	2, // 7: GenerateResponse.blocks:type_name -> Block
-	5, // 8: BlocksService.Generate:input_type -> GenerateRequest
-	6, // 9: BlocksService.Generate:output_type -> GenerateResponse
-	9, // [9:10] is the sub-list for method output_type
-	8, // [8:9] is the sub-list for method input_type
-	8, // [8:8] is the sub-list for extension type_name
-	8, // [8:8] is the sub-list for extension extendee
-	0, // [0:8] is the sub-list for field type_name
+	0,  // 0: Block.kind:type_name -> BlockKind
+	8,  // 1: Block.metadata:type_name -> Block.MetadataEntry
+	1,  // 2: Block.role:type_name -> BlockRole
+	9,  // 3: Block.file_search_results:type_name -> FileSearchResult
+	4,  // 4: Block.outputs:type_name -> BlockOutput
+	5,  // 5: BlockOutput.items:type_name -> BlockOutputItem
+	2,  // 6: BlockOutput.kind:type_name -> BlockOutputKind
+	3,  // 7: GenerateRequest.blocks:type_name -> Block
+	3,  // 8: GenerateResponse.blocks:type_name -> Block
+	6,  // 9: BlocksService.Generate:input_type -> GenerateRequest
+	7,  // 10: BlocksService.Generate:output_type -> GenerateResponse
+	10, // [10:11] is the sub-list for method output_type
+	9,  // [9:10] is the sub-list for method input_type
+	9,  // [9:9] is the sub-list for extension type_name
+	9,  // [9:9] is the sub-list for extension extendee
+	0,  // [0:9] is the sub-list for field type_name
 }
 
 func init() { file_cassie_blocks_proto_init() }
@@ -521,7 +616,7 @@ func file_cassie_blocks_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_cassie_blocks_proto_rawDesc), len(file_cassie_blocks_proto_rawDesc)),
-			NumEnums:      2,
+			NumEnums:      3,
 			NumMessages:   6,
 			NumExtensions: 0,
 			NumServices:   1,

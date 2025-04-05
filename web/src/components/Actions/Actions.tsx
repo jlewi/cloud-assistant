@@ -1,10 +1,10 @@
-import { memo, useCallback, useEffect, useRef, useState } from 'react'
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import Editor from '@monaco-editor/react'
 import { Box, Button, Card, ScrollArea, Text } from '@radix-ui/themes'
 import { v4 as uuidv4 } from 'uuid'
 
-import { Block, useBlock } from '../../contexts/BlockContext'
+import { Block, BlockOutputKind, useBlock } from '../../contexts/BlockContext'
 import Console from '../Runme/Console'
 import {
   ErrorIcon,
@@ -45,18 +45,22 @@ const CodeConsole = memo(
     className,
     value,
     runID,
-    outputHandler,
-    exitCodeHandler,
-    pidHandler,
-    mimeTypeHandler,
+    takeFocus = false,
+    onStdout,
+    onStderr,
+    onExitCode,
+    onPid,
+    onMimeType,
   }: {
     className?: string
     value: string
     runID: string
-    outputHandler: (data: Uint8Array) => void
-    exitCodeHandler: (code: number) => void
-    pidHandler: (pid: number) => void
-    mimeTypeHandler: (mimeType: string) => void
+    takeFocus?: boolean
+    onStdout: (data: Uint8Array) => void
+    onStderr: (data: Uint8Array) => void
+    onExitCode: (code: number) => void
+    onPid: (pid: number) => void
+    onMimeType: (mimeType: string) => void
   }) => {
     return (
       value != '' &&
@@ -67,11 +71,12 @@ const CodeConsole = memo(
           commands={value.split('\n')}
           fontSize={fontSize}
           fontFamily={fontFamily}
-          onPid={pidHandler}
-          onStdout={outputHandler}
-          onStderr={outputHandler}
-          onExitCode={exitCodeHandler}
-          onMimeType={mimeTypeHandler}
+          takeFocus={takeFocus}
+          onPid={onPid}
+          onStdout={onStdout}
+          onStderr={onStderr}
+          onExitCode={onExitCode}
+          onMimeType={onMimeType}
         />
       )
     )
@@ -209,8 +214,9 @@ const CodeEditor = memo(
 
 // Action is an editor and an optional Runme console
 function Action({ block }: { block: Block }) {
-  const { updateOutputBlock } = useBlock()
+  const { createOutputBlock, sendOutputBlock } = useBlock()
   const [editorValue, setEditorValue] = useState(block.contents)
+  const [takeFocus, setTakeFocus] = useState(false)
   const [exec, setExec] = useState<{ value: string; runID: string }>({
     value: '',
     runID: '',
@@ -218,14 +224,21 @@ function Action({ block }: { block: Block }) {
   const [pid, setPid] = useState<number | null>(null)
   const [exitCode, setExitCode] = useState<number | null>(null)
   const [mimeType, setMimeType] = useState<string | null>(null)
-  const [output, setOutput] = useState<string>('')
+  const [stdout, setStdout] = useState<string>('')
+  const [stderr, setStderr] = useState<string>('')
+  const [lastRunID, setLastRunID] = useState<string>('')
 
-  const runCode = useCallback(() => {
-    setOutput('')
-    setPid(null)
-    setExitCode(null)
-    setExec({ value: editorValue, runID: uuidv4() })
-  }, [editorValue])
+  const runCode = useCallback(
+    (takeFocus = false) => {
+      setStdout('')
+      setStderr('')
+      setPid(null)
+      setExitCode(null)
+      setExec({ value: editorValue, runID: uuidv4() })
+      setTakeFocus(takeFocus)
+    },
+    [editorValue]
+  )
 
   // Listen for runCodeBlock events
   useEffect(() => {
@@ -244,17 +257,66 @@ function Action({ block }: { block: Block }) {
     }
   }, [block.id, runCode])
 
+  const finalOutputBlock = useMemo(() => {
+    if (
+      pid === null ||
+      exitCode === null ||
+      exec.runID === '' ||
+      !Number.isFinite(pid) ||
+      !Number.isInteger(exitCode)
+    ) {
+      return null
+    }
+
+    const outputBlock = createOutputBlock({
+      ...block,
+      outputs: [
+        {
+          $typeName: 'BlockOutput',
+          kind: BlockOutputKind.STDOUT,
+          items: [
+            {
+              $typeName: 'BlockOutputItem',
+              mime: mimeType || 'text/plain',
+              textData: stdout,
+            },
+          ],
+        },
+        {
+          $typeName: 'BlockOutput',
+          kind: BlockOutputKind.STDERR,
+          items: [
+            {
+              $typeName: 'BlockOutputItem',
+              mime: mimeType || 'text/plain',
+              textData: stderr,
+            },
+          ],
+        },
+      ],
+    })
+
+    return outputBlock
+  }, [
+    block,
+    createOutputBlock,
+    stdout,
+    stderr,
+    mimeType,
+    pid,
+    exitCode,
+    exec.runID,
+  ])
+
   useEffect(() => {
-    if (exitCode === null || !Number.isInteger(exitCode)) {
+    // avoid infinite loop
+    if (!finalOutputBlock || lastRunID === exec.runID) {
       return
     }
-    updateOutputBlock(block, {
-      mimeType: mimeType || 'text/plain',
-      textData: output,
-      exitCode,
-      runID: exec.runID,
-    })
-  }, [output, exitCode, mimeType, exec.runID, block, updateOutputBlock])
+
+    setLastRunID(exec.runID)
+    sendOutputBlock(finalOutputBlock)
+  }, [sendOutputBlock, finalOutputBlock, exec.runID, lastRunID])
 
   useEffect(() => {
     setEditorValue(block.contents)
@@ -264,13 +326,14 @@ function Action({ block }: { block: Block }) {
     <div>
       <Box className="w-full p-2">
         <div className="flex justify-between items-top">
-          <RunActionButton pid={pid} exitCode={exitCode} onClick={runCode} />
+          <RunActionButton
+            pid={pid}
+            exitCode={exitCode}
+            onClick={() => {
+              runCode(true)
+            }}
+          />
           <Card className="whitespace-nowrap overflow-hidden flex-1 ml-2">
-            {/* {title && (
-              <div className="flex items-center m-1">
-                <span>{title}</span>
-              </div>
-            )} */}
             <CodeEditor
               id={block.id}
               value={editorValue}
@@ -285,12 +348,16 @@ function Action({ block }: { block: Block }) {
               key={exec.runID}
               runID={exec.runID}
               value={exec.value}
-              outputHandler={(data: Uint8Array) =>
-                setOutput((prev) => prev + new TextDecoder().decode(data))
+              takeFocus={takeFocus}
+              onStdout={(data: Uint8Array) =>
+                setStdout((prev) => prev + new TextDecoder().decode(data))
               }
-              pidHandler={setPid}
-              exitCodeHandler={setExitCode}
-              mimeTypeHandler={setMimeType}
+              onStderr={(data: Uint8Array) =>
+                setStderr((prev) => prev + new TextDecoder().decode(data))
+              }
+              onPid={setPid}
+              onExitCode={setExitCode}
+              onMimeType={setMimeType}
               className="rounded-md overflow-hidden"
             />
           </Card>

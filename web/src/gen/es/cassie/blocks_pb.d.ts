@@ -67,6 +67,13 @@ export declare type Block = Message<"Block"> & {
    * @generated from field: repeated BlockOutput outputs = 11;
    */
   outputs: BlockOutput[];
+
+  /**
+   * Call ID is the id of this function call as set by OpenAI
+   *
+   * @generated from field: string call_id = 12;
+   */
+  callId: string;
 };
 
 /**
@@ -125,6 +132,13 @@ export declare type BlockJson = {
    * @generated from field: repeated BlockOutput outputs = 11;
    */
   outputs?: BlockOutputJson[];
+
+  /**
+   * Call ID is the id of this function call as set by OpenAI
+   *
+   * @generated from field: string call_id = 12;
+   */
+  callId?: string;
 };
 
 /**
@@ -147,6 +161,11 @@ export declare type BlockOutput = Message<"BlockOutput"> & {
    * @generated from field: repeated BlockOutputItem items = 1;
    */
   items: BlockOutputItem[];
+
+  /**
+   * @generated from field: BlockOutputKind kind = 2;
+   */
+  kind: BlockOutputKind;
 };
 
 /**
@@ -163,6 +182,11 @@ export declare type BlockOutputJson = {
    * @generated from field: repeated BlockOutputItem items = 1;
    */
   items?: BlockOutputItemJson[];
+
+  /**
+   * @generated from field: BlockOutputKind kind = 2;
+   */
+  kind?: BlockOutputKindJson;
 };
 
 /**
@@ -237,6 +261,11 @@ export declare type GenerateRequest = Message<"GenerateRequest"> & {
    * @generated from field: repeated Block blocks = 1;
    */
   blocks: Block[];
+
+  /**
+   * @generated from field: string previous_response_id = 2;
+   */
+  previousResponseId: string;
 };
 
 /**
@@ -247,6 +276,11 @@ export declare type GenerateRequestJson = {
    * @generated from field: repeated Block blocks = 1;
    */
   blocks?: BlockJson[];
+
+  /**
+   * @generated from field: string previous_response_id = 2;
+   */
+  previousResponseId?: string;
 };
 
 /**
@@ -263,6 +297,11 @@ export declare type GenerateResponse = Message<"GenerateResponse"> & {
    * @generated from field: repeated Block blocks = 1;
    */
   blocks: Block[];
+
+  /**
+   * @generated from field: string response_id = 2;
+   */
+  responseId: string;
 };
 
 /**
@@ -273,6 +312,11 @@ export declare type GenerateResponseJson = {
    * @generated from field: repeated Block blocks = 1;
    */
   blocks?: BlockJson[];
+
+  /**
+   * @generated from field: string response_id = 2;
+   */
+  responseId?: string;
 };
 
 /**
@@ -345,6 +389,36 @@ export declare type BlockRoleJson = "BLOCK_ROLE_UNKNOWN" | "BLOCK_ROLE_USER" | "
  * Describes the enum BlockRole.
  */
 export declare const BlockRoleSchema: GenEnum<BlockRole, BlockRoleJson>;
+
+/**
+ * @generated from enum BlockOutputKind
+ */
+export enum BlockOutputKind {
+  /**
+   * @generated from enum value: UNKNOWN_BLOCK_OUTPUT_KIND = 0;
+   */
+  UNKNOWN_BLOCK_OUTPUT_KIND = 0,
+
+  /**
+   * @generated from enum value: STDOUT = 1;
+   */
+  STDOUT = 1,
+
+  /**
+   * @generated from enum value: STDERR = 2;
+   */
+  STDERR = 2,
+}
+
+/**
+ * @generated from enum BlockOutputKind
+ */
+export declare type BlockOutputKindJson = "UNKNOWN_BLOCK_OUTPUT_KIND" | "STDOUT" | "STDERR";
+
+/**
+ * Describes the enum BlockOutputKind.
+ */
+export declare const BlockOutputKindSchema: GenEnum<BlockOutputKind, BlockOutputKindJson>;
 
 /**
  * BlocksService generates blocks.
