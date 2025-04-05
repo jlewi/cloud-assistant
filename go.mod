@@ -18,7 +18,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/websocket v1.5.3
 	github.com/hashicorp/go-retryablehttp v0.7.7
-	github.com/jlewi/monogo v0.0.0-20240918030136-e0ca1337aea4
+	github.com/jlewi/monogo v0.0.0-20241216141120-2e83e825aa81
 	github.com/openai/openai-go v0.1.0-alpha.66.0.20250320204127-9377508e45ae
 	github.com/pkg/errors v0.9.1
 	github.com/rs/cors v1.11.1
@@ -34,10 +34,13 @@ require (
 )
 
 require (
+	cloud.google.com/go v0.118.2 // indirect
 	cloud.google.com/go/auth v0.15.0 // indirect
 	cloud.google.com/go/auth/oauth2adapt v0.2.7 // indirect
 	cloud.google.com/go/compute/metadata v0.6.0 // indirect
 	cloud.google.com/go/iam v1.4.0 // indirect
+	cloud.google.com/go/logging v1.13.0 // indirect
+	cloud.google.com/go/longrunning v0.6.4 // indirect
 	cloud.google.com/go/secretmanager v1.14.5 // indirect
 	dario.cat/mergo v1.0.1 // indirect
 	github.com/Masterminds/semver/v3 v3.3.1 // indirect

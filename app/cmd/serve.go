@@ -19,7 +19,7 @@ func NewServeCmd() *cobra.Command {
         return err
       }
 
-      if err := app.SetupLogging(); err != nil {
+      if err := app.SetupServerLogging(); err != nil {
         return err
       }
 

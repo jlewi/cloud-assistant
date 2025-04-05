@@ -3,6 +3,7 @@ package config
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/jlewi/cloud-assistant/app/api"
 	"io/fs"
 	"os"
 	"os/user"
@@ -45,11 +46,11 @@ var (
 // changes to the disk format and to store in-memory values that should not be written to disk. Could that be achieved
 // by embedding it in a different struct which contains values that shouldn't be serialized?
 type Config struct {
-	APIVersion string `json:"apiVersion" yaml:"apiVersion" yamltags:"required"`
-	Kind       string `json:"kind" yaml:"kind" yamltags:"required"`
-
-	Logging   Logging          `json:"logging" yaml:"logging"`
-	Telemetry *TelemetryConfig `json:"telemetry,omitempty" yaml:"telemetry,omitempty"`
+	APIVersion string           `json:"apiVersion" yaml:"apiVersion" yamltags:"required"`
+	Kind       string           `json:"kind" yaml:"kind" yamltags:"required"`
+	Metadata   api.Metadata     `json:"metadata,omitempty" yaml:"metadata,omitempty"`
+	Logging    Logging          `json:"logging" yaml:"logging"`
+	Telemetry  *TelemetryConfig `json:"telemetry,omitempty" yaml:"telemetry,omitempty"`
 
 	OpenAI *OpenAIConfig `json:"openai,omitempty" yaml:"openai,omitempty"`
 
@@ -73,6 +74,21 @@ type Logging struct {
 	Level string `json:"level,omitempty" yaml:"level,omitempty"`
 	// Use JSON logging
 	JSON bool `json:"json,omitempty" yaml:"json,omitempty"`
+
+	LogDir string `json:"logDir,omitempty" yaml:"logDir,omitempty"`
+	// Sinks is a list of sinks to write logs to.
+	// Use stderr to write to stderr.
+	// Use gcplogs:///projects/${PROJECT}/logs/${LOGNAME} to write to Google Cloud Logging
+	Sinks []LogSink `json:"sinks,omitempty" yaml:"sinks,omitempty"`
+
+	LogFields *LogFields `json:"logFields,omitempty" yaml:"logFields,omitempty"`
+}
+
+// LogFields is the fields to use when logging to structured logging
+type LogFields struct {
+	Level   string `json:"level,omitempty" yaml:"level,omitempty"`
+	Time    string `json:"time,omitempty" yaml:"time,omitempty"`
+	Message string `json:"message,omitempty" yaml:"message,omitempty"`
 }
 
 type LogSink struct {
@@ -351,4 +367,12 @@ func (c *AssistantServerConfig) GetHttpMaxWriteTimeout() time.Duration {
 	// If we start using really slow models we may need to bump these to avoid timeouts.
 	// This is just a guess on how we should set the timeout.
 	return 5 * time.Minute
+}
+
+func (c *Config) GetLogDir() string {
+	if c.Logging.LogDir != "" {
+		return c.Logging.LogDir
+	}
+
+	return filepath.Join(c.GetConfigDir(), "logs")
 }

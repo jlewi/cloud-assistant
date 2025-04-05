@@ -8,6 +8,10 @@ cloud.google.com/go/compute/metadata v0.6.0 h1:A6hENjEsCDtC1k8byVsgwvVcioamEHvZ4
 cloud.google.com/go/compute/metadata v0.6.0/go.mod h1:FjyFAW1MW0C203CEOMDTu3Dk1FlqW3Rga40jzHL4hfg=
 cloud.google.com/go/iam v1.4.0 h1:ZNfy/TYfn2uh/ukvhp783WhnbVluqf/tzOaqVUPlIPA=
 cloud.google.com/go/iam v1.4.0/go.mod h1:gMBgqPaERlriaOV0CUl//XUzDhSfXevn4OEUbg6VRs4=
+cloud.google.com/go/logging v1.13.0 h1:7j0HgAp0B94o1YRDqiqm26w4q1rDMH7XNRU34lJXHYc=
+cloud.google.com/go/logging v1.13.0/go.mod h1:36CoKh6KA/M0PbhPKMq6/qety2DCAErbhXT62TuXALA=
+cloud.google.com/go/longrunning v0.6.4 h1:3tyw9rO3E2XVXzSApn1gyEEnH2K9SynNQjMlBi3uHLg=
+cloud.google.com/go/longrunning v0.6.4/go.mod h1:ttZpLCe6e7EXvn9OxpBRx7kZEB0efv8yBO6YnVMfhJs=
 cloud.google.com/go/secretmanager v1.14.5 h1:W++V0EL9iL6T2+ec24Dm++bIti0tI6Gx6sCosDBters=
 cloud.google.com/go/secretmanager v1.14.5/go.mod h1:GXznZF3qqPZDGZQqETZwZqHw4R6KCaYVvcGiRBA+aqY=
 connectrpc.com/connect v1.18.1 h1:PAg7CjSAGvscaf6YZKUefjoih5Z/qYkyaTrBW8xvYPw=
@@ -139,6 +143,8 @@ github.com/jbenet/go-context v0.0.0-20150711004518-d14ea06fba99 h1:BQSFePA1RWJOl
 github.com/jbenet/go-context v0.0.0-20150711004518-d14ea06fba99/go.mod h1:1lJo3i6rXxKeerYnT8Nvf0QmHCRC1n8sfWVwXF2Frvo=
 github.com/jlewi/monogo v0.0.0-20240918030136-e0ca1337aea4 h1:xQWqHY7FItn2FifFeQ5S/9kPgWpbGpN7qjH1IBihgaM=
 github.com/jlewi/monogo v0.0.0-20240918030136-e0ca1337aea4/go.mod h1:s3nTD+owHZ6b+F13JdSpXLtrAH35pOqdwdcZEZ/gwBc=
+github.com/jlewi/monogo v0.0.0-20241216141120-2e83e825aa81 h1:EdbSDclXLzz1P4s9vNSadlH2pzgi9DcEEZ7j2E6uggs=
+github.com/jlewi/monogo v0.0.0-20241216141120-2e83e825aa81/go.mod h1:s3nTD+owHZ6b+F13JdSpXLtrAH35pOqdwdcZEZ/gwBc=
 github.com/jlewi/runme/v3 v3.0.0-20250404160548-32db243f3a52 h1:YS8tNEfpuXS4xst5eQ4odlrHaoD3gYNCC0uv0skjYQ8=
 github.com/jlewi/runme/v3 v3.0.0-20250404160548-32db243f3a52/go.mod h1:ZaajPuNNZENWPBZLqSjmrlRrGh6+v+kzsy9dvGfKMEs=
 github.com/kevinburke/ssh_config v1.2.0 h1:x584FjTGwHzMwvHx18PXxbBVzfnxogHaAReU4gf13a4=
