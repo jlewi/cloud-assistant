@@ -41,6 +41,18 @@ type BlockSender func(*cassie.GenerateResponse) error
 // Function will keep running until the context is cancelled or the stream of events is closed
 func (b *BlocksBuilder) HandleEvents(ctx context.Context, events *ssestream.Stream[responses.ResponseStreamEventUnion], sender BlockSender) error {
 	log := logs.FromContext(ctx)
+	defer func() {
+		resp := &cassie.GenerateResponse{
+			Blocks: make([]*cassie.Block, 0, len(b.blocks)),
+		}
+
+		for _, block := range b.blocks {
+			resp.Blocks = append(resp.Blocks, block)
+		}
+		// Log the final response.
+		log.Info("GenerateResponse", logs.ZapProto("response", resp))
+	}()
+
 	for events.Next() {
 		select {
 		// Terminate because the request got cancelled
@@ -85,6 +97,8 @@ func (b *BlocksBuilder) ProcessEvent(ctx context.Context, e responses.ResponseSt
 	callID := e.Item.CallID
 
 	switch e.AsAny().(type) {
+	case responses.ResponseContentPartDoneEvent:
+		log.Info(e.Type, "event", e)
 	case responses.ResponseTextDeltaEvent:
 		textDelta := e.AsResponseOutputTextDelta()
 		itemID := textDelta.ItemID
@@ -136,6 +150,7 @@ func (b *BlocksBuilder) ProcessEvent(ctx context.Context, e responses.ResponseSt
 		block.Contents += item.Delta
 		resp.Blocks = append(resp.Blocks, block)
 	case responses.ResponseFunctionCallArgumentsDoneEvent:
+		log.Info(e.Type, "event", e)
 		item := e.AsResponseFunctionCallArgumentsDone()
 		itemID := item.ItemID
 		if itemID == "" {
@@ -167,7 +182,7 @@ func (b *BlocksBuilder) ProcessEvent(ctx context.Context, e responses.ResponseSt
 		resp.Blocks = append(resp.Blocks, block)
 	case responses.ResponseOutputItemDoneEvent:
 		item := e.AsResponseOutputItemDone()
-		log.Info("Output item done", "item", item)
+		log.Info(e.Type, "event", e)
 		blocks, err := b.itemDoneToBlock(ctx, item.Item)
 		if err != nil {
 			return err
@@ -176,9 +191,14 @@ func (b *BlocksBuilder) ProcessEvent(ctx context.Context, e responses.ResponseSt
 		if blocks != nil {
 			resp.Blocks = append(resp.Blocks, blocks...)
 		}
-	//case responses.ResponseFileSearchCallCompletedEvent:
 
+	case responses.ResponseTextDoneEvent:
+		log.Info(e.Type, "event", e)
+	case responses.ResponseCompletedEvent:
+		// Log the final response
+		log.Info(e.Type, "event", e)
 	default:
+		log.Info("Ignoring event", "event", e)
 		log.V(logs.Debug).Info("Ignoring event", "event", e)
 	}
 
