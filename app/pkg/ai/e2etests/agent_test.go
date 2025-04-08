@@ -3,6 +3,12 @@ package e2etests
 import (
 	"bytes"
 	"context"
+	"os/exec"
+	"regexp"
+	"strings"
+	"sync"
+	"testing"
+
 	"github.com/go-logr/zapr"
 	"github.com/jlewi/cloud-assistant/app/pkg/ai"
 	"github.com/jlewi/cloud-assistant/app/pkg/application"
@@ -10,11 +16,6 @@ import (
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 	"google.golang.org/protobuf/encoding/protojson"
-	"os/exec"
-	"regexp"
-	"strings"
-	"sync"
-	"testing"
 )
 
 func Test_Agent(t *testing.T) {

@@ -1,9 +1,10 @@
 package ai
 
 import (
-	"connectrpc.com/connect"
 	"context"
 	"encoding/json"
+
+	"connectrpc.com/connect"
 	"github.com/go-logr/zapr"
 	"github.com/google/uuid"
 	"github.com/jlewi/cloud-assistant/app/pkg/config"
@@ -13,7 +14,7 @@ import (
 	"go.uber.org/zap"
 	"google.golang.org/protobuf/proto"
 
-	"github.com/hashicorp/golang-lru/v2"
+	lru "github.com/hashicorp/golang-lru/v2"
 	"github.com/jlewi/cloud-assistant/protos/gen/cassie"
 	"github.com/pkg/errors"
 	"go.opentelemetry.io/otel/trace"

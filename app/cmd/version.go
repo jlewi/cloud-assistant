@@ -2,9 +2,10 @@ package cmd
 
 import (
 	"fmt"
+	"io"
+
 	"github.com/jlewi/cloud-assistant/app/pkg/config"
 	"github.com/jlewi/cloud-assistant/app/pkg/version"
-	"io"
 
 	"github.com/spf13/cobra"
 )

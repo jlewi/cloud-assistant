@@ -1,12 +1,13 @@
 package ai
 
 import (
+	"os"
+	"strings"
+
 	"github.com/hashicorp/go-retryablehttp"
 	"github.com/jlewi/cloud-assistant/app/pkg/config"
 	"github.com/openai/openai-go"
 	"github.com/openai/openai-go/option"
-	"os"
-	"strings"
 
 	"github.com/pkg/errors"
 )

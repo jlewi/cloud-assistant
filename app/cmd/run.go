@@ -2,13 +2,14 @@ package cmd
 
 import (
 	"fmt"
+	"os"
+
 	"github.com/go-logr/zapr"
 	"github.com/jlewi/cloud-assistant/app/pkg/application"
 	"github.com/jlewi/cloud-assistant/app/pkg/version"
 	"github.com/jlewi/monogo/helpers"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
-	"os"
 )
 
 // NewRunCmd returns a command to run the server

@@ -1,12 +1,13 @@
 package config
 
 import (
-	"github.com/google/go-cmp/cmp"
-	"github.com/google/go-cmp/cmp/cmpopts"
-	"github.com/spf13/viper"
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
+	"github.com/spf13/viper"
 )
 
 func Test_UpdateViperConfig(t *testing.T) {

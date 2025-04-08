@@ -3,11 +3,12 @@ package ai
 import (
 	"context"
 	"encoding/json"
+	"testing"
+
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/jlewi/cloud-assistant/protos/gen/cassie"
 	"github.com/openai/openai-go/responses"
-	"testing"
 )
 
 func NullOpSender(resp *cassie.GenerateResponse) error {

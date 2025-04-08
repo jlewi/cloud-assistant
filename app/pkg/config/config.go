@@ -3,13 +3,14 @@ package config
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/jlewi/cloud-assistant/app/api"
 	"io/fs"
 	"os"
 	"os/user"
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/jlewi/cloud-assistant/app/api"
 
 	"github.com/go-logr/zapr"
 	"github.com/pkg/errors"

@@ -1,13 +1,14 @@
 package docs
 
 import (
+	"os"
+	"path/filepath"
+	"testing"
+
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/jlewi/cloud-assistant/app/pkg/testutil"
 	"github.com/jlewi/cloud-assistant/protos/gen/cassie"
-	"os"
-	"path/filepath"
-	"testing"
 )
 
 func Test_MarkdownToBlocks(t *testing.T) {

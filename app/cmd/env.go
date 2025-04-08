@@ -4,8 +4,8 @@ import (
 	"io"
 
 	"github.com/pkg/errors"
-	"github.com/spf13/cobra"
 	"github.com/runmedev/runme/v3/pkg/command"
+	"github.com/spf13/cobra"
 )
 
 var newOSEnvironReader = func() (io.Reader, error) {
