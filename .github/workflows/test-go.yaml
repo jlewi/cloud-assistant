@@ -21,7 +21,7 @@ jobs:
         with:
           # Optional: version of golangci-lint to use in form of v1.2 or v1.2.3 or `latest` to use the latest version
           # https://github.com/golangci/golangci-lint/releases
-          version: v1.54
+          version: v1.62
           # Bump the timeout because we are hitting the default of 1m
           args: --timeout=2m 
           # These options work around the errors in this issue
