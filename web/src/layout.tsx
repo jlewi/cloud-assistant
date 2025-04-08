@@ -9,9 +9,9 @@ function Layout({
   middle,
   right,
 }: {
-  left: React.ReactNode
-  middle: React.ReactNode
-  right: React.ReactNode
+  left?: React.ReactNode
+  middle?: React.ReactNode
+  right?: React.ReactNode
 }) {
   return (
     <Box className="w-screen h-[95vh] max-w-[95%] mx-auto flex flex-col">
@@ -90,16 +90,18 @@ function Layout({
       <Flex className="w-full h-[95%] flex-1 gap-2">
         {/* Left */}
         <Box className="flex-2 flex flex-col h-full p-2 border-r border-gray-400">
-          {left}
+          {left ?? <div />}
         </Box>
 
         {/* Middle */}
         <Box className="flex-3 flex flex-col h-full p-2 border-r border-gray-400">
-          {middle}
+          {middle ?? <div />}
         </Box>
 
         {/* Right */}
-        <Box className="flex-1 flex flex-col h-full p-2">{right}</Box>
+        <Box className="flex-1 flex flex-col h-full p-2">
+          {right ?? <div />}
+        </Box>
       </Flex>
     </Box>
   )

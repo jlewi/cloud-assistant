@@ -8,6 +8,7 @@ import openaiLogo from './assets/openai.svg'
 import Actions from './components/Actions/Actions'
 import Chat from './components/Chat/Chat'
 import FileViewer from './components/Files/Viewer'
+import NotFound from './components/NotFound'
 import Settings from './components/Settings/Settings'
 import { AgentClientProvider } from './contexts/AgentContext'
 import { BlockProvider } from './contexts/BlockContext'
@@ -48,6 +49,7 @@ function App() {
                       />
                     }
                   />
+                  <Route path="*" element={<Layout left={<NotFound />} />} />
                 </Routes>
               </BrowserRouter>
             </BlockProvider>
