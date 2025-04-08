@@ -4,6 +4,7 @@ import (
 	"connectrpc.com/connect"
 	"context"
 	"encoding/json"
+	lru "github.com/hashicorp/golang-lru/v2"
 	"github.com/jlewi/cloud-assistant/app/pkg/docs"
 	"github.com/jlewi/cloud-assistant/app/pkg/logs"
 	"github.com/jlewi/cloud-assistant/protos/gen/cassie"
@@ -19,6 +20,9 @@ import (
 type BlocksBuilder struct {
 	filenameToLink func(string) string
 
+	responseCache *lru.Cache[string, []string]
+	blocksCache   *lru.Cache[string, *cassie.Block]
+
 	// Map from block ID to block
 	blocks map[string]*cassie.Block
 	// Events from OpenAI reference blocks by index, so we need to keep track of the mapping
@@ -26,10 +30,12 @@ type BlocksBuilder struct {
 	mu sync.Mutex
 }
 
-func NewBlocksBuilder(filenameToLink func(string) string) *BlocksBuilder {
+func NewBlocksBuilder(filenameToLink func(string) string, responseCache *lru.Cache[string, []string], blocksCache *lru.Cache[string, *cassie.Block]) *BlocksBuilder {
 	return &BlocksBuilder{
 		blocks:         make(map[string]*cassie.Block),
 		filenameToLink: filenameToLink,
+		responseCache:  responseCache,
+		blocksCache:    blocksCache,
 		//indexToID: make(map[int]string),
 	}
 }
@@ -46,9 +52,22 @@ func (b *BlocksBuilder) HandleEvents(ctx context.Context, events *ssestream.Stre
 			Blocks: make([]*cassie.Block, 0, len(b.blocks)),
 		}
 
+		previousIDs := make([]string, 0, len(b.blocks))
+
 		for _, block := range b.blocks {
 			resp.Blocks = append(resp.Blocks, block)
+
+			// Update the block
+			b.blocksCache.Add(block.Id, block)
+
+			// N.B. This ends up including code blocks which we parsed out of the markdown and therefore ones which
+			// the AI didn't actually generate. Do we want to filter those out?
+			if block.Kind == cassie.BlockKind_CODE {
+				previousIDs = append(previousIDs, block.Id)
+			}
 		}
+
+		b.responseCache.Add(resp.ResponseId, previousIDs)
 		// Log the final response.
 		log.Info("GenerateResponse", logs.ZapProto("response", resp))
 	}()
