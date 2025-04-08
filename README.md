@@ -61,8 +61,8 @@ make build
 
 ### Start the server
 
-```bash
-./app/.build/cas
+```bash {"name":"serve"}
+./app/.build/cas serve
 ```
 
 Open up `http://localhost:8080`.

@@ -15,6 +15,7 @@ import { ulid } from 'ulid'
 import { RendererContext } from 'vscode-notebook-renderer'
 import { VSCodeEvent } from 'vscode-notebook-renderer/events'
 
+import { useSettings } from '../../contexts/SettingsContext'
 import {
   SocketRequest,
   SocketRequestSchema,
@@ -113,6 +114,7 @@ function Console({
   onPid?: (pid: number) => void
   onMimeType?: (mimeType: string) => void
 }) {
+  const { settings } = useSettings()
   const execReq = buildExecuteRequest()
   const defaults = {
     output: {
@@ -161,12 +163,7 @@ function Console({
   } as Partial<RendererContext<void>>)
 
   useEffect(() => {
-    // TODO(jlewi): Should make this default to an address based on the current origin
-    socket = createWebSocket()
-
-    // socket.onopen = () => {
-    //     console.log(new Date(), 'Connected to WebSocket server');
-    // };
+    socket = createWebSocket(settings.runnerEndpoint)
 
     socket.onmessage = (event) => {
       if (typeof event.data !== 'string') {
@@ -235,9 +232,6 @@ function Console({
         if (onMimeType) {
           onMimeType(mimeType)
         }
-        // todo(sebastian): charset (usually utf8) is only applicable for text mime types
-        // const charset =
-        //   parts.length > 1 ? parts[1].split('=')[1].trim() : undefined
       }
     }
 
@@ -253,6 +247,7 @@ function Console({
     onStderr,
     onStdout,
     onMimeType,
+    settings.runnerEndpoint,
   ])
 
   useEffect(() => {
@@ -262,15 +257,6 @@ function Console({
     }
 
     sendExecuteRequest(socket, execReq)
-    // // Promise is intended to ensure that the WebSocket is connected before sending the request
-    // socketOpenPromise
-    //     .then(() => {
-    //         console.log("WebSocket is open, sending ExecuteRequest");
-    //         sendExecuteRequest(socket, execReq);
-    //     })
-    //     .catch((err) => {
-    //         console.error("❌ WebSocket failed to connect:", err);
-    //     });
   }, [commands, execReq])
   return (
     <div
@@ -376,22 +362,16 @@ function isInViewport(element: Element) {
   )
 }
 
-function createWebSocket(): WebSocket {
-  const wsUrl = new URL(window.location.href)
-  const protocol = wsUrl.protocol === 'https:' ? 'wss:' : 'ws:'
-
-  // Handle port replacement for development
-  if (wsUrl.port === '5173') {
-    wsUrl.port = '8080'
-  }
-
-  wsUrl.protocol = protocol
-  wsUrl.pathname = `${wsUrl.pathname}ws`
-  const wsUri = wsUrl.href
-  const ws = new WebSocket(wsUri)
+function createWebSocket(runnerEndpoint: string): WebSocket {
+  const url = new URL(runnerEndpoint)
+  const ws = new WebSocket(url.toString())
 
   ws.onopen = () => {
-    console.log(new Date(), '✅ Connected to Runme WebSocket server at', wsUri)
+    console.log(
+      new Date(),
+      '✅ Connected to Runme WebSocket server at',
+      runnerEndpoint
+    )
 
     if (sendQueue.length > 0) {
       console.log('Sending queued messages')
