@@ -205,14 +205,7 @@ func (s *Server) registerServices() error {
 
 	s.engine = mux
 
-	s.addStaticAssets()
-	return nil
-}
-
-func (s *Server) addStaticAssets() {
-	fileServer := getAssetHandler(s.serverConfig.StaticAssets)
-
-	s.engine.Handle("/", fileServer)
+	return s.serveSinglePageApp()
 }
 
 func (s *Server) shutdown() {

@@ -4,21 +4,25 @@ import (
 	"embed"
 	"io/fs"
 	"net/http"
+	"os"
 
 	"github.com/go-logr/zapr"
+	"github.com/pkg/errors"
 	"go.uber.org/zap"
 )
 
 //go:embed dist/index.*
 var embeddedAssets embed.FS
 
-// getAssetHandler serves embedded assets or falls back to static assets directory
-func getAssetHandler(staticAssets string) http.Handler {
+// getAssetFileSystem returns a filesystem for serving web assets
+// Uses staticAssets directory if specified, otherwise uses embedded assets
+// Returns error if neither option is available
+func getAssetFileSystem(staticAssets string) (fs.FS, error) {
 	log := zapr.NewLogger(zap.L())
 	// If staticAssets is provided, prefer it
 	if staticAssets != "" {
 		log.Info("Serving static assets", "dir", staticAssets)
-		return http.FileServer(http.Dir(staticAssets))
+		return os.DirFS(staticAssets), nil
 	}
 
 	// Try to use embedded assets
@@ -26,11 +30,40 @@ func getAssetHandler(staticAssets string) http.Handler {
 	_, err := distFS.Open("index.js")
 	if err == nil {
 		log.Info("Serving embedded assets")
-		return http.FileServer(http.FS(distFS))
+		return distFS, nil
 	}
 
 	// Neither staticAssets is set nor embedded assets are available
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		http.Error(w, "No assets available: static or embedded assets not found", http.StatusInternalServerError)
-	})
+	return nil, fs.ErrNotExist
+}
+
+// serveSinglePageApp serves a single-page app from static or embedded assets,
+// falling back to index for client-side routing when files don't exist.
+func (s *Server) serveSinglePageApp() error {
+	assetsFS, err := getAssetFileSystem(s.serverConfig.StaticAssets)
+	if err != nil {
+		return errors.Wrapf(err, "Failed to get asset handler")
+	}
+
+	fileServer := http.FileServer(http.FS(assetsFS))
+
+	s.engine.Handle("/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		path := "/"
+		if len(r.URL.Path) > 1 {
+			path = r.URL.Path[1:]
+		}
+
+		// If path is empty or file doesn't exist, serve index
+		if path == "/" || os.IsNotExist(func() error {
+			_, err := assetsFS.Open(path)
+			return err
+		}()) {
+			// Serve index and rely on client-side routing
+			r.URL.Path = "/"
+		}
+
+		fileServer.ServeHTTP(w, r)
+	}))
+
+	return nil
 }
