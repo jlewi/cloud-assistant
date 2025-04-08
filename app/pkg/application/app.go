@@ -3,6 +3,12 @@ package application
 import (
 	"context"
 	"fmt"
+	"net/http"
+	"os"
+	"path/filepath"
+	"strings"
+	"time"
+
 	"github.com/go-logr/zapr"
 	"github.com/jlewi/cloud-assistant/app/pkg/config"
 	gcplogs "github.com/jlewi/monogo/gcp/logging"
@@ -13,11 +19,6 @@ import (
 	"go.opentelemetry.io/otel/sdk/trace"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
-	"net/http"
-	"os"
-	"path/filepath"
-	"strings"
-	"time"
 )
 
 type App struct {

@@ -2,11 +2,12 @@ package converters
 
 import (
 	"fmt"
+	"testing"
+
 	"github.com/google/go-cmp/cmp"
 	"github.com/jlewi/cloud-assistant/app/pkg/testutil"
 	"github.com/jlewi/cloud-assistant/protos/gen/cassie"
 	parserv1 "github.com/runmedev/runme/v3/pkg/api/gen/proto/go/runme/parser/v1"
-	"testing"
 )
 
 type testCase struct {

@@ -2,6 +2,7 @@ package logs
 
 import (
 	"encoding/json"
+
 	"go.uber.org/zap"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"

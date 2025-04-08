@@ -1,16 +1,17 @@
 package ai
 
 import (
-	"connectrpc.com/connect"
 	"context"
 	"encoding/json"
+	"sync"
+
+	"connectrpc.com/connect"
 	"github.com/jlewi/cloud-assistant/app/pkg/docs"
 	"github.com/jlewi/cloud-assistant/app/pkg/logs"
 	"github.com/jlewi/cloud-assistant/protos/gen/cassie"
 	"github.com/openai/openai-go/packages/ssestream"
 	"github.com/openai/openai-go/responses"
 	"github.com/pkg/errors"
-	"sync"
 )
 
 // BlocksBuilder processes the stream of deltas from the responses API and turns them into

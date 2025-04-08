@@ -1,9 +1,10 @@
 package config
 
 import (
+	"strings"
+
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
-	"strings"
 )
 
 // UpdateViperConfig update the viper configuration with the given expression.

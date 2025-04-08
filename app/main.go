@@ -2,8 +2,9 @@ package main
 
 import (
 	"fmt"
-	"github.com/jlewi/cloud-assistant/app/cmd"
 	"os"
+
+	"github.com/jlewi/cloud-assistant/app/cmd"
 )
 
 func main() {
