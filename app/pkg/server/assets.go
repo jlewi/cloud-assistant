@@ -34,7 +34,7 @@ func getAssetFileSystem(staticAssets string) (fs.FS, error) {
 	}
 
 	// Neither staticAssets is set nor embedded assets are available
-	return nil, fs.ErrNotExist
+	return nil, errors.New("no assets available: neither staticAssets directory is configured nor embedded assets could be found")
 }
 
 // serveSinglePageApp serves a single-page app from static or embedded assets,
