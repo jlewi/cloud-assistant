@@ -80,7 +80,7 @@ func Test_Agent(t *testing.T) {
       t.Logf("Found code block with ID: %s", b.Id)
       // Optionally, you can check the contents of the block
       t.Logf("Code block contents: %s", b.Contents)
-      matched := exCommand.Match(`kubectl.*get.*deployment.*`, []byte(b.Contents))
+      matched := exCommand.Match([]byte(b.Contents))
 
       if !matched {
         t.Errorf("Code block does not match expected pattern; got\n%v", b.Contents)
