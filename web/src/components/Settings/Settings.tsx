@@ -72,8 +72,8 @@ export default function Settings() {
               }
             />
             <Text size="2" color="gray">
-              Revert will reset to the default value, including protocol
-              http(s), based on the current page.
+              Revert will reset endpoints to the default values, including
+              protocol http(s), based on the current page.
             </Text>
           </Flex>
         </Flex>
