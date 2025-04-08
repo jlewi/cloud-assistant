@@ -1,5 +1,5 @@
 import { Helmet } from 'react-helmet'
-import { BrowserRouter, Route, Routes } from 'react-router'
+import { BrowserRouter, Route, Routes } from 'react-router-dom'
 
 import { Theme } from '@radix-ui/themes'
 import '@radix-ui/themes/styles.css'
