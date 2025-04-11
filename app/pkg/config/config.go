@@ -334,6 +334,21 @@ type AssistantServerConfig struct {
 
 	// RunnerService starts the Runme runner service if true otherwise it doesn't start the runner service.
 	RunnerService bool `json:"runnerService" yaml:"runnerService"`
+
+	// OIDC configuration
+	OIDC *OIDCConfig `json:"oidc,omitempty" yaml:"oidc,omitempty"`
+}
+
+// OIDCConfig contains configuration for OIDC authentication
+type OIDCConfig struct {
+	// IssuerURL is the OIDC issuer URL
+	IssuerURL string `json:"issuerURL" yaml:"issuerURL"`
+	// ClientID is the OIDC client ID
+	ClientID string `json:"clientID" yaml:"clientID"`
+	// ClientSecretFile is the path to the file containing the OIDC client secret
+	ClientSecretFile string `json:"clientSecretFile" yaml:"clientSecretFile"`
+	// RedirectURL is the OIDC redirect URL
+	RedirectURL string `json:"redirectURL" yaml:"redirectURL"`
 }
 
 func (c *AssistantServerConfig) GetBindAddress() string {

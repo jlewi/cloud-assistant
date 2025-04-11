@@ -106,6 +106,11 @@ func (s *Server) Run() error {
 		return errors.Wrapf(err, "Failed to register services")
 	}
 
+	// Setup OIDC if configured
+	if err := s.SetupOIDC(s.engine); err != nil {
+		return errors.Wrapf(err, "Failed to setup OIDC")
+	}
+
 	serverConfig := s.serverConfig
 	if serverConfig == nil {
 		serverConfig = &config.AssistantServerConfig{}
