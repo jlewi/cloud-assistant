@@ -21,6 +21,11 @@ import (
 	"golang.org/x/oauth2/google"
 )
 
+const (
+	authPathPrefix = "/auth"
+	sessionCookieName = "session"
+)
+
 // jwksKey represents a single key in the JWKS
 type jwksKey struct {
 	Kty string `json:"kty"`
@@ -43,8 +48,8 @@ type OIDC struct {
 	publicKeys map[string]*rsa.PublicKey
 }
 
-// NewOIDC creates a new OIDC
-func NewOIDC(cfg *config.OIDCConfig) (*OIDC, error) {
+// newOIDC creates a new OIDC
+func newOIDC(cfg *config.OIDCConfig) (*OIDC, error) {
 	if cfg == nil {
 		return nil, nil
 	}
@@ -141,21 +146,21 @@ func (o *OIDC) downloadJWKS() error {
 	return nil
 }
 
-// SetupOIDC sets up OAuth2 authentication for the server
-func (s *Server) SetupOIDC(mux *http.ServeMux) error {
-	if s.serverConfig.OIDC == nil {
-		return nil
+// RequireOIDC sets up OAuth2 authentication for the server
+func RequireOIDC(config *config.OIDCConfig, mux *http.ServeMux) (*http.ServeMux, error) {
+	if config == nil {
+		return mux, nil
 	}
 
-	oidc, err := NewOIDC(s.serverConfig.OIDC)
+	oidc, err := newOIDC(config)
 	if err != nil {
-		return errors.Wrapf(err, "Failed to create OAuth2 manager")
+		return nil, errors.Wrapf(err, "Failed to create OAuth2 manager")
 	}
 
 	// Register OAuth2 endpoints
-	mux.HandleFunc("/oidc/login", oidc.LoginHandler)
-	mux.HandleFunc("/oidc/callback", oidc.CallbackHandler)
-	mux.HandleFunc("/oidc/logout", oidc.LogoutHandler)
+	mux.HandleFunc(authPathPrefix+"/login", oidc.loginHandler)
+	mux.HandleFunc(authPathPrefix+"/callback", oidc.callbackHandler)
+	mux.HandleFunc(authPathPrefix+"/logout", oidc.logoutHandler)
 
 	// Create a new mux that wraps the original mux with OAuth2 protection
 	protectedMux := http.NewServeMux()
@@ -163,16 +168,16 @@ func (s *Server) SetupOIDC(mux *http.ServeMux) error {
 		log := zapr.NewLogger(zap.L())
 
 		// Skip authentication for health checks and OAuth2 endpoints
-		if r.URL.Path == "/health" || strings.HasPrefix(r.URL.Path, "/oidc/") {
+		if r.URL.Path == "/health" || strings.HasPrefix(r.URL.Path, authPathPrefix+"/") {
 			mux.ServeHTTP(w, r)
 			return
 		}
 
 		// Get the session token from the cookie
-		cookie, err := r.Cookie("session")
+		cookie, err := r.Cookie(sessionCookieName)
 		if err != nil {
 			// No session cookie, redirect to login
-			http.Redirect(w, r, "/oidc/login", http.StatusFound)
+			http.Redirect(w, r, authPathPrefix+"/login", http.StatusFound)
 			return
 		}
 
@@ -203,7 +208,7 @@ func (s *Server) SetupOIDC(mux *http.ServeMux) error {
 
 		if err != nil || !token.Valid {
 			log.Error(err, "Invalid token signature")
-			http.Redirect(w, r, "/oidc/login", http.StatusFound)
+			http.Redirect(w, r, authPathPrefix+"/login", http.StatusFound)
 			return
 		}
 
@@ -213,7 +218,7 @@ func (s *Server) SetupOIDC(mux *http.ServeMux) error {
 		parts := strings.Split(idToken, ".")
 		if len(parts) != 3 {
 			log.Error(nil, "Invalid token format")
-			http.Redirect(w, r, "/oidc/login", http.StatusFound)
+			http.Redirect(w, r, authPathPrefix+"/login", http.StatusFound)
 			return
 		}
 
@@ -221,7 +226,7 @@ func (s *Server) SetupOIDC(mux *http.ServeMux) error {
 		payload, err := base64.RawURLEncoding.DecodeString(parts[1])
 		if err != nil {
 			log.Error(err, "Failed to decode token payload")
-			http.Redirect(w, r, "/oidc/login", http.StatusFound)
+			http.Redirect(w, r, authPathPrefix+"/login", http.StatusFound)
 			return
 		}
 
@@ -235,41 +240,41 @@ func (s *Server) SetupOIDC(mux *http.ServeMux) error {
 
 		if err := json.Unmarshal(payload, &claims); err != nil {
 			log.Error(err, "Failed to parse token claims")
-			http.Redirect(w, r, "/oidc/login", http.StatusFound)
+			http.Redirect(w, r, authPathPrefix+"/login", http.StatusFound)
 			return
 		}
 
 		// Verify expiration
 		if time.Now().Unix() > claims.Exp {
 			log.Error(nil, "Token expired")
-			http.Redirect(w, r, "/oidc/login", http.StatusFound)
+			http.Redirect(w, r, authPathPrefix+"/login", http.StatusFound)
 			return
 		}
 
 		// Verify issuer (should be Google)
 		if !strings.HasPrefix(claims.Iss, "https://accounts.google.com") {
 			log.Error(nil, "Invalid token issuer", "issuer", claims.Iss)
-			http.Redirect(w, r, "/oidc/login", http.StatusFound)
+			http.Redirect(w, r, authPathPrefix+"/login", http.StatusFound)
 			return
 		}
 
 		// Verify audience matches our client ID
 		if claims.Aud != oidc.oauth2.ClientID {
 			log.Error(nil, "Invalid token audience", "audience", claims.Aud, "expected", oidc.oauth2.ClientID)
-			http.Redirect(w, r, "/oidc/login", http.StatusFound)
+			http.Redirect(w, r, authPathPrefix+"/login", http.StatusFound)
 			return
 		}
 
 		// Verify the hosted domain (hd) is in the list of approved domains
 		if claims.HD != "" {
-			if !slices.Contains(s.serverConfig.OIDC.Domains, claims.HD) {
+			if !slices.Contains(config.Domains, claims.HD) {
 				log.Error(nil, "Hosted domain not in allowed domains", "domain", claims.HD)
-				http.Redirect(w, r, "/oidc/login", http.StatusFound)
+				http.Redirect(w, r, authPathPrefix+"/login", http.StatusFound)
 				return
 			}
 		} else {
 			log.Error(nil, "Missing hosted domain claim")
-			http.Redirect(w, r, "/oidc/login", http.StatusFound)
+			http.Redirect(w, r, authPathPrefix+"/login", http.StatusFound)
 			return
 		}
 
@@ -277,19 +282,18 @@ func (s *Server) SetupOIDC(mux *http.ServeMux) error {
 		mux.ServeHTTP(w, r)
 	})
 
-	// Replace the original mux with the protected one
-	s.engine = protectedMux
-	return nil
+	// Wrap the original mux with the protected one
+	return protectedMux, nil
 }
 
-// LoginHandler handles the OAuth2 login flow
-func (o *OIDC) LoginHandler(w http.ResponseWriter, r *http.Request) {
+// loginHandler handles the OAuth2 login flow
+func (o *OIDC) loginHandler(w http.ResponseWriter, r *http.Request) {
 	state := "random-state" // TODO: Generate a random state
 	http.Redirect(w, r, o.oauth2.AuthCodeURL(state), http.StatusFound)
 }
 
-// CallbackHandler handles the OAuth2 callback
-func (o *OIDC) CallbackHandler(w http.ResponseWriter, r *http.Request) {
+// callbackHandler handles the OAuth2 callback
+func (o *OIDC) callbackHandler(w http.ResponseWriter, r *http.Request) {
 	log := zapr.NewLogger(zap.L())
 
 	// Verify state
@@ -318,7 +322,7 @@ func (o *OIDC) CallbackHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Set the session cookie with the ID token
 	http.SetCookie(w, &http.Cookie{
-		Name:     "session",
+		Name:     sessionCookieName,
 		Value:    idToken,
 		Path:     "/",
 		HttpOnly: true,
@@ -330,11 +334,11 @@ func (o *OIDC) CallbackHandler(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
 }
 
-// LogoutHandler handles the OAuth2 logout
-func (o *OIDC) LogoutHandler(w http.ResponseWriter, r *http.Request) {
+// logoutHandler handles the OAuth2 logout
+func (o *OIDC) logoutHandler(w http.ResponseWriter, r *http.Request) {
 	// Clear the session cookie
 	http.SetCookie(w, &http.Cookie{
-		Name:     "session",
+		Name:     sessionCookieName,
 		Value:    "",
 		Path:     "/",
 		HttpOnly: true,
