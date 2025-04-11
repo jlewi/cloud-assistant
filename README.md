@@ -33,6 +33,12 @@ assistantServer:
     corsOrigins:
     - "http://localhost:5173"
     - "http://localhost:3000"
+    oidc:
+        google:
+            clientCredentialsFile: /Users/${USER}/.cloud-assistant/client_credentials.json
+        domains:
+            - "evilcorp.com"
+            - "myemail.com"
 ```
 
 * set **apiKeyFile** to the path of your OpenAI API key
