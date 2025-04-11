@@ -341,14 +341,17 @@ type AssistantServerConfig struct {
 
 // OIDCConfig contains configuration for OIDC authentication
 type OIDCConfig struct {
-	// IssuerURL is the OIDC issuer URL
-	IssuerURL string `json:"issuerURL" yaml:"issuerURL"`
-	// ClientID is the OIDC client ID
-	ClientID string `json:"clientID" yaml:"clientID"`
-	// ClientSecretFile is the path to the file containing the OIDC client secret
-	ClientSecretFile string `json:"clientSecretFile" yaml:"clientSecretFile"`
-	// RedirectURL is the OIDC redirect URL
-	RedirectURL string `json:"redirectURL" yaml:"redirectURL"`
+	// Google contains Google-specific OIDC configuration
+	Google *GoogleOIDCConfig `json:"google,omitempty" yaml:"google,omitempty"`
+
+	// Domains is a list of allowed domains for OIDC authentication
+	Domains []string `json:"domains" yaml:"domains"`
+}
+
+// GoogleOIDCConfig contains Google-specific OIDC configuration
+type GoogleOIDCConfig struct {
+	// ClientCredentialsFile is the path to the file containing the Google client credentials
+	ClientCredentialsFile string `json:"clientCredentialsFile" yaml:"clientCredentialsFile"`
 }
 
 func (c *AssistantServerConfig) GetBindAddress() string {
