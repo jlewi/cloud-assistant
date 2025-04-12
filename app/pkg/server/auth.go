@@ -26,7 +26,6 @@ import (
 const (
 	authPathPrefix = "/auth"
 	sessionCookieName = "session"
-	stateExpiration = 10 * time.Minute
 	stateLength = 32
 )
 
@@ -100,7 +99,7 @@ func newOIDC(cfg *config.OIDCConfig) (*OIDC, error) {
 		oauth2:     oauth2Config,
 		publicKeys: make(map[string]*rsa.PublicKey),
 		discovery:  &discovery,
-		state: newStateManager(),
+		state: newStateManager(10 * time.Minute),
 	}
 
 	// Download Google's JWKS for signature verification
@@ -110,7 +109,7 @@ func newOIDC(cfg *config.OIDCConfig) (*OIDC, error) {
 
 	// Start a goroutine to clean up expired states
 	go func() {
-		ticker := time.NewTicker(5 * time.Minute)
+		ticker := time.NewTicker(oidc.state.stateExpiration / 2)
 		defer ticker.Stop()
 		for range ticker.C {
 			oidc.state.cleanupExpiredStates()
@@ -178,6 +177,77 @@ func (o *OIDC) downloadJWKS() error {
 	return nil
 }
 
+// verifyToken verifies the JWT token and returns whether it's valid and any error encountered
+func (o *OIDC) verifyToken(idToken string) (bool, error) {
+	// Verify the token signature using JWKS
+	token, err := jwt.Parse(idToken, func(token *jwt.Token) (any, error) {
+		// Verify the signing method is what we expect
+		if _, ok := token.Method.(*jwt.SigningMethodRSA); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+
+		// Get the key ID from the token header
+		kid, ok := token.Header["kid"].(string)
+		if !ok {
+			return nil, errors.New("kid header not found in token")
+		}
+
+		// Get the public key from our map
+		publicKey, ok := o.publicKeys[kid]
+		if !ok {
+			return nil, errors.New("unable to find appropriate key")
+		}
+
+		return publicKey, nil
+	})
+
+	if err != nil || !token.Valid {
+		return false, fmt.Errorf("invalid token signature: %v", err)
+	}
+
+	// Get the claims from the token
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok {
+		return false, errors.New("failed to get claims from token")
+	}
+
+	// Verify expiration
+	exp, err := claims.GetExpirationTime()
+	if err != nil {
+		return false, fmt.Errorf("failed to get expiration from claims: %v", err)
+	}
+	if time.Now().After(exp.Time) {
+		return false, errors.New("token expired")
+	}
+
+	// Verify issuer
+	iss, err := claims.GetIssuer()
+	if err != nil || iss != o.discovery.Issuer {
+		return false, fmt.Errorf("invalid token issuer: got %v, expected %v", iss, o.discovery.Issuer)
+	}
+
+	// Verify audience matches our client ID
+	aud, err := claims.GetAudience()
+	if err != nil || len(aud) == 0 || aud[0] != o.oauth2.ClientID {
+		return false, fmt.Errorf("invalid token audience: got %v, expected %v", aud, o.oauth2.ClientID)
+	}
+
+	// Verify the hosted domain (hd) is in the list of approved domains
+	hd, ok := claims["hd"].(string)
+	if !ok {
+		return false, errors.New("missing hosted domain claim")
+	}
+	if hd != "" {
+		if !slices.Contains(o.config.Domains, hd) {
+			return false, fmt.Errorf("hosted domain %v not in allowed domains", hd)
+		}
+	} else {
+		return false, errors.New("missing hosted domain claim")
+	}
+
+	return true, nil
+}
+
 // RequireOIDC sets up OAuth2 authentication for the server
 func RequireOIDC(config *config.OIDCConfig, mux *http.ServeMux) (*http.ServeMux, error) {
 	if config == nil {
@@ -216,87 +286,9 @@ func RequireOIDC(config *config.OIDCConfig, mux *http.ServeMux) (*http.ServeMux,
 		// Verify the token offline by parsing and validating the JWT
 		idToken := cookie.Value
 
-		// Verify the token signature using JWKS
-		token, err := jwt.Parse(idToken, func(token *jwt.Token) (interface{}, error) {
-			// Verify the signing method is what we expect
-			if _, ok := token.Method.(*jwt.SigningMethodRSA); !ok {
-				return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
-			}
-
-			// Get the key ID from the token header
-			kid, ok := token.Header["kid"].(string)
-			if !ok {
-				return nil, errors.New("kid header not found in token")
-			}
-
-			// Get the public key from our map
-			publicKey, ok := oidc.publicKeys[kid]
-			if !ok {
-				return nil, errors.New("unable to find appropriate key")
-			}
-
-			return publicKey, nil
-		})
-
-    // IMPORTANT: Safe to use token.Claims after here because we verified the signature
-		if err != nil || !token.Valid {
-			log.Error(err, "Invalid token signature")
-			http.Redirect(w, r, authPathPrefix+"/login", http.StatusFound)
-			return
-		}
-
-		// Get the claims from the token
-		claims, ok := token.Claims.(jwt.MapClaims)
-		if !ok {
-			log.Error(nil, "Failed to get claims from token")
-			http.Redirect(w, r, authPathPrefix+"/login", http.StatusFound)
-			return
-		}
-
-		// Verify expiration
-		exp, err := claims.GetExpirationTime()
-		if err != nil {
-			log.Error(err, "Failed to get expiration from claims")
-			http.Redirect(w, r, authPathPrefix+"/login", http.StatusFound)
-			return
-		}
-		if time.Now().After(exp.Time) {
-			log.Error(nil, "Token expired")
-			http.Redirect(w, r, authPathPrefix+"/login", http.StatusFound)
-			return
-		}
-
-		// Verify issuer
-		iss, err := claims.GetIssuer()
-		if err != nil || iss != oidc.discovery.Issuer {
-			log.Error(nil, "Invalid token issuer", "issuer", iss, "expected", oidc.discovery.Issuer)
-			http.Redirect(w, r, authPathPrefix+"/login", http.StatusFound)
-			return
-		}
-
-		// Verify audience matches our client ID
-		aud, err := claims.GetAudience()
-		if err != nil || len(aud) == 0 || aud[0] != oidc.oauth2.ClientID {
-			log.Error(nil, "Invalid token audience", "audience", aud, "expected", oidc.oauth2.ClientID)
-			http.Redirect(w, r, authPathPrefix+"/login", http.StatusFound)
-			return
-		}
-
-		// Verify the hosted domain (hd) is in the list of approved domains
-		hd, ok := claims["hd"].(string)
-		if !ok {
-			log.Error(nil, "Missing hosted domain claim")
-			http.Redirect(w, r, authPathPrefix+"/login", http.StatusFound)
-			return
-		}
-		if hd != "" {
-			if !slices.Contains(config.Domains, hd) {
-				log.Error(nil, "Hosted domain not in allowed domains", "domain", hd)
-				http.Redirect(w, r, authPathPrefix+"/login", http.StatusFound)
-				return
-			}
-		} else {
-			log.Error(nil, "Missing hosted domain claim")
+		valid, err := oidc.verifyToken(idToken)
+		if !valid {
+			log.Error(err, "Token validation failed")
 			http.Redirect(w, r, authPathPrefix+"/login", http.StatusFound)
 			return
 		}
@@ -390,12 +382,14 @@ type stateEntry struct {
 }
 
 type stateManager struct {
+	stateExpiration time.Duration
 	states map[string]stateEntry
 	mu     sync.RWMutex
 }
 
-func newStateManager() *stateManager {
+func newStateManager(stateExpiration time.Duration) *stateManager {
 	return &stateManager{
+		stateExpiration: stateExpiration,
 		states: make(map[string]stateEntry),
 	}
 }
@@ -411,7 +405,7 @@ func (sm *stateManager) generateState() (string, error) {
 	sm.mu.Lock()
 	defer sm.mu.Unlock()
 	sm.states[state] = stateEntry{
-		expiresAt: time.Now().Add(stateExpiration),
+		expiresAt: time.Now().Add(sm.stateExpiration),
 	}
 
 	return state, nil
