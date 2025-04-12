@@ -103,7 +103,7 @@ docker run --mount type=bind,src=${HOME}/.cloud-assistant/config.yaml,target=/co
 
 If you get an error like the following when running the frontend in dev mode
 
-```
+```plaintext
 The file does not exist at "/Users/jlewi/git_cloud-assistant/web/node_modules/.vite/deps/chunk-ZPXU25OQ.js?v=a1c6069e" which is in the optimize deps directory. The dependency might be incompatible with the dep optimizer. Try adding it to `optimizeDeps.exclude`. (x2)
 The file does not exist at "/Users/jlewi/git_cloud-assistant/web/node_modules/.vite/deps/chunk-YSO7LL5L.js?v=a1c6069e" which is in the optimize deps directory. The dependency might be incompatible with the dep optimizer. Try adding it to `optimizeDeps.exclude`.
 ```
