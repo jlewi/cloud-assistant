@@ -289,6 +289,7 @@ func RequireOIDC(config *config.OIDCConfig, mux *http.ServeMux) (*http.ServeMux,
 		valid, err := oidc.verifyToken(idToken)
 		if !valid {
 			log.Error(err, "Token validation failed")
+			// This could lead to an infinite redirect loop, browsers detect this and stop it
 			http.Redirect(w, r, authPathPrefix+"/login", http.StatusFound)
 			return
 		}
