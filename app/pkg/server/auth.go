@@ -41,11 +41,18 @@ type jwks struct {
 	Keys []jwksKey `json:"keys"`
 }
 
+// openIDDiscovery is the struct for parsing the discovery document
+type openIDDiscovery struct {
+	Issuer   string `json:"issuer"`
+	JWKSURI  string `json:"jwks_uri"`
+}
+
 // OIDC handles OAuth2 authentication setup and management
 type OIDC struct {
 	config     *config.OIDCConfig
 	oauth2     *oauth2.Config
 	publicKeys map[string]*rsa.PublicKey
+	discovery  *openIDDiscovery
 }
 
 // newOIDC creates a new OIDC
@@ -70,11 +77,24 @@ func newOIDC(cfg *config.OIDCConfig) (*OIDC, error) {
 		return nil, errors.Wrapf(err, "Failed to create OAuth2 config")
 	}
 
+	// Fetch the OpenID configuration
+	resp, err := http.Get(cfg.Google.GetDiscoveryURL())
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to fetch OpenID configuration")
+	}
+	defer resp.Body.Close()
+
+	var discovery openIDDiscovery
+	if err := json.NewDecoder(resp.Body).Decode(&discovery); err != nil {
+		return nil, errors.Wrap(err, "failed to decode OpenID configuration")
+	}
+
 	// Initialize OIDC
 	oidc := &OIDC{
 		config:     cfg,
 		oauth2:     oauth2Config,
 		publicKeys: make(map[string]*rsa.PublicKey),
+		discovery:  &discovery,
 	}
 
 	// Download Google's JWKS for signature verification
@@ -91,13 +111,10 @@ func newOIDC(cfg *config.OIDCConfig) (*OIDC, error) {
 // This allows the application to verify tokens offline without contacting Google's servers
 // for each verification request.
 func (o *OIDC) downloadJWKS() error {
-	// Google's JWKS URL for signature verification
-	jwksURL := "https://www.googleapis.com/oauth2/v3/certs"
-
-	// Fetch the JWKS
-	resp, err := http.Get(jwksURL)
+	// Fetch the JWKS from the URI specified in the discovery document
+	resp, err := http.Get(o.discovery.JWKSURI)
 	if err != nil {
-		return errors.Wrapf(err, "Failed to fetch JWKS from %s", jwksURL)
+		return errors.Wrapf(err, "Failed to fetch JWKS from %s", o.discovery.JWKSURI)
 	}
 	defer resp.Body.Close()
 
@@ -206,69 +223,60 @@ func RequireOIDC(config *config.OIDCConfig, mux *http.ServeMux) (*http.ServeMux,
 			return publicKey, nil
 		})
 
+    // IMPORTANT: Safe to use token.Claims after here because we verified the signature
 		if err != nil || !token.Valid {
 			log.Error(err, "Invalid token signature")
 			http.Redirect(w, r, authPathPrefix+"/login", http.StatusFound)
 			return
 		}
 
-    // IMPORTANT: only after here is it safe to rely on claims
-
-		// Parse the JWT without verifying the signature first
-		parts := strings.Split(idToken, ".")
-		if len(parts) != 3 {
-			log.Error(nil, "Invalid token format")
-			http.Redirect(w, r, authPathPrefix+"/login", http.StatusFound)
-			return
-		}
-
-		// Decode the payload (second part)
-		payload, err := base64.RawURLEncoding.DecodeString(parts[1])
-		if err != nil {
-			log.Error(err, "Failed to decode token payload")
-			http.Redirect(w, r, authPathPrefix+"/login", http.StatusFound)
-			return
-		}
-
-		// Parse the payload
-		var claims struct {
-			Exp int64  `json:"exp"`
-			Iss string `json:"iss"`
-			Aud string `json:"aud"`
-			HD  string `json:"hd"`
-		}
-
-		if err := json.Unmarshal(payload, &claims); err != nil {
-			log.Error(err, "Failed to parse token claims")
+		// Get the claims from the token
+		claims, ok := token.Claims.(jwt.MapClaims)
+		if !ok {
+			log.Error(nil, "Failed to get claims from token")
 			http.Redirect(w, r, authPathPrefix+"/login", http.StatusFound)
 			return
 		}
 
 		// Verify expiration
-		if time.Now().Unix() > claims.Exp {
+		exp, err := claims.GetExpirationTime()
+		if err != nil {
+			log.Error(err, "Failed to get expiration from claims")
+			http.Redirect(w, r, authPathPrefix+"/login", http.StatusFound)
+			return
+		}
+		if time.Now().After(exp.Time) {
 			log.Error(nil, "Token expired")
 			http.Redirect(w, r, authPathPrefix+"/login", http.StatusFound)
 			return
 		}
 
-		// Verify issuer (should be Google)
-		if !strings.HasPrefix(claims.Iss, "https://accounts.google.com") {
-			log.Error(nil, "Invalid token issuer", "issuer", claims.Iss)
+		// Verify issuer
+		iss, err := claims.GetIssuer()
+		if err != nil || iss != oidc.discovery.Issuer {
+			log.Error(nil, "Invalid token issuer", "issuer", iss, "expected", oidc.discovery.Issuer)
 			http.Redirect(w, r, authPathPrefix+"/login", http.StatusFound)
 			return
 		}
 
 		// Verify audience matches our client ID
-		if claims.Aud != oidc.oauth2.ClientID {
-			log.Error(nil, "Invalid token audience", "audience", claims.Aud, "expected", oidc.oauth2.ClientID)
+		aud, err := claims.GetAudience()
+		if err != nil || len(aud) == 0 || aud[0] != oidc.oauth2.ClientID {
+			log.Error(nil, "Invalid token audience", "audience", aud, "expected", oidc.oauth2.ClientID)
 			http.Redirect(w, r, authPathPrefix+"/login", http.StatusFound)
 			return
 		}
 
 		// Verify the hosted domain (hd) is in the list of approved domains
-		if claims.HD != "" {
-			if !slices.Contains(config.Domains, claims.HD) {
-				log.Error(nil, "Hosted domain not in allowed domains", "domain", claims.HD)
+		hd, ok := claims["hd"].(string)
+		if !ok {
+			log.Error(nil, "Missing hosted domain claim")
+			http.Redirect(w, r, authPathPrefix+"/login", http.StatusFound)
+			return
+		}
+		if hd != "" {
+			if !slices.Contains(config.Domains, hd) {
+				log.Error(nil, "Hosted domain not in allowed domains", "domain", hd)
 				http.Redirect(w, r, authPathPrefix+"/login", http.StatusFound)
 				return
 			}
@@ -331,7 +339,7 @@ func (o *OIDC) callbackHandler(w http.ResponseWriter, r *http.Request) {
 	})
 
 	// Redirect to the home page
-	http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
+	http.Redirect(w, r, "/", http.StatusFound)
 }
 
 // logoutHandler handles the OAuth2 logout
@@ -348,5 +356,5 @@ func (o *OIDC) logoutHandler(w http.ResponseWriter, r *http.Request) {
 	})
 
 	// Redirect to the home page
-	http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
+	http.Redirect(w, r, "/", http.StatusFound)
 }
