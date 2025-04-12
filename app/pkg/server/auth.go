@@ -1,6 +1,7 @@
 package server
 
 import (
+	"crypto/rand"
 	"crypto/rsa"
 	"encoding/base64"
 	"encoding/json"
@@ -10,6 +11,7 @@ import (
 	"os"
 	"slices"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/go-logr/zapr"
@@ -24,6 +26,8 @@ import (
 const (
 	authPathPrefix = "/auth"
 	sessionCookieName = "session"
+	stateExpiration = 10 * time.Minute
+	stateLength = 32
 )
 
 // jwksKey represents a single key in the JWKS
@@ -53,6 +57,7 @@ type OIDC struct {
 	oauth2     *oauth2.Config
 	publicKeys map[string]*rsa.PublicKey
 	discovery  *openIDDiscovery
+	state *stateManager
 }
 
 // newOIDC creates a new OIDC
@@ -95,12 +100,22 @@ func newOIDC(cfg *config.OIDCConfig) (*OIDC, error) {
 		oauth2:     oauth2Config,
 		publicKeys: make(map[string]*rsa.PublicKey),
 		discovery:  &discovery,
+		state: newStateManager(),
 	}
 
 	// Download Google's JWKS for signature verification
 	if err := oidc.downloadJWKS(); err != nil {
 		return nil, errors.Wrapf(err, "Failed to download JWKS")
 	}
+
+	// Start a goroutine to clean up expired states
+	go func() {
+		ticker := time.NewTicker(5 * time.Minute)
+		defer ticker.Stop()
+		for range ticker.C {
+			oidc.state.cleanupExpiredStates()
+		}
+	}()
 
 	return oidc, nil
 }
@@ -296,8 +311,18 @@ func RequireOIDC(config *config.OIDCConfig, mux *http.ServeMux) (*http.ServeMux,
 
 // loginHandler handles the OAuth2 login flow
 func (o *OIDC) loginHandler(w http.ResponseWriter, r *http.Request) {
-	state := "random-state" // TODO: Generate a random state
-	http.Redirect(w, r, o.oauth2.AuthCodeURL(state), http.StatusFound)
+	state, err := o.state.generateState()
+	if err != nil {
+		log := zapr.NewLogger(zap.L())
+		log.Error(err, "Failed to generate state")
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+  url := o.oauth2.AuthCodeURL(state)
+  if o.config.ForceApproval {
+    url = o.oauth2.AuthCodeURL(state, oauth2.ApprovalForce)
+  }
+	http.Redirect(w, r, url, http.StatusFound)
 }
 
 // callbackHandler handles the OAuth2 callback
@@ -306,8 +331,9 @@ func (o *OIDC) callbackHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Verify state
 	state := r.URL.Query().Get("state")
-	if state != "random-state" { // TODO: Verify the state matches what we sent
-		http.Error(w, "Invalid state", http.StatusBadRequest)
+	if !o.state.validateState(state) {
+		log.Error(nil, "Invalid state parameter")
+		http.Error(w, "Invalid state parameter", http.StatusBadRequest)
 		return
 	}
 
@@ -357,4 +383,66 @@ func (o *OIDC) logoutHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Redirect to the home page
 	http.Redirect(w, r, "/", http.StatusFound)
+}
+
+type stateEntry struct {
+	expiresAt time.Time
+}
+
+type stateManager struct {
+	states map[string]stateEntry
+	mu     sync.RWMutex
+}
+
+func newStateManager() *stateManager {
+	return &stateManager{
+		states: make(map[string]stateEntry),
+	}
+}
+
+// generateState generates a new cryptographically secure random state
+func (sm *stateManager) generateState() (string, error) {
+	b := make([]byte, stateLength)
+	if _, err := rand.Read(b); err != nil {
+		return "", errors.Wrap(err, "failed to generate random state")
+	}
+	state := base64.URLEncoding.EncodeToString(b)
+
+	sm.mu.Lock()
+	defer sm.mu.Unlock()
+	sm.states[state] = stateEntry{
+		expiresAt: time.Now().Add(stateExpiration),
+	}
+
+	return state, nil
+}
+
+// validateState checks if a state is valid and removes it if it is
+func (sm *stateManager) validateState(state string) bool {
+	sm.mu.Lock()
+	defer sm.mu.Unlock()
+
+	entry, exists := sm.states[state]
+	if !exists {
+		return false
+	}
+
+	// Remove the state regardless of validity
+	delete(sm.states, state)
+
+	// Check if the state has expired
+	return time.Now().Before(entry.expiresAt)
+}
+
+// cleanupExpiredStates removes expired states from the map
+func (sm *stateManager) cleanupExpiredStates() {
+	sm.mu.Lock()
+	defer sm.mu.Unlock()
+
+	now := time.Now()
+	for state, entry := range sm.states {
+		if now.After(entry.expiresAt) {
+			delete(sm.states, state)
+		}
+	}
 }

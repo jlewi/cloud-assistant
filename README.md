@@ -36,9 +36,11 @@ assistantServer:
     oidc:
         google:
             clientCredentialsFile: /Users/${USER}/.cloud-assistant/client_credentials.json
+            discoveryURL: https://accounts.google.com/.well-known/openid-configuration
         domains:
             - "evilcorp.com"
             - "myemail.com"
+        forceApproval: false # helpful for troubleshooting issues with OIDC
 ```
 
 * set **apiKeyFile** to the path of your OpenAI API key

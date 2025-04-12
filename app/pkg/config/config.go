@@ -346,6 +346,9 @@ type OIDCConfig struct {
 
 	// Domains is a list of allowed domains for OIDC authentication
 	Domains []string `json:"domains" yaml:"domains"`
+
+	// ForceApproval is a flag to force the user to approve the app again
+	ForceApproval bool `json:"forceApproval" yaml:"forceApproval"`
 }
 
 // GoogleOIDCConfig contains Google-specific OIDC configuration
