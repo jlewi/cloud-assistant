@@ -29,34 +29,14 @@ const (
 	stateLength = 32
 )
 
-// jwksKey represents a single key in the JWKS
-type jwksKey struct {
-	Kty string `json:"kty"`
-	Alg string `json:"alg"`
-	Use string `json:"use"`
-	Kid string `json:"kid"`
-	N   string `json:"n"`
-	E   string `json:"e"`
-}
-
-// jwks represents the JSON Web Key Set
-type jwks struct {
-	Keys []jwksKey `json:"keys"`
-}
-
-// openIDDiscovery is the struct for parsing the discovery document
-type openIDDiscovery struct {
-	Issuer   string `json:"issuer"`
-	JWKSURI  string `json:"jwks_uri"`
-}
-
 // OIDC handles OAuth2 authentication setup and management
 type OIDC struct {
 	config     *config.OIDCConfig
 	oauth2     *oauth2.Config
 	publicKeys map[string]*rsa.PublicKey
 	discovery  *openIDDiscovery
-	state *stateManager
+	state      *stateManager
+	provider   OIDCProvider
 }
 
 // newOIDC creates a new OIDC
@@ -65,24 +45,31 @@ func newOIDC(cfg *config.OIDCConfig) (*OIDC, error) {
 		return nil, nil
 	}
 
-	if cfg.Google == nil {
+	// Check that only one provider is configured
+	if cfg.Google != nil && cfg.Generic != nil {
+		return nil, errors.New("both Google and generic OIDC providers cannot be configured at the same time")
+	}
+
+	if cfg.Google == nil && cfg.Generic == nil {
 		return nil, nil
 	}
 
-	// Read client credentials from file
-	bytes, err := os.ReadFile(cfg.Google.ClientCredentialsFile)
-	if err != nil {
-		return nil, errors.Wrapf(err, "Failed to read client credentials file")
+	var provider OIDCProvider
+	if cfg.Google != nil {
+		provider = NewGoogleProvider(cfg.Google)
+	} else {
+		provider = NewGenericProvider(cfg.Generic)
 	}
 
-	// Create OAuth2 config using Google's package
-	oauth2Config, err := google.ConfigFromJSON(bytes, "openid", "email")
+	oauth2Config, err := provider.GetOAuth2Config()
 	if err != nil {
-		return nil, errors.Wrapf(err, "Failed to create OAuth2 config")
+		return nil, err
 	}
+
+	discoveryURL := provider.GetDiscoveryURL()
 
 	// Fetch the OpenID configuration
-	resp, err := http.Get(cfg.Google.GetDiscoveryURL())
+	resp, err := http.Get(discoveryURL)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to fetch OpenID configuration")
 	}
@@ -93,16 +80,28 @@ func newOIDC(cfg *config.OIDCConfig) (*OIDC, error) {
 		return nil, errors.Wrap(err, "failed to decode OpenID configuration")
 	}
 
+	// Update endpoints from discovery document
+	oauth2Config.Endpoint = oauth2.Endpoint{
+		AuthURL:  discovery.AuthURL,
+		TokenURL: discovery.TokenURL,
+	}
+
+	// If the generic provider is configured with an issuer, use it
+	if cfg.Generic != nil && cfg.Generic.Issuer != "" {
+		discovery.Issuer = cfg.Generic.Issuer
+	}
+
 	// Initialize OIDC
 	oidc := &OIDC{
 		config:     cfg,
 		oauth2:     oauth2Config,
 		publicKeys: make(map[string]*rsa.PublicKey),
 		discovery:  &discovery,
-		state: newStateManager(10 * time.Minute),
+		state:      newStateManager(10 * time.Minute),
+		provider:   provider,
 	}
 
-	// Download Google's JWKS for signature verification
+	// Download JWKS for signature verification
 	if err := oidc.downloadJWKS(); err != nil {
 		return nil, errors.Wrapf(err, "Failed to download JWKS")
 	}
@@ -232,17 +231,9 @@ func (o *OIDC) verifyToken(idToken string) (bool, error) {
 		return false, fmt.Errorf("invalid token audience: got %v, expected %v", aud, o.oauth2.ClientID)
 	}
 
-	// Verify the hosted domain (hd) is in the list of approved domains
-	hd, ok := claims["hd"].(string)
-	if !ok {
-		return false, errors.New("missing hosted domain claim")
-	}
-	if hd != "" {
-		if !slices.Contains(o.config.Domains, hd) {
-			return false, fmt.Errorf("hosted domain %v not in allowed domains", hd)
-		}
-	} else {
-		return false, errors.New("missing hosted domain claim")
+	// Validate claims using the provider-specific implementation
+	if err := o.provider.ValidateDomainClaims(claims, o.config.Domains); err != nil {
+		return false, err
 	}
 
 	return true, nil
@@ -440,4 +431,128 @@ func (sm *stateManager) cleanupExpiredStates() {
 			delete(sm.states, state)
 		}
 	}
+}
+
+// jwksKey represents a single key in the JWKS
+type jwksKey struct {
+	Kty string `json:"kty"`
+	Alg string `json:"alg"`
+	Use string `json:"use"`
+	Kid string `json:"kid"`
+	N   string `json:"n"`
+	E   string `json:"e"`
+}
+
+// jwks represents the JSON Web Key Set
+type jwks struct {
+	Keys []jwksKey `json:"keys"`
+}
+
+// openIDDiscovery is the struct for parsing the discovery document
+type openIDDiscovery struct {
+	Issuer                 string   `json:"issuer"`
+	AuthURL                string   `json:"authorization_endpoint"`
+	TokenURL               string   `json:"token_endpoint"`
+	JWKSURI                string   `json:"jwks_uri"`
+	UserInfoURL            string   `json:"userinfo_endpoint"`
+	ScopesSupported        []string `json:"scopes_supported"`
+	ResponseTypesSupported []string `json:"response_types_supported"`
+	SubjectTypesSupported  []string `json:"subject_types_supported"`
+	IDTokenSigningAlgValuesSupported []string `json:"id_token_signing_alg_values_supported"`
+}
+
+// OIDCProvider defines the interface for OIDC providers
+type OIDCProvider interface {
+	// GetOAuth2Config returns the OAuth2 configuration
+	GetOAuth2Config() (*oauth2.Config, error)
+	// GetDiscoveryURL returns the OpenID Connect discovery URL
+	GetDiscoveryURL() string
+	// ValidateDomainClaims validates the claims from the ID token
+	ValidateDomainClaims(claims jwt.MapClaims, allowedDomains []string) error
+}
+
+// GoogleProvider implements OIDCProvider for Google OAuth2
+type GoogleProvider struct {
+	config *config.GoogleOIDCConfig
+}
+
+func NewGoogleProvider(cfg *config.GoogleOIDCConfig) *GoogleProvider {
+	return &GoogleProvider{config: cfg}
+}
+
+func (p *GoogleProvider) GetOAuth2Config() (*oauth2.Config, error) {
+	bytes, err := os.ReadFile(p.config.ClientCredentialsFile)
+	if err != nil {
+		return nil, errors.Wrapf(err, "Failed to read client credentials file")
+	}
+
+	config, err := google.ConfigFromJSON(bytes, "openid", "email")
+	if err != nil {
+		return nil, errors.Wrapf(err, "Failed to create OAuth2 config")
+	}
+	return config, nil
+}
+
+func (p *GoogleProvider) GetDiscoveryURL() string {
+	return p.config.GetDiscoveryURL()
+}
+
+func (p *GoogleProvider) ValidateDomainClaims(claims jwt.MapClaims, allowedDomains []string) error {
+	hd, ok := claims["hd"].(string)
+	if !ok {
+		return errors.New("missing hosted domain claim")
+	}
+	if hd != "" {
+		if !slices.Contains(allowedDomains, hd) {
+			return fmt.Errorf("hosted domain %v not in allowed domains", hd)
+		}
+	} else {
+		return errors.New("missing hosted domain claim")
+	}
+	return nil
+}
+
+// GenericProvider implements OIDCProvider for generic OIDC providers
+type GenericProvider struct {
+	config *config.GenericOIDCConfig
+}
+
+func NewGenericProvider(cfg *config.GenericOIDCConfig) *GenericProvider {
+	return &GenericProvider{config: cfg}
+}
+
+func (p *GenericProvider) GetOAuth2Config() (*oauth2.Config, error) {
+	return &oauth2.Config{
+		ClientID:     p.config.ClientID,
+		ClientSecret: p.config.ClientSecret,
+		RedirectURL:  p.config.RedirectURL,
+		Scopes:       p.config.Scopes,
+	}, nil
+}
+
+func (p *GenericProvider) GetDiscoveryURL() string {
+	return p.config.GetDiscoveryURL()
+}
+
+func (p *GenericProvider) ValidateDomainClaims(claims jwt.MapClaims, allowedDomains []string) error {
+	email, ok := claims["email"].(string)
+	if !ok {
+		return errors.New("missing email claim")
+	}
+
+	if email == "" {
+		return errors.New("empty email claim")
+	}
+
+	parts := strings.Split(email, "@")
+	if len(parts) != 2 {
+		return errors.New("invalid email format")
+	}
+
+	emailDomain := parts[1]
+	if !slices.Contains(allowedDomains, emailDomain) {
+		return fmt.Errorf("email domain not in allowed domains: %s", email)
+	}
+
+	return nil
 }
