@@ -404,10 +404,10 @@ func TestOIDCProvider_Generic(t *testing.T) {
 		if config == nil {
 			t.Error("Expected non-nil OAuth2 config")
 		}
-		if config.ClientID != cfg.ClientID {
+		if config != nil && config.ClientID != cfg.ClientID {
 			t.Errorf("Expected client ID %s, got %s", cfg.ClientID, config.ClientID)
 		}
-		if config.ClientSecret != cfg.ClientSecret {
+		if config != nil && config.ClientSecret != cfg.ClientSecret {
 			t.Errorf("Expected client secret %s, got %s", cfg.ClientSecret, config.ClientSecret)
 		}
 	})
