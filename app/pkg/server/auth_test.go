@@ -204,7 +204,10 @@ func TestOIDC_DownloadJWKS(t *testing.T) {
 			},
 		}
 
-		json.NewEncoder(w).Encode(jwks)
+		if err := json.NewEncoder(w).Encode(jwks); err != nil {
+			http.Error(w, "failed to encode response", http.StatusInternalServerError)
+			return
+		}
 	}))
 	defer ts.Close()
 

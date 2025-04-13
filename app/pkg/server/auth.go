@@ -73,7 +73,11 @@ func newOIDC(cfg *config.OIDCConfig) (*OIDC, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to fetch OpenID configuration")
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			zap.L().Error("failed to close response body", zap.Error(err))
+		}
+	}()
 
 	var discovery openIDDiscovery
 	if err := json.NewDecoder(resp.Body).Decode(&discovery); err != nil {
@@ -129,7 +133,11 @@ func (o *OIDC) downloadJWKS() error {
 	if err != nil {
 		return errors.Wrapf(err, "Failed to fetch JWKS from %s", o.discovery.JWKSURI)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			zap.L().Error("failed to close response body", zap.Error(err))
+		}
+	}()
 
 	// Parse the JWKS into our structured format
 	var jwks jwks
