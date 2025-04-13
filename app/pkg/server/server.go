@@ -111,6 +111,7 @@ func (s *Server) Run() error {
 		s.engine = protectedMux
 	} else {
 		log.Error(err, "Failed to require OIDC authentication")
+		return err
 	}
 
 	serverConfig := s.serverConfig
