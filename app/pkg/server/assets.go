@@ -1,12 +1,14 @@
 package server
 
 import (
+	"bytes"
 	"embed"
 	"io/fs"
 	"net/http"
 	"os"
 
 	"github.com/go-logr/zapr"
+	"github.com/jlewi/cloud-assistant/app/pkg/config"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 )
@@ -37,6 +39,38 @@ func getAssetFileSystem(staticAssets string) (fs.FS, error) {
 	return nil, errors.New("no assets available: neither staticAssets directory is configured nor embedded assets could be found")
 }
 
+// processIndexHTMLWithConfig reads the index.html file and injects configuration values
+// such as authentication requirements into the HTML content
+func processIndexHTMLWithConfig(assetsFS fs.FS, oidcConfig *config.OIDCConfig) ([]byte, error) {
+	// Read index.html
+	file, err := assetsFS.Open("index.html")
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to open index.html")
+	}
+	defer file.Close()
+
+	// Read the file content
+	buf := new(bytes.Buffer)
+	if _, err := buf.ReadFrom(file); err != nil {
+		return nil, errors.Wrap(err, "failed to read index.html content")
+	}
+	content := buf.Bytes()
+
+	// Define template values
+	templateValues := map[string][]byte{}
+
+	if oidcConfig != nil {
+		templateValues["{ requireAuth: false }"] = []byte("{ requireAuth: true }")
+	}
+
+	// Replace each template value
+	for placeholder, value := range templateValues {
+		content = bytes.ReplaceAll(content, []byte(placeholder), value)
+	}
+
+	return content, nil
+}
+
 // serveSinglePageApp serves a single-page app from static or embedded assets,
 // falling back to index for client-side routing when files don't exist.
 func (s *Server) serveSinglePageApp() error {
@@ -53,13 +87,22 @@ func (s *Server) serveSinglePageApp() error {
 			path = r.URL.Path[1:]
 		}
 
-		// If path is empty or file doesn't exist, serve index
-		if path == "/" || os.IsNotExist(func() error {
+		// If path is empty, file doesn't exist, or it's index.html, serve processed index
+		if path == "/" || path == "index.html" || os.IsNotExist(func() error {
 			_, err := assetsFS.Open(path)
 			return err
 		}()) {
-			// Serve index and rely on client-side routing
-			r.URL.Path = "/"
+			// Read and process index.html
+			content, err := processIndexHTMLWithConfig(assetsFS, s.serverConfig.OIDC)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+
+			// Set content type and write the modified content
+			w.Header().Set("Content-Type", "text/html")
+			w.Write(content)
+			return
 		}
 
 		fileServer.ServeHTTP(w, r)
