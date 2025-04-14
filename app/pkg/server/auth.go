@@ -268,8 +268,8 @@ func RequireOIDC(config *config.OIDCConfig, mux *http.ServeMux) (*http.ServeMux,
 	protectedMux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		log := zapr.NewLogger(zap.L())
 
-		// Skip authentication for health checks and OAuth2 endpoints
-		if r.URL.Path == "/health" || strings.HasPrefix(r.URL.Path, authPathPrefix+"/") {
+		// Skip authentication for login page and OAuth2 endpoints
+		if r.URL.Path == "/login" || strings.HasPrefix(r.URL.Path, authPathPrefix+"/") {
 			mux.ServeHTTP(w, r)
 			return
 		}

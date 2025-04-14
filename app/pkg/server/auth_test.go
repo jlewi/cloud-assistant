@@ -514,3 +514,65 @@ func TestOIDC_ProviderSelection(t *testing.T) {
 		}
 	})
 }
+
+func TestOIDC_UnauthenticatedRoutes(t *testing.T) {
+	// Create a test OIDC instance
+	cfg := &config.OIDCConfig{
+		Google: &config.GoogleOIDCConfig{
+			ClientCredentialsFile: "testdata/google-client-dummy.json",
+			DiscoveryURL:          "https://accounts.google.com/.well-known/openid-configuration",
+		},
+	}
+	_, err := newOIDC(cfg)
+	if err != nil {
+		t.Fatalf("Failed to create OIDC instance: %v", err)
+	}
+
+	// Create a test mux with some endpoints
+	mux := http.NewServeMux()
+
+	// Wrap the mux with OIDC protection
+	protectedMux, err := RequireOIDC(cfg, mux)
+	if err != nil {
+		t.Fatalf("Failed to create protected mux: %v", err)
+	}
+
+	// Test cases for unauthenticated routes
+	unauthenticatedRoutes := []string{
+    "/login",
+		"/auth/login",
+		"/auth/callback",
+		"/auth/logout",
+	}
+
+	for _, route := range unauthenticatedRoutes {
+		t.Run(route, func(t *testing.T) {
+			req := httptest.NewRequest("GET", route, nil)
+			w := httptest.NewRecorder()
+			protectedMux.ServeHTTP(w, req)
+
+			resp := w.Result()
+			location := resp.Header.Get("Location")
+			if resp.StatusCode == http.StatusFound && location == "/auth/login" {
+				t.Errorf("Expected status is not 302 for route %s, but got %d", route, resp.StatusCode)
+			}
+		})
+	}
+
+	// Test that protected routes require authentication
+	t.Run("protected route", func(t *testing.T) {
+		req := httptest.NewRequest("GET", "/protected", nil)
+		w := httptest.NewRecorder()
+		protectedMux.ServeHTTP(w, req)
+
+		resp := w.Result()
+		if resp.StatusCode != http.StatusFound {
+			t.Errorf("Expected status %d for protected route, got %d", http.StatusFound, resp.StatusCode)
+		}
+
+		location := resp.Header.Get("Location")
+		if location != "/auth/login" {
+			t.Errorf("Expected redirect to /auth/login, got %s", location)
+		}
+	})
+}
