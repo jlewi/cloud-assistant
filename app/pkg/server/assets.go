@@ -47,7 +47,11 @@ func processIndexHTMLWithConfig(assetsFS fs.FS, oidcConfig *config.OIDCConfig) (
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to open index.html")
 	}
-	defer file.Close()
+	defer func() {
+		if err := file.Close(); err != nil {
+			zap.L().Error("failed to close index.html file", zap.Error(err))
+		}
+	}()
 
 	// Read the file content
 	buf := new(bytes.Buffer)
@@ -101,7 +105,7 @@ func (s *Server) singlePageAppHandler() (http.Handler, error) {
 
 			// Set content type and write the modified content
 			w.Header().Set("Content-Type", "text/html")
-			w.Write(content)
+			_, _ = w.Write(content)
 			return
 		}
 
