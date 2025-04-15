@@ -28,7 +28,7 @@ import (
 
 const (
 	oidcPathPrefix = "/oidc"
-	sessionCookieName = "session"
+	sessionCookieName = "cassie-session"
 	stateLength = 32
 )
 
