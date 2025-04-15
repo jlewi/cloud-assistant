@@ -9,26 +9,26 @@ import {
 interface Settings {
   agentEndpoint: string
   runnerEndpoint: string
+  requireAuth: boolean
 }
 
 interface SettingsContextType {
-  getDefaultSettings: () => Settings
   settings: Settings
   updateSettings: (newSettings: Partial<Settings>) => void
+  getDefaultSettings: () => Settings
 }
 
-const getDefaultSettings = (): Settings => {
-  return {
-    agentEndpoint:
-      window.location.hostname === 'localhost'
-        ? 'http://localhost:8080'
-        : window.location.origin,
-    runnerEndpoint:
-      window.location.hostname === 'localhost'
-        ? 'ws://localhost:8080/ws'
-        : `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws`,
-  }
-}
+const getDefaultSettings = (): Settings => ({
+  agentEndpoint:
+    window.location.protocol === 'https:'
+      ? 'https://agent.example.com'
+      : 'http://agent.example.com',
+  runnerEndpoint:
+    window.location.protocol === 'https:'
+      ? 'wss://runner.example.com'
+      : 'ws://runner.example.com',
+  requireAuth: false,
+})
 
 const SettingsContext = createContext<SettingsContextType | undefined>(
   undefined
@@ -43,12 +43,28 @@ export const useSettings = () => {
   return context
 }
 
-export const SettingsProvider = ({ children }: { children: ReactNode }) => {
+interface SettingsProviderProps {
+  children: ReactNode
+  requireAuth?: boolean
+}
+
+export const SettingsProvider = ({
+  children,
+  requireAuth,
+}: SettingsProviderProps) => {
   const [settings, setSettings] = useState<Settings>(() => {
     const savedSettings = localStorage.getItem('cloudAssistantSettings')
-    return savedSettings
-      ? { ...getDefaultSettings(), ...JSON.parse(savedSettings) }
-      : getDefaultSettings()
+    const defaultSettings = getDefaultSettings()
+    const mergedSettings = savedSettings
+      ? { ...defaultSettings, ...JSON.parse(savedSettings) }
+      : defaultSettings
+
+    // Override requireAuth if provided
+    if (requireAuth !== undefined) {
+      mergedSettings.requireAuth = requireAuth
+    }
+
+    return mergedSettings
   })
 
   useEffect(() => {

@@ -8,6 +8,7 @@ import openaiLogo from './assets/openai.svg'
 import Actions from './components/Actions/Actions'
 import Chat from './components/Chat/Chat'
 import FileViewer from './components/Files/Viewer'
+import Login from './components/Login/Login'
 import NotFound from './components/NotFound'
 import Settings from './components/Settings/Settings'
 import { AgentClientProvider } from './contexts/AgentContext'
@@ -15,7 +16,13 @@ import { BlockProvider } from './contexts/BlockContext'
 import { SettingsProvider } from './contexts/SettingsContext'
 import Layout from './layout'
 
-function App() {
+export interface AppProps {
+  initialState?: {
+    requireAuth?: boolean
+  }
+}
+
+function App({ initialState = {} }: AppProps) {
   return (
     <>
       <Theme accentColor="gray" scaling="110%" radius="small">
@@ -24,7 +31,7 @@ function App() {
           <meta name="description" content="An AI Assistant For Your Cloud" />
           <link rel="icon" href={openaiLogo} />
         </Helmet>
-        <SettingsProvider>
+        <SettingsProvider requireAuth={initialState.requireAuth}>
           <AgentClientProvider>
             <BlockProvider>
               <BrowserRouter>
@@ -49,6 +56,19 @@ function App() {
                       />
                     }
                   />
+                  <Route
+                    path="/auth/*"
+                    element={
+                      <Layout
+                        middle={
+                          <div>
+                            Auth routes are exclusively handled by the server.
+                          </div>
+                        }
+                      />
+                    }
+                  />
+                  <Route path="/login" element={<Layout left={<Login />} />} />
                   <Route path="*" element={<Layout left={<NotFound />} />} />
                 </Routes>
               </BrowserRouter>
