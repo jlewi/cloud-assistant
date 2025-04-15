@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"math/big"
 	"net/http"
+	"net/url"
 	"os"
 	"slices"
 	"strings"
@@ -325,7 +326,7 @@ func (o *OIDC) callbackHandler(w http.ResponseWriter, r *http.Request) {
 	state := r.URL.Query().Get("state")
 	if !o.state.validateState(state) {
 		log.Error(nil, "Invalid state parameter")
-		http.Error(w, "Invalid state parameter", http.StatusBadRequest)
+		redirectWithError(w, r, "invalid_state", "Invalid state parameter")
 		return
 	}
 
@@ -334,7 +335,7 @@ func (o *OIDC) callbackHandler(w http.ResponseWriter, r *http.Request) {
 	token, err := o.oauth2.Exchange(r.Context(), code)
 	if err != nil {
 		log.Error(err, "Failed to exchange code for token")
-		http.Error(w, "Failed to exchange code for token", http.StatusInternalServerError)
+		redirectWithError(w, r, "token_exchange_failed", "Failed to exchange code for token")
 		return
 	}
 
@@ -342,7 +343,7 @@ func (o *OIDC) callbackHandler(w http.ResponseWriter, r *http.Request) {
 	idToken, ok := token.Extra("id_token").(string)
 	if !ok {
 		log.Error(nil, "No ID token in response")
-		http.Error(w, "No ID token in response", http.StatusInternalServerError)
+		redirectWithError(w, r, "no_id_token", "No ID token in response")
 		return
 	}
 
@@ -358,6 +359,28 @@ func (o *OIDC) callbackHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Redirect to the home page
 	http.Redirect(w, r, "/", http.StatusFound)
+}
+
+// redirectWithError redirects to the login page with error information
+func redirectWithError(w http.ResponseWriter, r *http.Request, errorCode, errorDescription string) {
+	// Get any existing error parameters from the request
+	existingError := r.URL.Query().Get("error")
+	existingDescription := r.URL.Query().Get("error_description")
+
+	// Use existing error parameters if they exist, otherwise use the provided ones
+	if existingError == "" {
+		existingError = errorCode
+	}
+	if existingDescription == "" {
+		existingDescription = errorDescription
+	}
+
+	// Build the redirect URL with error parameters
+	redirectURL := fmt.Sprintf("/login?error=%s&error_description=%s",
+		url.QueryEscape(existingError),
+		url.QueryEscape(existingDescription))
+
+	http.Redirect(w, r, redirectURL, http.StatusFound)
 }
 
 // logoutHandler handles the OAuth2 logout
