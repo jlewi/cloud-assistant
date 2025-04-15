@@ -57,12 +57,12 @@ function App({ initialState = {} }: AppProps) {
                     }
                   />
                   <Route
-                    path="/auth/*"
+                    path="/oidc/*"
                     element={
                       <Layout
                         middle={
                           <div>
-                            Auth routes are exclusively handled by the server.
+                            OIDC routes are exclusively handled by the server.
                           </div>
                         }
                       />

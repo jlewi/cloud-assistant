@@ -27,7 +27,7 @@ import (
 )
 
 const (
-	authPathPrefix = "/auth"
+	oidcPathPrefix = "/oidc"
 	sessionCookieName = "session"
 	stateLength = 32
 )
@@ -262,9 +262,9 @@ func RegisterAuthRoutes(config *config.OIDCConfig, mux *AuthMux) error {
 	}
 
 	// Register OAuth2 endpoints
-	mux.HandleFunc(authPathPrefix+"/login", oidc.loginHandler)
-	mux.HandleFunc(authPathPrefix+"/callback", oidc.callbackHandler)
-	mux.HandleFunc(authPathPrefix+"/logout", oidc.logoutHandler)
+	mux.HandleFunc(oidcPathPrefix+"/login", oidc.loginHandler)
+	mux.HandleFunc(oidcPathPrefix+"/callback", oidc.callbackHandler)
+	mux.HandleFunc(oidcPathPrefix+"/logout", oidc.logoutHandler)
 
 	return nil
 }
@@ -288,7 +288,7 @@ func NewAuthMiddleware(config *config.OIDCConfig) (func(http.Handler) http.Handl
 			log := zapr.NewLogger(zap.L())
 
 			// Skip authentication for login page and OAuth2 endpoints
-			if r.URL.Path == "/login" || strings.HasPrefix(r.URL.Path, authPathPrefix+"/") {
+			if r.URL.Path == "/login" || strings.HasPrefix(r.URL.Path, oidcPathPrefix+"/") {
 				next.ServeHTTP(w, r)
 				return
 			}
@@ -297,7 +297,7 @@ func NewAuthMiddleware(config *config.OIDCConfig) (func(http.Handler) http.Handl
 			cookie, err := r.Cookie(sessionCookieName)
 			if err != nil {
 				// No session cookie, redirect to login
-				http.Redirect(w, r, authPathPrefix+"/login", http.StatusFound)
+				http.Redirect(w, r, oidcPathPrefix+"/login", http.StatusFound)
 				return
 			}
 
@@ -308,7 +308,7 @@ func NewAuthMiddleware(config *config.OIDCConfig) (func(http.Handler) http.Handl
 			if !valid {
 				log.Error(err, "Token validation failed")
 				// This could lead to an infinite redirect loop, browsers detect this and stop it
-				http.Redirect(w, r, authPathPrefix+"/login", http.StatusFound)
+				http.Redirect(w, r, oidcPathPrefix+"/login", http.StatusFound)
 				return
 			}
 

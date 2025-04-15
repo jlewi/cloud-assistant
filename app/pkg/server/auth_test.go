@@ -581,7 +581,7 @@ func TestOIDC_UnauthenticatedRoutes(t *testing.T) {
 		t.Errorf("Expected status code %d, got %d", http.StatusFound, rec.Code)
 	}
 	resp := rec.Result()
-	if location := resp.Header.Get("Location"); location != "/auth/login" {
-		t.Errorf("Expected redirect to /auth/login, got %s", location)
+	if location := resp.Header.Get("Location"); location != "/oidc/login" {
+		t.Errorf("Expected redirect to /oidc/login, got %s", location)
 	}
 }
