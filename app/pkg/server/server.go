@@ -2,11 +2,9 @@ package server
 
 import (
 	"connectrpc.com/connect"
-	connectcors "connectrpc.com/cors"
 	"connectrpc.com/grpchealth"
 	"github.com/jlewi/cloud-assistant/app/pkg/ai"
 	"github.com/jlewi/cloud-assistant/protos/gen/cassie/cassieconnect"
-	"github.com/rs/cors"
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
 
@@ -37,7 +35,7 @@ type Server struct {
 	telemetry        *config.TelemetryConfig
 	serverConfig     *config.AssistantServerConfig
 	hServer          *http.Server
-	engine           *http.ServeMux
+	engine           http.Handler
 	shutdownComplete chan bool
 	runner           *Runner
 	agent            *ai.Agent
@@ -106,14 +104,6 @@ func (s *Server) Run() error {
 		return errors.Wrapf(err, "Failed to register services")
 	}
 
-	// Require OIDC auth if configured
-	if protectedMux, err := RequireOIDC(s.serverConfig.OIDC, s.engine); err == nil {
-		s.engine = protectedMux
-	} else {
-		log.Error(err, "Failed to require OIDC authentication")
-		return err
-	}
-
 	serverConfig := s.serverConfig
 	if serverConfig == nil {
 		serverConfig = &config.AssistantServerConfig{}
@@ -160,28 +150,14 @@ func (s *Server) Run() error {
 	return nil
 }
 
-// handlerWithCORS adds CORS support to a Connect HTTP handler.
-func (s *Server) handlerWithCORS(connectHandler http.Handler) http.Handler {
-	log := zapr.NewLogger(zap.L())
-	origins := s.serverConfig.CorsOrigins
-	if len(origins) == 0 {
-		log.Info("No additional CORS origins specified")
-		return connectHandler
-	}
-	log.Info("Adding CORS support", "origins", origins)
-	c := cors.New(cors.Options{
-		AllowedOrigins: origins,
-		AllowedMethods: connectcors.AllowedMethods(),
-		AllowedHeaders: connectcors.AllowedHeaders(),
-		ExposedHeaders: connectcors.ExposedHeaders(),
-		MaxAge:         7200, // 2 hours in seconds
-	})
-	return c.Handler(connectHandler)
-}
-
 func (s *Server) registerServices() error {
 	log := zapr.NewLogger(zap.L())
-	mux := http.NewServeMux()
+
+	// Create auth mux
+	mux, err := NewAuthMux(s.serverConfig)
+	if err != nil {
+		return errors.Wrapf(err, "Failed to create auth mux")
+	}
 
 	// Create the OTEL interceptor
 	otelInterceptor, err := otelconnect.NewInterceptor()
@@ -191,10 +167,25 @@ func (s *Server) registerServices() error {
 
 	interceptors := []connect.Interceptor{otelInterceptor}
 
+	origins := s.serverConfig.CorsOrigins
+	if len(origins) == 0 {
+		log.Info("No additional CORS origins specified for protected routes")
+	} else {
+		log.Info("Adding CORS support for protected routes", "origins", origins)
+	}
+
+	// Register auth routes if OIDC is configured
+	if s.serverConfig.OIDC != nil {
+		if err := RegisterAuthRoutes(s.serverConfig.OIDC, mux); err != nil {
+			return errors.Wrapf(err, "Failed to register auth routes")
+		}
+	}
+
 	if s.agent != nil {
 		aiSvcPath, aiSvcHandler := cassieconnect.NewBlocksServiceHandler(s.agent, connect.WithInterceptors(interceptors...))
 		log.Info("Setting up AI service", "path", aiSvcPath)
-		mux.Handle(aiSvcPath, s.handlerWithCORS(aiSvcHandler))
+		// Protect the AI service
+		mux.HandleProtected(aiSvcPath, aiSvcHandler)
 	} else {
 		log.Info("Agent is nil; AI service is disabled")
 	}
@@ -203,17 +194,25 @@ func (s *Server) registerServices() error {
 		sHandler := &WebSocketHandler{
 			runner: s.runner,
 		}
-		// Mount other Connect handlers
-		mux.Handle("/ws", http.HandlerFunc(sHandler.Handler))
-
+		// Protect the WebSocket handler
+		mux.HandleProtected("/ws", http.HandlerFunc(sHandler.Handler))
 		log.Info("Setting up runner service", "path", "/ws")
 	}
+
+	// Health check should be public
 	checker := grpchealth.NewStaticChecker()
 	mux.Handle(grpchealth.NewHandler(checker))
 
+	// Handle the single page app and assets unprotected
+	singlePageApp, err := s.singlePageAppHandler()
+	if err != nil {
+		return errors.Wrapf(err, "Failed to serve single page app")
+	}
+	mux.Handle("/", singlePageApp)
+
 	s.engine = mux
 
-	return s.serveSinglePageApp()
+	return nil
 }
 
 func (s *Server) shutdown() {

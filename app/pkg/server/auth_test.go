@@ -136,16 +136,32 @@ func TestOIDC_Handlers(t *testing.T) {
 		req := httptest.NewRequest("GET", "/auth/callback?state=invalid&code=test-code", nil)
 		w := httptest.NewRecorder()
 		oidc.callbackHandler(w, req)
-		if status := w.Result().StatusCode; status != http.StatusBadRequest {
-			t.Errorf("Expected status %d, got %d", http.StatusBadRequest, status)
+		resp := w.Result()
+		if resp.StatusCode != http.StatusFound {
+			t.Errorf("Expected status %d, got %d", http.StatusFound, resp.StatusCode)
+			return
+		}
+
+		location := resp.Header.Get("Location")
+		expectedLocation := "/login?error=invalid_state&error_description=Invalid+state+parameter"
+		if location != expectedLocation {
+			t.Errorf("Expected Location header %q, got %q", expectedLocation, location)
 		}
 
 		// Create a test request with valid state but no code
 		req = httptest.NewRequest("GET", "/auth/callback?state="+state, nil)
 		w = httptest.NewRecorder()
 		oidc.callbackHandler(w, req)
-		if status := w.Result().StatusCode; status != http.StatusInternalServerError {
-			t.Errorf("Expected status %d, got %d", http.StatusInternalServerError, status)
+		resp = w.Result()
+		if resp.StatusCode != http.StatusFound {
+			t.Errorf("Expected status %d, got %d", http.StatusFound, resp.StatusCode)
+			return
+		}
+
+		location = resp.Header.Get("Location")
+		expectedLocation = "/login?error=token_exchange_failed&error_description=Failed+to+exchange+code+for+token"
+		if location != expectedLocation {
+			t.Errorf("Expected Location header %q, got %q", expectedLocation, location)
 		}
 	})
 
@@ -516,63 +532,56 @@ func TestOIDC_ProviderSelection(t *testing.T) {
 }
 
 func TestOIDC_UnauthenticatedRoutes(t *testing.T) {
-	// Create a test OIDC instance
-	cfg := &config.OIDCConfig{
+	// Create test OIDC config
+	oidcConfig := &config.OIDCConfig{
 		Google: &config.GoogleOIDCConfig{
 			ClientCredentialsFile: "testdata/google-client-dummy.json",
 			DiscoveryURL:          "https://accounts.google.com/.well-known/openid-configuration",
 		},
 	}
-	_, err := newOIDC(cfg)
+
+	// Create server config
+	serverConfig := &config.AssistantServerConfig{
+		CorsOrigins: []string{"http://localhost:3000"},
+		OIDC: oidcConfig,
+	}
+
+	// Create auth mux
+	mux, err := NewAuthMux(serverConfig)
 	if err != nil {
-		t.Fatalf("Failed to create OIDC instance: %v", err)
+		t.Fatalf("Failed to create auth mux: %v", err)
 	}
 
-	// Create a test mux with some endpoints
-	mux := http.NewServeMux()
-
-	// Wrap the mux with OIDC protection
-	protectedMux, err := RequireOIDC(cfg, mux)
-	if err != nil {
-		t.Fatalf("Failed to create protected mux: %v", err)
+	// Register auth routes
+	if err := RegisterAuthRoutes(oidcConfig, mux); err != nil {
+		t.Fatalf("Failed to register auth routes: %v", err)
 	}
 
-	// Test cases for unauthenticated routes
-	unauthenticatedRoutes := []string{
-    "/login",
-		"/auth/login",
-		"/auth/callback",
-		"/auth/logout",
+	// Register test routes
+	mux.Handle("/public", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	mux.HandleProtected("/protected", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	// Test public route
+	req := httptest.NewRequest("GET", "/public", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Errorf("Expected status code %d, got %d", http.StatusOK, rec.Code)
 	}
 
-	for _, route := range unauthenticatedRoutes {
-		t.Run(route, func(t *testing.T) {
-			req := httptest.NewRequest("GET", route, nil)
-			w := httptest.NewRecorder()
-			protectedMux.ServeHTTP(w, req)
-
-			resp := w.Result()
-			location := resp.Header.Get("Location")
-			if resp.StatusCode == http.StatusFound && location == "/auth/login" {
-				t.Errorf("Expected status is not 302 for route %s, but got %d", route, resp.StatusCode)
-			}
-		})
+	// Test protected route
+	req = httptest.NewRequest("GET", "/protected", nil)
+	rec = httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+	if rec.Code != http.StatusFound {
+		t.Errorf("Expected status code %d, got %d", http.StatusFound, rec.Code)
 	}
-
-	// Test that protected routes require authentication
-	t.Run("protected route", func(t *testing.T) {
-		req := httptest.NewRequest("GET", "/protected", nil)
-		w := httptest.NewRecorder()
-		protectedMux.ServeHTTP(w, req)
-
-		resp := w.Result()
-		if resp.StatusCode != http.StatusFound {
-			t.Errorf("Expected status %d for protected route, got %d", http.StatusFound, resp.StatusCode)
-		}
-
-		location := resp.Header.Get("Location")
-		if location != "/auth/login" {
-			t.Errorf("Expected redirect to /auth/login, got %s", location)
-		}
-	})
+	resp := rec.Result()
+	if location := resp.Header.Get("Location"); location != "/auth/login" {
+		t.Errorf("Expected redirect to /auth/login, got %s", location)
+	}
 }

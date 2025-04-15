@@ -15,10 +15,12 @@ import (
 	"sync"
 	"time"
 
+	connectcors "connectrpc.com/cors"
 	"github.com/go-logr/zapr"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/jlewi/cloud-assistant/app/pkg/config"
 	"github.com/pkg/errors"
+	"github.com/rs/cors"
 	"go.uber.org/zap"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
@@ -248,15 +250,15 @@ func (o *OIDC) verifyToken(idToken string) (bool, error) {
 	return true, nil
 }
 
-// RequireOIDC sets up OAuth2 authentication for the server
-func RequireOIDC(config *config.OIDCConfig, mux *http.ServeMux) (*http.ServeMux, error) {
+// RegisterAuthRoutes registers the OAuth2 authentication routes
+func RegisterAuthRoutes(config *config.OIDCConfig, mux *AuthMux) error {
 	if config == nil {
-		return mux, nil
+		return nil
 	}
 
 	oidc, err := newOIDC(config)
 	if err != nil {
-		return nil, errors.Wrapf(err, "Failed to create OAuth2 manager")
+		return errors.Wrapf(err, "Failed to create OAuth2 manager")
 	}
 
 	// Register OAuth2 endpoints
@@ -264,42 +266,56 @@ func RequireOIDC(config *config.OIDCConfig, mux *http.ServeMux) (*http.ServeMux,
 	mux.HandleFunc(authPathPrefix+"/callback", oidc.callbackHandler)
 	mux.HandleFunc(authPathPrefix+"/logout", oidc.logoutHandler)
 
-	// Create a new mux that wraps the original mux with OAuth2 protection
-	protectedMux := http.NewServeMux()
-	protectedMux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		log := zapr.NewLogger(zap.L())
+	return nil
+}
 
-		// Skip authentication for login page and OAuth2 endpoints
-		if r.URL.Path == "/login" || strings.HasPrefix(r.URL.Path, authPathPrefix+"/") {
-			mux.ServeHTTP(w, r)
-			return
-		}
+// NewAuthMiddleware creates a middleware that enforces OIDC authentication
+func NewAuthMiddleware(config *config.OIDCConfig) (func(http.Handler) http.Handler, error) {
+	if config == nil {
+		// Return a no-op middleware if OIDC is not configured
+		return func(next http.Handler) http.Handler {
+			return next
+		}, nil
+	}
 
-		// Get the session token from the cookie
-		cookie, err := r.Cookie(sessionCookieName)
-		if err != nil {
-			// No session cookie, redirect to login
-			http.Redirect(w, r, authPathPrefix+"/login", http.StatusFound)
-			return
-		}
+	oidc, err := newOIDC(config)
+	if err != nil {
+		return nil, errors.Wrapf(err, "Failed to create OAuth2 manager")
+	}
 
-		// Verify the token offline by parsing and validating the JWT
-		idToken := cookie.Value
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			log := zapr.NewLogger(zap.L())
 
-		valid, err := oidc.verifyToken(idToken)
-		if !valid {
-			log.Error(err, "Token validation failed")
-			// This could lead to an infinite redirect loop, browsers detect this and stop it
-			http.Redirect(w, r, authPathPrefix+"/login", http.StatusFound)
-			return
-		}
+			// Skip authentication for login page and OAuth2 endpoints
+			if r.URL.Path == "/login" || strings.HasPrefix(r.URL.Path, authPathPrefix+"/") {
+				next.ServeHTTP(w, r)
+				return
+			}
 
-		// Token is valid, proceed with the request
-		mux.ServeHTTP(w, r)
-	})
+			// Get the session token from the cookie
+			cookie, err := r.Cookie(sessionCookieName)
+			if err != nil {
+				// No session cookie, redirect to login
+				http.Redirect(w, r, authPathPrefix+"/login", http.StatusFound)
+				return
+			}
 
-	// Wrap the original mux with the protected one
-	return protectedMux, nil
+			// Verify the token offline by parsing and validating the JWT
+			idToken := cookie.Value
+
+			valid, err := oidc.verifyToken(idToken)
+			if !valid {
+				log.Error(err, "Token validation failed")
+				// This could lead to an infinite redirect loop, browsers detect this and stop it
+				http.Redirect(w, r, authPathPrefix+"/login", http.StatusFound)
+				return
+			}
+
+			// Token is valid, proceed with the request
+			next.ServeHTTP(w, r)
+		})
+	}, nil
 }
 
 // loginHandler handles the OAuth2 login flow
@@ -586,4 +602,75 @@ func (p *GenericProvider) ValidateDomainClaims(claims jwt.MapClaims, allowedDoma
 	}
 
 	return nil
+}
+
+// AuthMux wraps http.ServeMux to add protected route handling
+type AuthMux struct {
+	mux *http.ServeMux
+	authMiddleware func(http.Handler) http.Handler
+	serverConfig *config.AssistantServerConfig
+}
+
+// NewAuthMux creates a new AuthMux
+func NewAuthMux(serverConfig *config.AssistantServerConfig) (*AuthMux, error) {
+	mux := http.NewServeMux()
+
+	// Create auth middleware if OIDC is configured
+	var authMiddleware func(http.Handler) http.Handler
+	if serverConfig != nil && serverConfig.OIDC != nil {
+		middleware, err := NewAuthMiddleware(serverConfig.OIDC)
+		if err != nil {
+			return nil, errors.Wrapf(err, "Failed to create auth middleware")
+		}
+		authMiddleware = middleware
+	} else {
+		// No-op middleware if OIDC is not configured
+		authMiddleware = func(next http.Handler) http.Handler {
+			return next
+		}
+	}
+
+	return &AuthMux{
+		mux: mux,
+		authMiddleware: authMiddleware,
+		serverConfig: serverConfig,
+	}, nil
+}
+
+// Handle registers a handler for the given pattern
+func (p *AuthMux) Handle(pattern string, handler http.Handler) {
+	p.mux.Handle(pattern, handler)
+}
+
+// HandleFunc registers a handler function for the given pattern
+func (p *AuthMux) HandleFunc(pattern string, handler func(http.ResponseWriter, *http.Request)) {
+	p.mux.HandleFunc(pattern, handler)
+}
+
+// HandleProtected registers a protected handler for the given pattern
+func (p *AuthMux) HandleProtected(pattern string, handler http.Handler) {
+	// Apply CORS if origins are configured
+	if len(p.serverConfig.CorsOrigins) > 0 {
+		c := cors.New(cors.Options{
+			AllowedOrigins: p.serverConfig.CorsOrigins,
+			AllowedMethods: connectcors.AllowedMethods(),
+			AllowedHeaders: connectcors.AllowedHeaders(),
+			ExposedHeaders: connectcors.ExposedHeaders(),
+			MaxAge:         7200, // 2 hours in seconds
+		})
+		handler = c.Handler(handler)
+	}
+
+	// Apply auth middleware
+	p.mux.Handle(pattern, p.authMiddleware(handler))
+}
+
+// HandleProtectedFunc registers a protected handler function for the given pattern
+func (p *AuthMux) HandleProtectedFunc(pattern string, handler func(http.ResponseWriter, *http.Request)) {
+	p.mux.Handle(pattern, p.authMiddleware(http.HandlerFunc(handler)))
+}
+
+// ServeHTTP implements http.Handler
+func (p *AuthMux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	p.mux.ServeHTTP(w, r)
 }

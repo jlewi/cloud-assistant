@@ -71,17 +71,17 @@ func processIndexHTMLWithConfig(assetsFS fs.FS, oidcConfig *config.OIDCConfig) (
 	return content, nil
 }
 
-// serveSinglePageApp serves a single-page app from static or embedded assets,
+// singlePageAppHandler serves a single-page app from static or embedded assets,
 // falling back to index for client-side routing when files don't exist.
-func (s *Server) serveSinglePageApp() error {
+func (s *Server) singlePageAppHandler() (http.Handler, error) {
 	assetsFS, err := getAssetFileSystem(s.serverConfig.StaticAssets)
 	if err != nil {
-		return errors.Wrapf(err, "Failed to get asset handler")
+		return nil, errors.Wrapf(err, "Failed to get asset handler")
 	}
 
 	fileServer := http.FileServer(http.FS(assetsFS))
 
-	s.engine.Handle("/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		path := "/"
 		if len(r.URL.Path) > 1 {
 			path = r.URL.Path[1:]
@@ -106,7 +106,5 @@ func (s *Server) serveSinglePageApp() error {
 		}
 
 		fileServer.ServeHTTP(w, r)
-	}))
-
-	return nil
+	}), nil
 }
