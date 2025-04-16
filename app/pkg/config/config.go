@@ -344,6 +344,9 @@ type OIDCConfig struct {
 	// Google contains Google-specific OIDC configuration
 	Google *GoogleOIDCConfig `json:"google,omitempty" yaml:"google,omitempty"`
 
+	// Generic contains generic OIDC configuration
+	Generic *GenericOIDCConfig `json:"generic,omitempty" yaml:"generic,omitempty"`
+
 	// Domains is a list of allowed domains for OIDC authentication
 	Domains []string `json:"domains" yaml:"domains"`
 
@@ -359,12 +362,33 @@ type GoogleOIDCConfig struct {
 	DiscoveryURL string `json:"discoveryURL" yaml:"discoveryURL"`
 }
 
+// GenericOIDCConfig contains configuration for a generic OIDC provider
+type GenericOIDCConfig struct {
+	// ClientID is the OAuth2 client ID
+	ClientID string `json:"clientID" yaml:"clientID"`
+	// ClientSecret is the OAuth2 client secret
+	ClientSecret string `json:"clientSecret" yaml:"clientSecret"`
+	// RedirectURL is the URL to redirect users to after login
+	RedirectURL string `json:"redirectURL" yaml:"redirectURL"`
+	// DiscoveryURL is the URL for the OpenID Connect discovery document
+	DiscoveryURL string `json:"discoveryURL" yaml:"discoveryURL"`
+	// Scopes are the OAuth2 scopes to request (optional, defaults to ["openid", "email"])
+	Scopes []string `json:"scopes" yaml:"scopes"`
+	// Issuer allows overwriting the URL for the OpenID Connect issuer
+	Issuer string `json:"issuer" yaml:"issuer"`
+}
+
 // Add a helper method to get the discovery URL with a default
 func (c *GoogleOIDCConfig) GetDiscoveryURL() string {
 	if c.DiscoveryURL != "" {
 		return c.DiscoveryURL
 	}
 	return "https://accounts.google.com/.well-known/openid-configuration"
+}
+
+// GetDiscoveryURL returns the discovery URL for the generic OIDC provider
+func (c *GenericOIDCConfig) GetDiscoveryURL() string {
+	return c.DiscoveryURL
 }
 
 func (c *AssistantServerConfig) GetBindAddress() string {
