@@ -265,6 +265,7 @@ func RegisterAuthRoutes(config *config.OIDCConfig, mux *AuthMux) error {
 	mux.HandleFunc(oidcPathPrefix+"/login", oidc.loginHandler)
 	mux.HandleFunc(oidcPathPrefix+"/callback", oidc.callbackHandler)
 	mux.HandleFunc(oidcPathPrefix+"/logout", oidc.logoutHandler)
+	mux.HandleFunc("/logout", oidc.logoutHandler)
 
 	return nil
 }

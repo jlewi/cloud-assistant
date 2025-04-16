@@ -95,7 +95,7 @@ func TestOIDC_Handlers(t *testing.T) {
 
 	t.Run("LoginHandler", func(t *testing.T) {
 		// Create a test request
-		req := httptest.NewRequest("GET", "/auth/login", nil)
+		req := httptest.NewRequest("GET", "/oidc/login", nil)
 		w := httptest.NewRecorder()
 
 		// Call the handler
@@ -133,7 +133,7 @@ func TestOIDC_Handlers(t *testing.T) {
 		}
 
 		// Create a test request with invalid state
-		req := httptest.NewRequest("GET", "/auth/callback?state=invalid&code=test-code", nil)
+		req := httptest.NewRequest("GET", "/oidc/callback?state=invalid&code=test-code", nil)
 		w := httptest.NewRecorder()
 		oidc.callbackHandler(w, req)
 		resp := w.Result()
@@ -149,7 +149,7 @@ func TestOIDC_Handlers(t *testing.T) {
 		}
 
 		// Create a test request with valid state but no code
-		req = httptest.NewRequest("GET", "/auth/callback?state="+state, nil)
+		req = httptest.NewRequest("GET", "/oidc/callback?state="+state, nil)
 		w = httptest.NewRecorder()
 		oidc.callbackHandler(w, req)
 		resp = w.Result()
@@ -166,33 +166,39 @@ func TestOIDC_Handlers(t *testing.T) {
 	})
 
 	t.Run("LogoutHandler", func(t *testing.T) {
-		// Create a test request
-		req := httptest.NewRequest("GET", "/auth/logout", nil)
-		w := httptest.NewRecorder()
+		testPaths := []string{"/oidc/logout", "/logout"}
 
-		// Call the handler
-		oidc.logoutHandler(w, req)
+		for _, path := range testPaths {
+			t.Run(path, func(t *testing.T) {
+				// Create a test request
+				req := httptest.NewRequest("GET", path, nil)
+				w := httptest.NewRecorder()
 
-		// Check the response
-		resp := w.Result()
-		if resp.StatusCode != http.StatusFound {
-			t.Errorf("Expected status %d, got %d", http.StatusFound, resp.StatusCode)
-		}
+				// Call the handler
+				oidc.logoutHandler(w, req)
 
-		// Verify the cookie is cleared
-		cookies := resp.Cookies()
-		if len(cookies) != 1 {
-			t.Errorf("Expected 1 cookie, got %d", len(cookies))
-		}
-		cookie := cookies[0]
-		if cookie.Name != sessionCookieName {
-			t.Errorf("Expected cookie name %s, got %s", sessionCookieName, cookie.Name)
-		}
-		if cookie.Value != "" {
-			t.Error("Expected empty cookie value")
-		}
-		if cookie.MaxAge != -1 {
-			t.Errorf("Expected MaxAge -1, got %d", cookie.MaxAge)
+				// Check the response
+				resp := w.Result()
+				if resp.StatusCode != http.StatusFound {
+					t.Errorf("Expected status %d, got %d", http.StatusFound, resp.StatusCode)
+				}
+
+				// Verify the cookie is cleared
+				cookies := resp.Cookies()
+				if len(cookies) != 1 {
+					t.Errorf("Expected 1 cookie, got %d", len(cookies))
+				}
+				cookie := cookies[0]
+				if cookie.Name != sessionCookieName {
+					t.Errorf("Expected cookie name %s, got %s", sessionCookieName, cookie.Name)
+				}
+				if cookie.Value != "" {
+					t.Error("Expected empty cookie value")
+				}
+				if cookie.MaxAge != -1 {
+					t.Errorf("Expected MaxAge -1, got %d", cookie.MaxAge)
+				}
+			})
 		}
 	})
 }
