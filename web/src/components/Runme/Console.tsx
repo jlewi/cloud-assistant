@@ -165,6 +165,16 @@ function Console({
   useEffect(() => {
     socket = createWebSocket(settings.runnerEndpoint)
 
+    socket.onclose = (e: CloseEvent) => {
+      if (e.code <= 1000) {
+        return
+      }
+
+      // TODO: This is a temporary fix to redirect to the login on any error
+      const error = `WebSocket closed with code ${e.code}`
+      window.location.href = `/login?error=${encodeURIComponent(error)}`
+    }
+
     socket.onmessage = (event) => {
       if (typeof event.data !== 'string') {
         console.warn('Unexpected WebSocket message type:', typeof event.data)

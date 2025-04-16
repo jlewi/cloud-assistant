@@ -1,6 +1,7 @@
 import { ReactNode, createContext, useContext, useMemo, useState } from 'react'
 
 import { clone, create } from '@bufbuild/protobuf'
+import { ConnectError } from '@connectrpc/connect'
 import { v4 as uuidv4 } from 'uuid'
 
 import {
@@ -51,6 +52,15 @@ export const useBlock = () => {
 interface BlockState {
   blocks: Record<string, Block>
   positions: string[]
+}
+
+const handleConnectError = (error: unknown) => {
+  console.error(error)
+  const connectErr = ConnectError.from(error)
+  // todo: This code is always internal error, let's figure out why later
+  if (connectErr.code) {
+    window.location.href = `/login?error=${encodeURIComponent(connectErr.name)}&error_description=${encodeURIComponent(connectErr.rawMessage)}`
+  }
 }
 
 export const BlockProvider = ({ children }: { children: ReactNode }) => {
@@ -129,7 +139,7 @@ export const BlockProvider = ({ children }: { children: ReactNode }) => {
         setPreviousResponseId(r.responseId)
       }
     } catch (e) {
-      console.error(e)
+      handleConnectError(e)
     } finally {
       setIsTyping(false)
       setIsInputDisabled(false)
