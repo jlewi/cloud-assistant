@@ -297,8 +297,9 @@ func NewAuthMiddleware(config *config.OIDCConfig) (func(http.Handler) http.Handl
 			// Get the session token from the cookie
 			cookie, err := r.Cookie(sessionCookieName)
 			if err != nil {
-				// No session cookie, redirect to login
-				http.Redirect(w, r, oidcPathPrefix+"/login", http.StatusFound)
+				// No session cookie, return 401 Unauthorized
+				log.Error(err, "No session cookie found")
+				http.Error(w, "Unauthorized: No valid session", http.StatusUnauthorized)
 				return
 			}
 
@@ -308,8 +309,8 @@ func NewAuthMiddleware(config *config.OIDCConfig) (func(http.Handler) http.Handl
 			valid, err := oidc.verifyToken(idToken)
 			if !valid {
 				log.Error(err, "Token validation failed")
-				// This could lead to an infinite redirect loop, browsers detect this and stop it
-				http.Redirect(w, r, oidcPathPrefix+"/login", http.StatusFound)
+				// Return HTTP 401 and let the client handle the redirect to the login page
+				http.Error(w, "Unauthorized: Invalid or expired token", http.StatusUnauthorized)
 				return
 			}
 

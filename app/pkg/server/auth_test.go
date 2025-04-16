@@ -583,11 +583,7 @@ func TestOIDC_UnauthenticatedRoutes(t *testing.T) {
 	req = httptest.NewRequest("GET", "/protected", nil)
 	rec = httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
-	if rec.Code != http.StatusFound {
-		t.Errorf("Expected status code %d, got %d", http.StatusFound, rec.Code)
-	}
-	resp := rec.Result()
-	if location := resp.Header.Get("Location"); location != "/oidc/login" {
-		t.Errorf("Expected redirect to /oidc/login, got %s", location)
+	if rec.Code != http.StatusUnauthorized {
+		t.Errorf("Expected status code %d, got %d", http.StatusUnauthorized, rec.Code)
 	}
 }
