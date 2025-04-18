@@ -20,13 +20,13 @@ interface SettingsContextType {
 
 const getDefaultSettings = (): Settings => ({
   agentEndpoint:
-    window.location.protocol === 'https:'
-      ? 'https://agent.example.com'
-      : 'http://agent.example.com',
+    window.location.hostname === 'localhost'
+      ? 'http://localhost:8080'
+      : window.location.origin,
   runnerEndpoint:
-    window.location.protocol === 'https:'
-      ? 'wss://runner.example.com'
-      : 'ws://runner.example.com',
+    window.location.hostname === 'localhost'
+      ? 'ws://localhost:8080/ws'
+      : `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws`,
   requireAuth: false,
 })
 
