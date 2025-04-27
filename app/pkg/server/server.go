@@ -176,9 +176,12 @@ func (s *Server) registerServices() error {
 
 	// Register auth routes if OIDC is configured
 	if s.serverConfig.OIDC != nil {
+		log.Info("OIDC is configured; registering auth routes")
 		if err := RegisterAuthRoutes(s.serverConfig.OIDC, mux); err != nil {
 			return errors.Wrapf(err, "Failed to register auth routes")
 		}
+	} else {
+		log.Info("OIDC is not configured; auth routes will not be registered")
 	}
 
 	if s.agent != nil {

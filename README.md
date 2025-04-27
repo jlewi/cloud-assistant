@@ -61,6 +61,16 @@ assistantServer:
 ./app/.build/cas config set assistantServer.staticAssets=$(PWD)/web/dist
 ```
 
+### Setting Up Auth Using Microsoft Entra ID
+
+The OIDC discovery URL will be
+
+```
+ https://login.microsoftonline.com/${TENANT_ID}/v2.0/.well-known/openid-configuration
+```
+
+Where ${TENANT_ID} is the ID of your Microsoft Entra ID tenant.
+
 ### Build the static assets
 
 ```sh
