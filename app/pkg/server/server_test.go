@@ -31,6 +31,30 @@ import (
   "google.golang.org/protobuf/encoding/protojson"
 )
 
+func Test_HealthCheck(t *testing.T) {
+  // Try sending a healthcheck to the given server.
+  // This is solely for the purpose of trying to reproduce the grpc-trailer issue
+  SkipIfMissing(t, "RUN_MANUAL_TESTS")
+  app := application.NewApp()
+  err := app.LoadConfig(nil)
+  if err != nil {
+    t.Fatalf("Error loading config; %v", err)
+  }
+
+  if err := app.SetupLogging(); err != nil {
+    t.Fatalf("Error setting up logging; %v", err)
+  }
+  // N.B. Server currently needs to be started manually. Should we start it autommatically?
+  //addr := fmt.Sprintf("http://localhost:%v", cfg.AssistantServer.Port)
+
+  // DO NOT COMMIT
+  addr := fmt.Sprintf("https://localhost:8080")
+  if err := waitForServer(addr); err != nil {
+    t.Fatalf("Error waiting for server; %v", err)
+  }
+  t.Logf("Server started")
+}
+
 func Test_GenerateBlocks(t *testing.T) {
   SkipIfMissing(t, "RUN_MANUAL_TESTS")
 

@@ -214,6 +214,8 @@ func (s *Server) registerServices() error {
   checker := grpchealth.NewStaticChecker()
   mux.Handle(grpchealth.NewHandler(checker))
 
+  mux.HandleFunc("/trailerstest", trailersTest)
+
   // Handle the single page app and assets unprotected
   singlePageApp, err := s.singlePageAppHandler()
   if err != nil {
@@ -224,6 +226,21 @@ func (s *Server) registerServices() error {
   s.engine = mux
 
   return nil
+}
+
+// trailersTest is a function to test returning trailers
+func trailersTest(w http.ResponseWriter, r *http.Request) {
+  w.Header().Set("Content-Type", "application/grpc+proto")
+  w.Header().Set("Trailer", "Grpc-Status, Grpc-Message")
+
+  w.WriteHeader(http.StatusOK)
+
+  // Write response body
+  w.Write([]byte("... this is the response ..."))
+
+  // Now set trailers
+  w.Header().Set("Grpc-Status", "0")
+  w.Header().Set("Grpc-Message", "OK")
 }
 
 func (s *Server) shutdown() {
