@@ -134,7 +134,7 @@ func (s *Server) Run() error {
     return errors.Wrapf(err, "Could not start listener")
   }
   go func() {
-    if true {
+    if false {
       certFile := "/Users/jlewi/test-cert/cert.pem"
       keyFile := "/Users/jlewi/test-cert/key.pem"
       if err := hServer.ServeTLS(lis, certFile, keyFile); err != nil {
