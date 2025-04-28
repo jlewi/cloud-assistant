@@ -3,8 +3,11 @@ package cmd
 import (
 	"github.com/jlewi/cloud-assistant/app/pkg/ai"
 	"github.com/jlewi/cloud-assistant/app/pkg/application"
+	"github.com/jlewi/cloud-assistant/app/pkg/config"
 	"github.com/jlewi/cloud-assistant/app/pkg/server"
+	"github.com/jlewi/cloud-assistant/app/pkg/tlsbuilder"
 	"github.com/spf13/cobra"
+	"path/filepath"
 )
 
 func NewServeCmd() *cobra.Command {
@@ -42,6 +45,15 @@ func NewServeCmd() *cobra.Command {
 			agent, err := ai.NewAgent(*agentOptions)
 			if err != nil {
 				return err
+			}
+
+			// Setup the defaults for the TLSConfig
+			// TODO(jlewi): This is a bit of a hack. We wanted someway to plumb the default directory into the TLSConfiguration
+			if app.Config.AssistantServer.TLSConfig == nil {
+				app.Config.AssistantServer.TLSConfig = &config.TLSConfig{
+					KeyFile:  filepath.Join(app.Config.GetConfigDir(), tlsbuilder.KeyPEMFile),
+					CertFile: filepath.Join(app.Config.GetConfigDir(), tlsbuilder.CertPEMFile),
+				}
 			}
 
 			serverOptions := &server.Options{
