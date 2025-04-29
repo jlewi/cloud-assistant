@@ -35,3 +35,4 @@ sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keyc
 ### Configure the webapp
 
 In the webapp click settings and set the runner endpoint to `wss://localhost:8443/ws`.
+Adjust the port as necessary based on the port you are running on.

@@ -111,7 +111,9 @@ func (s *Server) Run() error {
 		serverConfig = &config.AssistantServerConfig{}
 	}
 
-	address := fmt.Sprintf("%s:%d", serverConfig.GetBindAddress(), serverConfig.GetPort())
+	port := serverConfig.GetPort()
+
+	address := fmt.Sprintf("%s:%d", serverConfig.GetBindAddress(), port)
 	log.Info("Starting http server", "address", address)
 
 	// N.B. We don't use an http2 server because we are using websockets and we were having some issues with
@@ -121,6 +123,7 @@ func (s *Server) Run() error {
 		WriteTimeout: 0,
 		ReadTimeout:  0,
 		// We need to wrap it in h2c to support HTTP/2 without TLS
+		// TODO(jlewi): Should we only enable h2c if tls isn't enabled?
 		Handler: h2c.NewHandler(s.engine, &http2.Server{}),
 	}
 	// Enable HTTP/2 support
