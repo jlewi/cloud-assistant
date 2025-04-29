@@ -146,6 +146,7 @@ func (s *Server) Run() error {
 	}
 
 	go func() {
+		// TODO(jlewi): Should we support running TLS and non HTTP on two different ports?
 		if serverConfig.TLSConfig != nil {
 			log.Info("Starting TLS server", "certFile", serverConfig.TLSConfig.CertFile, "keyFile", serverConfig.TLSConfig.KeyFile)
 			// If TLS is enabled, we need to set up the TLS config

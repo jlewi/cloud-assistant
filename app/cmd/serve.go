@@ -5,7 +5,6 @@ import (
 
 	"github.com/jlewi/cloud-assistant/app/pkg/ai"
 	"github.com/jlewi/cloud-assistant/app/pkg/application"
-	"github.com/jlewi/cloud-assistant/app/pkg/config"
 	"github.com/jlewi/cloud-assistant/app/pkg/server"
 	"github.com/jlewi/cloud-assistant/app/pkg/tlsbuilder"
 	"github.com/spf13/cobra"
@@ -49,11 +48,14 @@ func NewServeCmd() *cobra.Command {
 			}
 
 			// Setup the defaults for the TLSConfig
-			// TODO(jlewi): This is a bit of a hack. We wanted someway to plumb the default directory into the TLSConfiguration
-			if app.Config.AssistantServer.TLSConfig == nil {
-				app.Config.AssistantServer.TLSConfig = &config.TLSConfig{
-					KeyFile:  filepath.Join(app.Config.GetConfigDir(), tlsbuilder.KeyPEMFile),
-					CertFile: filepath.Join(app.Config.GetConfigDir(), tlsbuilder.CertPEMFile),
+			if app.Config.AssistantServer.TLSConfig != nil && app.Config.AssistantServer.TLSConfig.Generate {
+				// Set the default values for the TLSConfig
+				if app.Config.AssistantServer.TLSConfig.KeyFile == "" {
+					app.Config.AssistantServer.TLSConfig.KeyFile = filepath.Join(app.Config.GetConfigDir(), tlsbuilder.KeyPEMFile)
+				}
+
+				if app.Config.AssistantServer.TLSConfig.CertFile == "" {
+					app.Config.AssistantServer.TLSConfig.CertFile = filepath.Join(app.Config.GetConfigDir(), tlsbuilder.CertPEMFile)
 				}
 			}
 

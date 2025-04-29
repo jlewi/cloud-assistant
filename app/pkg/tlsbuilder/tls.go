@@ -1,4 +1,6 @@
-// tlsbuilder package is a copy of the tls package in runme.dev
+// tlsbuilder package was based on the tls package in runme.dev
+// It was modified to generate certificates suitable for server encryption. The runme package is generating
+// certificates for mutual TLs.
 package tlsbuilder
 
 import (
@@ -140,25 +142,24 @@ func generateCertificate(certFile, keyFile string) (*tls.Config, error) {
 	ca := &x509.Certificate{
 		SerialNumber: big.NewInt(1),
 		Subject: pkix.Name{
-			CommonName:   "runme",
-			Organization: []string{"Stateful, Inc."},
+			CommonName:   "Cloud Assistant",
+			Organization: []string{"Acme Inc."},
 			Country:      []string{"US"},
 			Province:     []string{"California"},
-			Locality:     []string{"Berkeley"},
+			Locality:     []string{"San Francisco"},
 		},
-		NotBefore:             nowFn(),
-		NotAfter:              nowFn().AddDate(0, 0, 30),
-		IsCA:                  true,
-		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
-		KeyUsage:              x509.KeyUsageDigitalSignature | x509.KeyUsageCertSign,
-		BasicConstraintsValid: true,
-		SignatureAlgorithm:    x509.SHA256WithRSA,
+		NotBefore:          nowFn(),
+		NotAfter:           nowFn().AddDate(0, 0, 365),
+		SignatureAlgorithm: x509.SHA256WithRSA,
+		IsCA:               false, // Important: NOT a CA
+		KeyUsage:           x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment,
+		ExtKeyUsage:        []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+
+		DNSNames: []string{"localhost"},
 		IPAddresses: []net.IP{
-			net.IPv4(127, 0, 0, 1),
+			net.ParseIP("127.0.0.1"),
 		},
-		DNSNames: []string{
-			"localhost",
-		},
+		BasicConstraintsValid: true,
 	}
 
 	certificateBytes, err := x509.CreateCertificate(rand.Reader, ca, ca, &privKey.PublicKey, privKey)
@@ -205,8 +206,6 @@ func generateCertificate(certFile, keyFile string) (*tls.Config, error) {
 
 	tlsConfig := &tls.Config{
 		Certificates: []tls.Certificate{tlsCA},
-		ClientAuth:   tls.RequireAndVerifyClientCert,
-		ClientCAs:    certPool,
 		MinVersion:   tls.VersionTLS12,
 	}
 
