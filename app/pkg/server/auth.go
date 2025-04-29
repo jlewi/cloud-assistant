@@ -27,9 +27,9 @@ import (
 )
 
 const (
-	oidcPathPrefix = "/oidc"
+	oidcPathPrefix    = "/oidc"
 	sessionCookieName = "cassie-session"
-	stateLength = 32
+	stateLength       = 32
 )
 
 // OIDC handles OAuth2 authentication setup and management
@@ -329,10 +329,10 @@ func (o *OIDC) loginHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
-  url := o.oauth2.AuthCodeURL(state)
-  if o.config.ForceApproval {
-    url = o.oauth2.AuthCodeURL(state, oauth2.ApprovalForce)
-  }
+	url := o.oauth2.AuthCodeURL(state)
+	if o.config.ForceApproval {
+		url = o.oauth2.AuthCodeURL(state, oauth2.ApprovalForce)
+	}
 	http.Redirect(w, r, url, http.StatusFound)
 }
 
@@ -424,14 +424,14 @@ type stateEntry struct {
 
 type stateManager struct {
 	stateExpiration time.Duration
-	states map[string]stateEntry
-	mu     sync.RWMutex
+	states          map[string]stateEntry
+	mu              sync.RWMutex
 }
 
 func newStateManager(stateExpiration time.Duration) *stateManager {
 	return &stateManager{
 		stateExpiration: stateExpiration,
-		states: make(map[string]stateEntry),
+		states:          make(map[string]stateEntry),
 	}
 }
 
@@ -499,14 +499,14 @@ type jwks struct {
 
 // openIDDiscovery is the struct for parsing the discovery document
 type openIDDiscovery struct {
-	Issuer                 string   `json:"issuer"`
-	AuthURL                string   `json:"authorization_endpoint"`
-	TokenURL               string   `json:"token_endpoint"`
-	JWKSURI                string   `json:"jwks_uri"`
-	UserInfoURL            string   `json:"userinfo_endpoint"`
-	ScopesSupported        []string `json:"scopes_supported"`
-	ResponseTypesSupported []string `json:"response_types_supported"`
-	SubjectTypesSupported  []string `json:"subject_types_supported"`
+	Issuer                           string   `json:"issuer"`
+	AuthURL                          string   `json:"authorization_endpoint"`
+	TokenURL                         string   `json:"token_endpoint"`
+	JWKSURI                          string   `json:"jwks_uri"`
+	UserInfoURL                      string   `json:"userinfo_endpoint"`
+	ScopesSupported                  []string `json:"scopes_supported"`
+	ResponseTypesSupported           []string `json:"response_types_supported"`
+	SubjectTypesSupported            []string `json:"subject_types_supported"`
 	IDTokenSigningAlgValuesSupported []string `json:"id_token_signing_alg_values_supported"`
 }
 
@@ -608,9 +608,9 @@ func (p *GenericProvider) ValidateDomainClaims(claims jwt.MapClaims, allowedDoma
 
 // AuthMux wraps http.ServeMux to add protected route handling
 type AuthMux struct {
-	mux *http.ServeMux
+	mux            *http.ServeMux
 	authMiddleware func(http.Handler) http.Handler
-	serverConfig *config.AssistantServerConfig
+	serverConfig   *config.AssistantServerConfig
 }
 
 // NewAuthMux creates a new AuthMux
@@ -633,9 +633,9 @@ func NewAuthMux(serverConfig *config.AssistantServerConfig) (*AuthMux, error) {
 	}
 
 	return &AuthMux{
-		mux: mux,
+		mux:            mux,
 		authMiddleware: authMiddleware,
-		serverConfig: serverConfig,
+		serverConfig:   serverConfig,
 	}, nil
 }
 
