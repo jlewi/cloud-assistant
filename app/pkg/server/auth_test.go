@@ -237,7 +237,7 @@ func TestOIDC_DownloadJWKS(t *testing.T) {
 	cfg := &config.OIDCConfig{
 		Google: &config.GoogleOIDCConfig{
 			ClientCredentialsFile: "testdata/google-client-dummy.json",
-			DiscoveryURL: "https://accounts.google.com/.well-known/openid-configuration",
+			DiscoveryURL:          "https://accounts.google.com/.well-known/openid-configuration",
 		},
 	}
 	oidc, err := newOIDC(cfg)
@@ -315,7 +315,7 @@ func TestOIDC_VerifyToken(t *testing.T) {
 		t.Error("Invalid token was accepted")
 	}
 
-  // Test with unknown domain
+	// Test with unknown domain
 	claims["hd"] = "unknown.com"
 	token = jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
 	token.Header["kid"] = "test-key"
@@ -549,7 +549,7 @@ func TestOIDC_UnauthenticatedRoutes(t *testing.T) {
 	// Create server config
 	serverConfig := &config.AssistantServerConfig{
 		CorsOrigins: []string{"http://localhost:3000"},
-		OIDC: oidcConfig,
+		OIDC:        oidcConfig,
 	}
 
 	// Create auth mux

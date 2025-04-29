@@ -44,11 +44,6 @@ func Test_HealthCheck(t *testing.T) {
 	if err := app.SetupLogging(); err != nil {
 		t.Fatalf("Error setting up logging; %v", err)
 	}
-	// N.B. Server currently needs to be started manually. Should we start it autommatically?
-	//addr := fmt.Sprintf("http://localhost:%v", cfg.AssistantServer.Port)
-
-	// DO NOT COMMIT
-
 	addr := fmt.Sprintf("https://localhost:9080")
 	if err := waitForServer(addr); err != nil {
 		t.Fatalf("Error waiting for server; %v", err)
@@ -81,21 +76,13 @@ func Test_GenerateBlocks(t *testing.T) {
 		cfg.AssistantServer = &config.AssistantServerConfig{}
 	}
 	cfg.AssistantServer.Port = port
-	// N.B. Server currently needs to be started manually. Should we start it autommatically?
-	//addr := fmt.Sprintf("http://localhost:%v", cfg.AssistantServer.Port)
+	addr := fmt.Sprintf("https://localhost:%v", cfg.AssistantServer.Port)
 
-	// DO NOT COMMIT
-	//addr := fmt.Sprintf("https://localhost:%v", cfg.AssistantServer.Port)
-
-	addr := fmt.Sprintf("https://localhost:8080")
-	//addr := fmt.Sprintf("http://localhost:9080")
-	if false {
-		go func() {
-			if err := setupAndRunServer(*cfg); err != nil {
-				log.Error(err, "Error running server")
-			}
-		}()
-	}
+	go func() {
+		if err := setupAndRunServer(*cfg); err != nil {
+			log.Error(err, "Error running server")
+		}
+	}()
 
 	// N.B. There's probably a race condition here because the client might start before the server is fully up.
 	// Or maybe that's implicitly handled because the connection won't succeed until the server is up?
@@ -207,7 +194,10 @@ func runAIClient(baseURL string) (map[string]*cassie.Block, error) {
 			},
 		},
 	}
-	stream, err := client.Generate(ctx, connect.NewRequest(genReq))
+	req := connect.NewRequest(genReq)
+
+	//req.Header().Set("Grpc-Accept-Encoding", "gzip")
+	stream, err := client.Generate(ctx, req)
 	if err != nil {
 		return blocks, errors.Wrapf(err, "Failed to create generate stream")
 	}
@@ -413,9 +403,7 @@ func waitForServer(addr string) error {
 			customHTTPClient,
 			//http.DefaultClient,
 			addr+"/grpc.health.v1.Health/Check", // Adjust if using a different route
-			//addr,
-			//connect.WithGRPC(),
-			// N.B. We use GRPCWeb to mimic what the frontend does. The frontend will use GRPCWeb to get streaming.
+			// N.B. We use GRPCWeb to mimic what the frontend does. The frontend will use GRPCWeb to support streaming.
 			connect.WithGRPCWeb(),
 		)
 

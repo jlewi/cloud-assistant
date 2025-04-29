@@ -1,13 +1,14 @@
 package cmd
 
 import (
+	"path/filepath"
+
 	"github.com/jlewi/cloud-assistant/app/pkg/ai"
 	"github.com/jlewi/cloud-assistant/app/pkg/application"
 	"github.com/jlewi/cloud-assistant/app/pkg/config"
 	"github.com/jlewi/cloud-assistant/app/pkg/server"
 	"github.com/jlewi/cloud-assistant/app/pkg/tlsbuilder"
 	"github.com/spf13/cobra"
-	"path/filepath"
 )
 
 func NewServeCmd() *cobra.Command {
