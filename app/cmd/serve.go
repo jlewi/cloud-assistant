@@ -47,6 +47,7 @@ func NewServeCmd() *cobra.Command {
 			serverOptions := &server.Options{
 				Telemetry: app.Config.Telemetry,
 				Server:    app.Config.AssistantServer,
+				IAMPolicy: app.Config.IAMPolicy,
 			}
 			s, err := server.NewServer(*serverOptions, agent)
 			if err != nil {

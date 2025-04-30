@@ -3,7 +3,9 @@ package server
 import (
 	"connectrpc.com/connect"
 	"connectrpc.com/grpchealth"
+	"github.com/jlewi/cloud-assistant/app/api"
 	"github.com/jlewi/cloud-assistant/app/pkg/ai"
+	"github.com/jlewi/cloud-assistant/app/pkg/iam"
 	"github.com/jlewi/cloud-assistant/protos/gen/cassie/cassieconnect"
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
@@ -39,11 +41,13 @@ type Server struct {
 	shutdownComplete chan bool
 	runner           *Runner
 	agent            *ai.Agent
+	checker          iam.Checker
 }
 
 type Options struct {
 	Telemetry *config.TelemetryConfig
 	Server    *config.AssistantServerConfig
+	IAMPolicy *api.IAMPolicy
 }
 
 // NewServer creates a new server
@@ -82,11 +86,32 @@ func NewServer(opts Options, agent *ai.Agent) (*Server, error) {
 		log.Info("Runner service is disabled")
 	}
 
+	if opts.Server.OIDC == nil && opts.IAMPolicy != nil {
+		return nil, errors.New("IAM policy is set but OIDC is not configured")
+	}
+
+	if opts.Server.OIDC != nil && opts.IAMPolicy == nil {
+		return nil, errors.New("IAM policy must be set if OIDC is configured")
+	}
+
+	var checker iam.Checker
+
+	if opts.IAMPolicy != nil {
+		c, err := iam.NewChecker(*opts.IAMPolicy)
+		if err != nil {
+			return nil, errors.Wrapf(err, "Failed to create IAM policy checker")
+		}
+		checker = c
+	} else {
+		checker = &iam.AllowAllChecker{}
+	}
+
 	s := &Server{
 		telemetry:    opts.Telemetry,
 		serverConfig: opts.Server,
 		runner:       runner,
 		agent:        agent,
+		checker:      checker,
 	}
 	return s, nil
 }
@@ -188,7 +213,7 @@ func (s *Server) registerServices() error {
 		aiSvcPath, aiSvcHandler := cassieconnect.NewBlocksServiceHandler(s.agent, connect.WithInterceptors(interceptors...))
 		log.Info("Setting up AI service", "path", aiSvcPath)
 		// Protect the AI service
-		mux.HandleProtected(aiSvcPath, aiSvcHandler)
+		mux.HandleProtected(aiSvcPath, aiSvcHandler, s.checker, api.AgentUserRole)
 	} else {
 		log.Info("Agent is nil; AI service is disabled")
 	}
@@ -198,7 +223,7 @@ func (s *Server) registerServices() error {
 			runner: s.runner,
 		}
 		// Protect the WebSocket handler
-		mux.HandleProtected("/ws", http.HandlerFunc(sHandler.Handler))
+		mux.HandleProtected("/ws", http.HandlerFunc(sHandler.Handler), s.checker, api.RunnerUserRole)
 		log.Info("Setting up runner service", "path", "/ws")
 	}
 

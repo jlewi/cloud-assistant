@@ -46,9 +46,6 @@ assistantServer:
                 - "openid"
                 - "email"
             issuer: https://login.microsoftonline.com/9188040d-6c67-4c5b-b112-36a304b66dad/v2.0 # TODO: change this to your own tenant ID
-        domains:
-            - "evilcorp.com"
-            - "myemail.com"
         forceApproval: false # helpful for troubleshooting issues with OIDC
 ```
 
@@ -60,16 +57,6 @@ assistantServer:
  cd ${REPOSITORY}
 ./app/.build/cas config set assistantServer.staticAssets=$(PWD)/web/dist
 ```
-
-### Setting Up Auth Using Microsoft Entra ID
-
-The OIDC discovery URL will be
-
-```
- https://login.microsoftonline.com/${TENANT_ID}/v2.0/.well-known/openid-configuration
-```
-
-Where ${TENANT_ID} is the ID of your Microsoft Entra ID tenant.
 
 ### Build the static assets
 

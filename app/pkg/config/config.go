@@ -57,6 +57,10 @@ type Config struct {
 
 	CloudAssistant  *CloudAssistantConfig  `json:"cloudAssistant,omitempty" yaml:"cloudAssistant,omitempty"`
 	AssistantServer *AssistantServerConfig `json:"assistantServer,omitempty" yaml:"assistantServer,omitempty"`
+
+	// IAMPolicy is the IAM policy for the service. It only matters if OIDC is enabled in the AssistantServerConfig.
+	IAMPolicy *api.IAMPolicy `json:"iamPolicy,omitempty" yaml:"iamPolicy,omitempty"`
+
 	// configFile is the configuration file used
 	configFile string
 }

@@ -1,11 +1,14 @@
 package server
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/rsa"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"github.com/jlewi/cloud-assistant/app/pkg/iam"
+	"github.com/jlewi/cloud-assistant/app/pkg/logs"
 	"math/big"
 	"net/http"
 	"net/url"
@@ -30,6 +33,7 @@ const (
 	oidcPathPrefix    = "/oidc"
 	sessionCookieName = "cassie-session"
 	stateLength       = 32
+	IDTokenKey        = "idToken"
 )
 
 // OIDC handles OAuth2 authentication setup and management
@@ -188,7 +192,8 @@ func (o *OIDC) downloadJWKS() error {
 }
 
 // verifyToken verifies the JWT token and returns whether it's valid and any error encountered
-func (o *OIDC) verifyToken(idToken string) (bool, error) {
+// result is nil if its an invalid token and non-nil if its valid
+func (o *OIDC) verifyToken(idToken string) (*jwt.Token, error) {
 	// Verify the token signature using JWKS
 	token, err := jwt.Parse(idToken, func(token *jwt.Token) (any, error) {
 		// Verify the signing method is what we expect
@@ -212,42 +217,37 @@ func (o *OIDC) verifyToken(idToken string) (bool, error) {
 	})
 
 	if err != nil || !token.Valid {
-		return false, fmt.Errorf("invalid token signature: %v", err)
+		return nil, fmt.Errorf("invalid token signature: %v", err)
 	}
 
 	// Get the claims from the token
 	claims, ok := token.Claims.(jwt.MapClaims)
 	if !ok {
-		return false, errors.New("failed to get claims from token")
+		return nil, errors.New("failed to get claims from token")
 	}
 
 	// Verify expiration
 	exp, err := claims.GetExpirationTime()
 	if err != nil {
-		return false, fmt.Errorf("failed to get expiration from claims: %v", err)
+		return nil, fmt.Errorf("failed to get expiration from claims: %v", err)
 	}
 	if time.Now().After(exp.Time) {
-		return false, errors.New("token expired")
+		return nil, errors.New("token expired")
 	}
 
 	// Verify issuer
 	iss, err := claims.GetIssuer()
 	if err != nil || iss != o.discovery.Issuer {
-		return false, fmt.Errorf("invalid token issuer: got %v, expected %v", iss, o.discovery.Issuer)
+		return nil, fmt.Errorf("invalid token issuer: got %v, expected %v", iss, o.discovery.Issuer)
 	}
 
 	// Verify audience matches our client ID
 	aud, err := claims.GetAudience()
 	if err != nil || len(aud) == 0 || aud[0] != o.oauth2.ClientID {
-		return false, fmt.Errorf("invalid token audience: got %v, expected %v", aud, o.oauth2.ClientID)
+		return nil, fmt.Errorf("invalid token audience: got %v, expected %v", aud, o.oauth2.ClientID)
 	}
 
-	// Validate claims using the provider-specific implementation
-	if err := o.provider.ValidateDomainClaims(claims, o.config.Domains); err != nil {
-		return false, err
-	}
-
-	return true, nil
+	return token, nil
 }
 
 // RegisterAuthRoutes registers the OAuth2 authentication routes
@@ -303,19 +303,22 @@ func NewAuthMiddleware(config *config.OIDCConfig) (func(http.Handler) http.Handl
 				return
 			}
 
-			// Verify the token offline by parsing and validating the JWT
+			// Verify the token by parsing and validating the JWT
 			idToken := cookie.Value
 
-			valid, err := oidc.verifyToken(idToken)
-			if !valid {
+			token, err := oidc.verifyToken(idToken)
+			if token == nil {
 				log.Error(err, "Token validation failed")
 				// Return HTTP 401 and let the client handle the redirect to the login page
 				http.Error(w, "Unauthorized: Invalid or expired token", http.StatusUnauthorized)
 				return
 			}
 
+			// Add the IDToken to the context
+			ctx := context.WithValue(r.Context(), IDTokenKey, token)
+
 			// Token is valid, proceed with the request
-			next.ServeHTTP(w, r)
+			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}, nil
 }
@@ -516,8 +519,6 @@ type OIDCProvider interface {
 	GetOAuth2Config() (*oauth2.Config, error)
 	// GetDiscoveryURL returns the OpenID Connect discovery URL
 	GetDiscoveryURL() string
-	// ValidateDomainClaims validates the claims from the ID token
-	ValidateDomainClaims(claims jwt.MapClaims, allowedDomains []string) error
 }
 
 // GoogleProvider implements OIDCProvider for Google OAuth2
@@ -650,7 +651,7 @@ func (p *AuthMux) HandleFunc(pattern string, handler func(http.ResponseWriter, *
 }
 
 // HandleProtected registers a protected handler for the given pattern
-func (p *AuthMux) HandleProtected(pattern string, handler http.Handler) {
+func (p *AuthMux) HandleProtected(pattern string, handler http.Handler, checker iam.Checker, role string) {
 	// Apply CORS if origins are configured
 	if len(p.serverConfig.CorsOrigins) > 0 {
 		c := cors.New(cors.Options{
@@ -663,8 +664,45 @@ func (p *AuthMux) HandleProtected(pattern string, handler http.Handler) {
 		handler = c.Handler(handler)
 	}
 
-	// Apply auth middleware
-	p.mux.Handle(pattern, p.authMiddleware(handler))
+	// We need to create a new Auth middleware that will apply the IAM checks specific to this handler
+	iamChecker := func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+			log := logs.FromContext(r.Context())
+			idToken := getIDToken(r.Context())
+			if idToken == nil {
+				log.Info("Unauthorized: No session")
+				http.Error(w, "Unauthorized: No valid session", http.StatusUnauthorized)
+				return
+			}
+
+			claims, ok := idToken.Claims.(jwt.MapClaims)
+			if !ok {
+				log.Info("Unauthorized invalid claims")
+				http.Error(w, "Unauthorized: Invalid token claims", http.StatusUnauthorized)
+				return
+			}
+
+			email, ok := claims["email"].(string)
+			if !ok {
+				log.Info("Unauthorized: Missing email claim")
+				http.Error(w, "Unauthorized: Missing email claim", http.StatusUnauthorized)
+				return
+			}
+
+			if !checker.Check(email, role) {
+				log.Info("Unauthorized", "user", email, "role", role)
+				http.Error(w, fmt.Sprintf("Forbidden: user %s doesn't have role %s", email, role), http.StatusForbidden)
+				return
+			}
+
+			// Get the IDToken from the context
+			next.ServeHTTP(w, r)
+		})
+	}
+
+	// Create a chain: check the IDToken is valid -> Apply AuthZ -> call the handler
+	p.mux.Handle(pattern, p.authMiddleware(iamChecker(handler)))
 }
 
 // HandleProtectedFunc registers a protected handler function for the given pattern
@@ -675,4 +713,19 @@ func (p *AuthMux) HandleProtectedFunc(pattern string, handler func(http.Response
 // ServeHTTP implements http.Handler
 func (p *AuthMux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	p.mux.ServeHTTP(w, r)
+}
+
+// getIDToken retrieves the ID token from the context if there is one or nil
+func getIDToken(ctx context.Context) *jwt.Token {
+	idToken := ctx.Value(IDTokenKey)
+	if idToken == nil {
+		return nil
+	}
+	token, ok := idToken.(*jwt.Token)
+	if !ok {
+		log := zapr.NewLogger(zap.L())
+		log.Error(errors.New("ID token is not of type *jwt.Token"), "invalid ID token")
+		return nil
+	}
+	return token
 }
