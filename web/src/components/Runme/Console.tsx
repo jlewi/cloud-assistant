@@ -170,6 +170,15 @@ function Console({
     }
 
     socket = createWebSocket(settings.runnerEndpoint)
+
+    socket.onclose = (e: CloseEvent) => {
+      if (e.code <= 1000) {
+        return
+      }
+
+      console.error('WebSocket closed with code:', e.code)
+    }
+
     socket.onmessage = (event) => {
       if (typeof event.data !== 'string') {
         console.warn('Unexpected WebSocket message type:', typeof event.data)
