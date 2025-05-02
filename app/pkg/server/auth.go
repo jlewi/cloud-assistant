@@ -7,8 +7,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"github.com/jlewi/cloud-assistant/app/pkg/iam"
-	"github.com/jlewi/cloud-assistant/app/pkg/logs"
 	"math/big"
 	"net/http"
 	"net/url"
@@ -17,6 +15,9 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/jlewi/cloud-assistant/app/pkg/iam"
+	"github.com/jlewi/cloud-assistant/app/pkg/logs"
 
 	connectcors "connectrpc.com/cors"
 	"github.com/go-logr/zapr"

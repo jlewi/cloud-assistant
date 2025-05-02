@@ -1,9 +1,10 @@
 package iam
 
 import (
+	"strings"
+
 	"github.com/jlewi/cloud-assistant/app/api"
 	"github.com/pkg/errors"
-	"strings"
 )
 
 type Checker interface {
