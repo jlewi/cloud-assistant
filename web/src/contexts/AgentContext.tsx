@@ -7,7 +7,7 @@ import {
 } from 'react'
 import { type FC } from 'react'
 
-import { createClient } from '@connectrpc/connect'
+import { Code, ConnectError, createClient } from '@connectrpc/connect'
 import { createGrpcWebTransport } from '@connectrpc/connect-web'
 
 import * as blocks_pb from '../gen/es/cassie/blocks_pb'
@@ -51,14 +51,28 @@ export const AgentClientProvider: FC<{ children: ReactNode }> = ({
   )
 }
 
+const redirectOnUnauthError = (error: unknown) => {
+  const connectErr = ConnectError.from(error)
+  if (connectErr.code === Code.Unauthenticated) {
+    window.location.href = `/login?error=${encodeURIComponent(connectErr.name)}&error_description=${encodeURIComponent(connectErr.message)}`
+  }
+}
+
 // CreateAgentClient creates a client to to talk to the backend.
 function createAgentClient(baseURL: string): AgentClient {
   console.log(`initializing the client: baseURL ${baseURL}`)
   // We use gRPCWebTransport because we want server side streaming
   const transport = createGrpcWebTransport({
     baseUrl: baseURL,
+    interceptors: [
+      (next) => (req) => {
+        return next(req).catch((e) => {
+          redirectOnUnauthError(e)
+          throw e // allow caller to handle the error
+        })
+      },
+    ],
   })
-
   // Here we make the client itself, combining the service
   // definition with the transport.
   return createClient(blocks_pb.BlocksService, transport)

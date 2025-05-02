@@ -14,6 +14,7 @@ interface Settings {
 
 interface SettingsContextType {
   settings: Settings
+  runnerAuthError: Error | null
   updateSettings: (newSettings: Partial<Settings>) => void
   getDefaultSettings: () => Settings
 }
@@ -52,6 +53,7 @@ export const SettingsProvider = ({
   children,
   requireAuth,
 }: SettingsProviderProps) => {
+  const [runnerAuthError, setRunnerAuthError] = useState<Error | null>(null)
   const [settings, setSettings] = useState<Settings>(() => {
     const savedSettings = localStorage.getItem('cloudAssistantSettings')
     const defaultSettings = getDefaultSettings()
@@ -71,13 +73,50 @@ export const SettingsProvider = ({
     localStorage.setItem('cloudAssistantSettings', JSON.stringify(settings))
   }, [settings])
 
+  useEffect(() => {
+    if (!requireAuth) {
+      return
+    }
+
+    // Use the same endpoint as the WebSocket but with HTTP
+    const endpoint = settings.runnerEndpoint
+      .replace('ws://', 'http://')
+      .replace('wss://', 'https://')
+
+    fetch(endpoint, {
+      method: 'HEAD',
+      credentials: 'include', // Include cookies for authentication
+      headers: {
+        Accept: 'application/json',
+      },
+    })
+      .then((response) => {
+        if (response.status === 401) {
+          setRunnerAuthError(
+            new Error(`${response.status}: ${response.statusText}`)
+          )
+        } else {
+          setRunnerAuthError(null)
+        }
+      })
+      .catch((error) => {
+        console.error('Error checking authentication:', error)
+        setRunnerAuthError(error)
+      })
+  }, [requireAuth, settings.runnerEndpoint])
+
   const updateSettings = (newSettings: Partial<Settings>) => {
     setSettings((prev) => ({ ...prev, ...newSettings }))
   }
 
   return (
     <SettingsContext.Provider
-      value={{ settings, updateSettings, getDefaultSettings }}
+      value={{
+        settings,
+        runnerAuthError,
+        updateSettings,
+        getDefaultSettings,
+      }}
     >
       {children}
     </SettingsContext.Provider>

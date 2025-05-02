@@ -1,9 +1,12 @@
 package cmd
 
 import (
+	"path/filepath"
+
 	"github.com/jlewi/cloud-assistant/app/pkg/ai"
 	"github.com/jlewi/cloud-assistant/app/pkg/application"
 	"github.com/jlewi/cloud-assistant/app/pkg/server"
+	"github.com/jlewi/cloud-assistant/app/pkg/tlsbuilder"
 	"github.com/spf13/cobra"
 )
 
@@ -42,6 +45,18 @@ func NewServeCmd() *cobra.Command {
 			agent, err := ai.NewAgent(*agentOptions)
 			if err != nil {
 				return err
+			}
+
+			// Setup the defaults for the TLSConfig
+			if app.Config.AssistantServer.TLSConfig != nil && app.Config.AssistantServer.TLSConfig.Generate {
+				// Set the default values for the TLSConfig
+				if app.Config.AssistantServer.TLSConfig.KeyFile == "" {
+					app.Config.AssistantServer.TLSConfig.KeyFile = filepath.Join(app.Config.GetConfigDir(), tlsbuilder.KeyPEMFile)
+				}
+
+				if app.Config.AssistantServer.TLSConfig.CertFile == "" {
+					app.Config.AssistantServer.TLSConfig.CertFile = filepath.Join(app.Config.GetConfigDir(), tlsbuilder.CertPEMFile)
+				}
 			}
 
 			serverOptions := &server.Options{

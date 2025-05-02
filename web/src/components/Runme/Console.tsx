@@ -114,7 +114,7 @@ function Console({
   onPid?: (pid: number) => void
   onMimeType?: (mimeType: string) => void
 }) {
-  const { settings } = useSettings()
+  const { settings, runnerAuthError } = useSettings()
   const execReq = buildExecuteRequest()
   const defaults = {
     output: {
@@ -163,6 +163,12 @@ function Console({
   } as Partial<RendererContext<void>>)
 
   useEffect(() => {
+    if (runnerAuthError) {
+      const error = `Websocket authentication check failed: ${runnerAuthError.message}`
+      window.location.href = `/login?error=${encodeURIComponent(error)}`
+      return
+    }
+
     socket = createWebSocket(settings.runnerEndpoint)
 
     socket.onclose = (e: CloseEvent) => {
@@ -170,9 +176,7 @@ function Console({
         return
       }
 
-      // TODO: This is a temporary fix to redirect to the login on any error
-      const error = `WebSocket closed with code ${e.code}`
-      window.location.href = `/login?error=${encodeURIComponent(error)}`
+      console.error('WebSocket closed with code:', e.code)
     }
 
     socket.onmessage = (event) => {
@@ -257,6 +261,7 @@ function Console({
     onStderr,
     onStdout,
     onMimeType,
+    runnerAuthError,
     settings.runnerEndpoint,
   ])
 

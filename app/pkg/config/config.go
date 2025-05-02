@@ -341,6 +341,9 @@ type AssistantServerConfig struct {
 
 	// OIDC configuration
 	OIDC *OIDCConfig `json:"oidc,omitempty" yaml:"oidc,omitempty"`
+
+	// TLSConfig is the TLS configuration
+	TLSConfig *TLSConfig `json:"tlsConfig,omitempty" yaml:"tlsConfig,omitempty"`
 }
 
 // OIDCConfig contains configuration for OIDC authentication
@@ -382,6 +385,17 @@ type GenericOIDCConfig struct {
 	Issuer string `json:"issuer" yaml:"issuer"`
 }
 
+type TLSConfig struct {
+	// Generate is a flag to generate a self-signed certificate if true.
+	// If CertFile and KeyFile are also specified then the key is only generated if one doesn't already exist
+	Generate bool `json:"generate" yaml:"generate"`
+
+	// CertFile is the path to the TLS certificate file
+	CertFile string `json:"certFile" yaml:"certFile"`
+	// KeyFile is the path to the TLS key file
+	KeyFile string `json:"keyFile" yaml:"keyFile"`
+}
+
 // Add a helper method to get the discovery URL with a default
 func (c *GoogleOIDCConfig) GetDiscoveryURL() string {
 	if c.DiscoveryURL != "" {
@@ -404,6 +418,9 @@ func (c *AssistantServerConfig) GetBindAddress() string {
 
 func (c *AssistantServerConfig) GetPort() int {
 	if c.Port <= 0 {
+		if c.TLSConfig != nil {
+			return 8443
+		}
 		return 8080
 	}
 	return c.Port
