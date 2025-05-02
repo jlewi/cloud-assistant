@@ -354,9 +354,6 @@ type OIDCConfig struct {
 	// Generic contains generic OIDC configuration
 	Generic *GenericOIDCConfig `json:"generic,omitempty" yaml:"generic,omitempty"`
 
-	// Domains is a list of allowed domains for OIDC authentication
-	Domains []string `json:"domains" yaml:"domains"`
-
 	// ForceApproval is a flag to force the user to approve the app again
 	ForceApproval bool `json:"forceApproval" yaml:"forceApproval"`
 }

@@ -264,13 +264,18 @@ func (s *Server) registerServices() error {
 
 	mux.HandleFunc("/trailerstest", trailersTest)
 
-	// Handle the single page app and assets unprotected
-	singlePageApp, err := s.singlePageAppHandler()
-	if err != nil {
-		return errors.Wrapf(err, "Failed to serve single page app")
+	// The single page app is currently only enabled in the agent not the runner.
+	if s.agent != nil {
+		// Handle the single page app and assets unprotected
+		log.Info("Single page app is enabled")
+		singlePageApp, err := s.singlePageAppHandler()
+		if err != nil {
+			return errors.Wrapf(err, "Failed to serve single page app")
+		}
+		mux.Handle("/", singlePageApp)
+	} else {
+		log.Info("Single page app is disabled")
 	}
-	mux.Handle("/", singlePageApp)
-
 	s.engine = mux
 
 	return nil

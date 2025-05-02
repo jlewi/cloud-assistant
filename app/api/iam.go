@@ -8,6 +8,13 @@ const (
 	AgentUserRole = "role/agent.user"
 )
 
+type MemberKind string
+
+const (
+	UserKind   MemberKind = "user"
+	DomainKind MemberKind = "domain"
+)
+
 // IAMPolicy is a policy that defines the access control for the service.
 type IAMPolicy struct {
 	// Bindings is a list of bindings that define the access control for the service.
@@ -28,5 +35,6 @@ type Member struct {
 	// Name is the name of the member. e.g. jlewi@acme.com
 	// N.B. In the future we could add a kind field to indicate what type of member it is
 	// (e.g.domain, serviceaccount, group).
-	Name string `json:"name" yaml:"name"`
+	Name string     `json:"name" yaml:"name"`
+	Kind MemberKind `json:"kind" yaml:"kind"`
 }

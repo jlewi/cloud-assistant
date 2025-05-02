@@ -1,6 +1,7 @@
 package iam
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/jlewi/cloud-assistant/app/api"
@@ -15,8 +16,8 @@ type Checker interface {
 type PolicyChecker struct {
 	policy api.IAMPolicy
 
-	// Create a map from roles to members
-	roles map[string]map[string]bool
+	// Create a map from roles to matchers
+	roles map[string][]memberMatcher
 }
 
 // NewChecker creates a new IAM policy checker.
@@ -28,17 +29,35 @@ func NewChecker(policy api.IAMPolicy) (*PolicyChecker, error) {
 
 	c := &PolicyChecker{
 		policy: policy,
-		roles:  make(map[string]map[string]bool),
+		roles:  make(map[string][]memberMatcher),
 	}
 
 	// Cache the roles
 	for _, binding := range policy.Bindings {
 		if _, ok := c.roles[binding.Role]; !ok {
-			c.roles[binding.Role] = make(map[string]bool)
+			c.roles[binding.Role] = make([]memberMatcher, 0, 2)
+		}
+
+		userMatcher := &userChecker{
+			members: make(map[string]bool),
 		}
 
 		for _, member := range binding.Members {
-			c.roles[binding.Role][member.Name] = true
+			switch member.Kind {
+			case api.UserKind:
+				userMatcher.members[member.Name] = true
+			case api.DomainKind:
+				domainMatcher := &domainMatcher{
+					domain: member.Name,
+				}
+				c.roles[binding.Role] = append(c.roles[binding.Role], domainMatcher)
+			default:
+				return nil, errors.Errorf("member %s: kind must be one of: user, domain", member.Name)
+			}
+		}
+
+		if len(userMatcher.members) > 0 {
+			c.roles[binding.Role] = append(c.roles[binding.Role], userMatcher)
 		}
 	}
 
@@ -47,16 +66,18 @@ func NewChecker(policy api.IAMPolicy) (*PolicyChecker, error) {
 
 // Check returns true if and only if the principal has the given role in the IAM policy.
 func (c *PolicyChecker) Check(principal string, role string) bool {
-	members, ok := c.roles[role]
+	matchers, ok := c.roles[role]
 	if !ok {
 		return false
 	}
 
-	if _, ok := members[principal]; ok {
-		return true
-	} else {
-		return false
+	for _, m := range matchers {
+		if m.Check(principal) {
+			return true
+		}
 	}
+
+	return false
 }
 
 // IsValidPolicy checks if the IAM policy is valid. If its not it returns a string with a human readable
@@ -85,6 +106,12 @@ func IsValidPolicy(policy api.IAMPolicy) (bool, string) {
 			if _, ok := allowedRoles[binding.Role]; !ok {
 				violations = append(violations, "binding role must be one of: %s", strings.Join(roleNames, ","))
 			}
+
+			for _, member := range binding.Members {
+				if member.Kind != api.UserKind && member.Kind != api.DomainKind {
+					violations = append(violations, fmt.Sprintf("member %s: kind must be one of: user, domain", member.Name))
+				}
+			}
 		}
 
 		return violations
@@ -105,4 +132,19 @@ type AllowAllChecker struct {
 
 func (c *AllowAllChecker) Check(principal string, role string) bool {
 	return true
+}
+
+// memberMatcher checks whether a member is allowed under some set of rules
+type memberMatcher interface {
+	Check(principal string) bool
+}
+
+// userMatcher checks whether the principal is a member of a list of users
+type userChecker struct {
+	members map[string]bool
+}
+
+func (m *userChecker) Check(principal string) bool {
+	_, ok := m.members[principal]
+	return ok
 }

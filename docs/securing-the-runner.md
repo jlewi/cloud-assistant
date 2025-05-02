@@ -67,10 +67,19 @@ iamPolicy:
     - role: role/agent.user
       members:
       - name: bob@acme.com
+        kind: user
     - role: role/runner.user
       members:
       - name: bob@acme.com
+        kind: user
 ```
+
+kind is either `user` or `domain`.
+
+|kind | Meaning Of Name |
+|------|----------------|
+| user | The email address of the user |
+| domain | The domain of the user. For example `acme.com` would match all users in the domain `acme.com` |
 
 
 
