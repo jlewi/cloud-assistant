@@ -5,7 +5,6 @@ import (
 	"crypto/rsa"
 	"encoding/base64"
 	"encoding/json"
-	"github.com/pkg/errors"
 	"io"
 	"math/big"
 	"net/http"
@@ -13,6 +12,8 @@ import (
 	"net/url"
 	"testing"
 	"time"
+
+	"github.com/pkg/errors"
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/jlewi/cloud-assistant/app/pkg/config"
