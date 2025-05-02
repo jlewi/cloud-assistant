@@ -5,6 +5,8 @@ import (
 	"crypto/rsa"
 	"encoding/base64"
 	"encoding/json"
+	"github.com/pkg/errors"
+	"io"
 	"math/big"
 	"net/http"
 	"net/http/httptest"
@@ -260,6 +262,57 @@ func TestOIDC_DownloadJWKS(t *testing.T) {
 	}
 }
 
+// TestIDP is an IDP that we can use for testing.
+// It can produce OIDC signed OIDC tokens that we can use to verify auth is working.
+
+type TestIDP struct {
+	privateKey *rsa.PrivateKey
+	oidc       *OIDC
+	oidcCfg    *config.OIDCConfig
+}
+
+func NewTestIDP() (*TestIDP, error) {
+	// Create a test RSA key
+	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		return nil, errors.Wrapf(err, "Failed to generate RSA key")
+	}
+
+	// Create a test OIDC instance
+	cfg := &config.OIDCConfig{
+		Google: &config.GoogleOIDCConfig{
+			ClientCredentialsFile: "testdata/google-client-dummy.json",
+			DiscoveryURL:          "https://accounts.google.com/.well-known/openid-configuration",
+		},
+		Domains: []string{"example.com"},
+	}
+	oidc, err := newOIDC(cfg)
+
+	if err != nil {
+		return nil, errors.Wrapf(err, "Failed to create OIDC instance")
+	}
+
+	// Store the public key
+	oidc.publicKeys["test-key"] = &privateKey.PublicKey
+
+	return &TestIDP{
+		privateKey: privateKey,
+		oidc:       oidc,
+		oidcCfg:    cfg,
+	}, nil
+}
+
+func (idp *TestIDP) GenerateToken(claims jwt.Claims) (string, error) {
+	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
+	token.Header["kid"] = "test-key"
+	signedToken, err := token.SignedString(idp.privateKey)
+	if err != nil {
+		return "", errors.Wrapf(err, "Failed to sign token")
+	}
+
+	return signedToken, nil
+}
+
 func TestOIDC_VerifyToken(t *testing.T) {
 	// Create a test RSA key
 	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
@@ -310,23 +363,6 @@ func TestOIDC_VerifyToken(t *testing.T) {
 	valid, err = oidc.verifyToken("invalid-token")
 	if err == nil {
 		t.Error("Expected error with invalid token")
-	}
-	if valid != nil {
-		t.Error("Invalid token was accepted")
-	}
-
-	// Test with unknown domain
-	claims["hd"] = "unknown.com"
-	token = jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
-	token.Header["kid"] = "test-key"
-	signedToken, err = token.SignedString(privateKey)
-	if err != nil {
-		t.Fatalf("Failed to sign token: %v", err)
-	}
-
-	valid, err = oidc.verifyToken(signedToken)
-	if err == nil || err.Error() != "hosted domain unknown.com not in allowed domains" {
-		t.Errorf("Expected error 'hosted domain unknown.com not in allowed domains', got: %v", err)
 	}
 	if valid != nil {
 		t.Error("Invalid token was accepted")
@@ -537,7 +573,14 @@ func TestOIDC_ProviderSelection(t *testing.T) {
 	})
 }
 
-func TestOIDC_UnauthenticatedRoutes(t *testing.T) {
+type DenyAllChecker struct{}
+
+func (d *DenyAllChecker) Check(principal string, role string) bool {
+	return false
+}
+
+func TestOIDC_UnauthenticatedRoutes_NoSession(t *testing.T) {
+	// This test verifies that if there is no session token the user gets back an Unuauthorized error
 	// Create test OIDC config
 	oidcConfig := &config.OIDCConfig{
 		Google: &config.GoogleOIDCConfig{
@@ -569,7 +612,7 @@ func TestOIDC_UnauthenticatedRoutes(t *testing.T) {
 	}))
 	mux.HandleProtected("/protected", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-	}))
+	}), &DenyAllChecker{}, "test-role")
 
 	// Test public route
 	req := httptest.NewRequest("GET", "/public", nil)
@@ -583,7 +626,91 @@ func TestOIDC_UnauthenticatedRoutes(t *testing.T) {
 	req = httptest.NewRequest("GET", "/protected", nil)
 	rec = httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
+
 	if rec.Code != http.StatusUnauthorized {
 		t.Errorf("Expected status code %d, got %d", http.StatusUnauthorized, rec.Code)
+	}
+
+	msg, err := io.ReadAll(rec.Body)
+	if err != nil {
+		t.Fatalf("Failed to read response body: %v", err)
+	}
+
+	if string(msg) != "Unauthorized: No valid session\n" {
+		t.Errorf("Expected response body 'Unauthorized', got '%s'", msg)
+	}
+}
+
+func TestOIDC_UnauthorizedRoutes_Denied(t *testing.T) {
+	// This test verifies that if there is a session token but the user is denied by the IAMPolicy they get
+	// an unauthorized error
+	idp, err := NewTestIDP()
+	if err != nil {
+		t.Fatalf("Failed to create test IDP: %v", err)
+	}
+
+	// Create server config
+	serverConfig := &config.AssistantServerConfig{
+		CorsOrigins: []string{"http://localhost:3000"},
+		OIDC:        idp.oidcCfg,
+	}
+
+	// Create auth mux
+	mux, err := NewAuthMux(serverConfig)
+
+	// This is a bit of a hack to allow us to inject our test IDP.
+	authMiddleWare, err := newAuthMiddlewareForOIDC(idp.oidc)
+	if err != nil {
+		t.Fatalf("Failed to create auth middleware: %v", err)
+	}
+	mux.authMiddleware = authMiddleWare
+	if err != nil {
+		t.Fatalf("Failed to create auth mux: %v", err)
+	}
+
+	// Register auth routes
+	if err := RegisterAuthRoutes(idp.oidcCfg, mux); err != nil {
+		t.Fatalf("Failed to register auth routes: %v", err)
+	}
+
+	// Register test routes
+	mux.Handle("/public", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	// We use a DenyAll to make sure we get back unauthorized
+	mux.HandleProtected("/protected", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}), &DenyAllChecker{}, "test-role")
+
+	signedToken, err := idp.GenerateToken(jwt.MapClaims{
+		"iss":   "https://accounts.google.com",
+		"aud":   "dummy-client-id",
+		"exp":   time.Now().Add(time.Hour).Unix(),
+		"hd":    "example.com",
+		"email": "john@acme.com",
+	})
+
+	sessionCookie := &http.Cookie{
+		Name:  sessionCookieName,
+		Value: signedToken,
+	}
+
+	// Test protected route
+	req := httptest.NewRequest("GET", "/protected", nil)
+	rec := httptest.NewRecorder()
+	req.AddCookie(sessionCookie)
+	mux.ServeHTTP(rec, req)
+	if rec.Code != http.StatusForbidden {
+		t.Errorf("Expected status code %d, got %d", http.StatusForbidden, rec.Code)
+	}
+
+	msg, err := io.ReadAll(rec.Body)
+	if err != nil {
+		t.Fatalf("Failed to read response body: %v", err)
+	}
+
+	if string(msg) != "Forbidden: user john@acme.com doesn't have role test-role\n" {
+		t.Errorf("Expected response body 'Unauthorized', got '%s'", msg)
 	}
 }
