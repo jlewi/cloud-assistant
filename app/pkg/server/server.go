@@ -4,6 +4,7 @@ import (
   "connectrpc.com/connect"
   "connectrpc.com/grpchealth"
   "github.com/jlewi/cloud-assistant/app/pkg/ai"
+  "github.com/jlewi/cloud-assistant/app/pkg/logs"
   "github.com/jlewi/cloud-assistant/app/pkg/tlsbuilder"
   "github.com/jlewi/cloud-assistant/protos/gen/cassie/cassieconnect"
   "golang.org/x/net/http2"
@@ -259,8 +260,11 @@ func trailersTest(w http.ResponseWriter, r *http.Request) {
 
   w.WriteHeader(http.StatusOK)
 
+  log := logs.FromContext(r.Context())
   // Write response body
-  w.Write([]byte("... this is the response ..."))
+  if _, err := w.Write([]byte("... this is the response ...")); err != nil {
+    log.Error(err, "Failed to write response body")
+  }
 
   // Now set trailers
   w.Header().Set("Grpc-Status", "0")
