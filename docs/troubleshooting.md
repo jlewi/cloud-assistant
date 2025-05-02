@@ -25,9 +25,9 @@ ws     | Disabled | Not secure (no TLS) |
 wss    | Enabled (TLS)                 |
 
 
-### Unsigned Certificate
+### Self-signed Certificate
 
-If you are using TLS for the Runner (wss protocol) and you have an unsigned certificate you will get this error.
+If you are using TLS for the Runner (wss protocol) and you have a self-signed certificate you will get this error.
 The server will show the error.
 
 ```plaintext
