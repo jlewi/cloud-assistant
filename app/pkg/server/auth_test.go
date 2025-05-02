@@ -302,7 +302,7 @@ func TestOIDC_VerifyToken(t *testing.T) {
 	if err != nil {
 		t.Errorf("Unexpected error verifying valid token: %v", err)
 	}
-	if !valid {
+	if valid == nil {
 		t.Error("Valid token was not accepted")
 	}
 
@@ -311,7 +311,7 @@ func TestOIDC_VerifyToken(t *testing.T) {
 	if err == nil {
 		t.Error("Expected error with invalid token")
 	}
-	if valid {
+	if valid != nil {
 		t.Error("Invalid token was accepted")
 	}
 
@@ -328,7 +328,7 @@ func TestOIDC_VerifyToken(t *testing.T) {
 	if err == nil || err.Error() != "hosted domain unknown.com not in allowed domains" {
 		t.Errorf("Expected error 'hosted domain unknown.com not in allowed domains', got: %v", err)
 	}
-	if valid {
+	if valid != nil {
 		t.Error("Invalid token was accepted")
 	}
 
@@ -345,7 +345,7 @@ func TestOIDC_VerifyToken(t *testing.T) {
 	if err == nil {
 		t.Error("Expected error with expired token")
 	}
-	if valid {
+	if valid != nil {
 		t.Error("Expired token was accepted")
 	}
 }
