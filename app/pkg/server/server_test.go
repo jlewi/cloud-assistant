@@ -24,7 +24,7 @@ import (
 	"github.com/jlewi/cloud-assistant/protos/gen/cassie/cassieconnect"
 	"github.com/jlewi/monogo/networking"
 	"github.com/pkg/errors"
-	v2 "github.com/runmedev/runme/v3/pkg/api/gen/proto/go/runme/runner/v2"
+	v2 "github.com/runmedev/runme/v3/api/gen/proto/go/runme/runner/v2"
 	"go.uber.org/zap"
 	"golang.org/x/net/http2"
 	"google.golang.org/grpc/health/grpc_health_v1"

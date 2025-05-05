@@ -3,9 +3,9 @@ package docs
 import (
 	"github.com/jlewi/cloud-assistant/app/pkg/runme/converters"
 	"github.com/jlewi/cloud-assistant/protos/gen/cassie"
-	parserv1 "github.com/runmedev/runme/v3/pkg/api/gen/proto/go/runme/parser/v1"
-	"github.com/runmedev/runme/v3/pkg/document/editor"
-	"github.com/runmedev/runme/v3/pkg/document/identity"
+	parserv1 "github.com/runmedev/runme/v3/api/gen/proto/go/runme/parser/v1"
+	"github.com/runmedev/runme/v3/document/editor"
+	"github.com/runmedev/runme/v3/document/identity"
 )
 
 const (

@@ -4,7 +4,7 @@ import (
 	"io"
 
 	"github.com/pkg/errors"
-	"github.com/runmedev/runme/v3/pkg/command"
+	"github.com/runmedev/runme/v3/command"
 	"github.com/spf13/cobra"
 )
 
