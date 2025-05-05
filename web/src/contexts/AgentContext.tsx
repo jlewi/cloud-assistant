@@ -11,6 +11,7 @@ import { Code, ConnectError, createClient } from '@connectrpc/connect'
 import { createGrpcWebTransport } from '@connectrpc/connect-web'
 
 import * as blocks_pb from '../gen/es/cassie/blocks_pb'
+import { getTokenValue } from '../token'
 import { useSettings } from './SettingsContext'
 
 export type AgentClient = ReturnType<
@@ -66,6 +67,10 @@ function createAgentClient(baseURL: string): AgentClient {
     baseUrl: baseURL,
     interceptors: [
       (next) => (req) => {
+        const token = getTokenValue()
+        if (token) {
+          req.header.set('Authorization', `Bearer ${token}`)
+        }
         return next(req).catch((e) => {
           redirectOnUnauthError(e)
           throw e // allow caller to handle the error

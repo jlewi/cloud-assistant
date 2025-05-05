@@ -304,10 +304,20 @@ func newAuthMiddlewareForOIDC(oidc *OIDC) (func(http.Handler) http.Handler, erro
       }
 
       var idToken string
-      // Check for Bearer token in Authorization header
-      authHeader := r.Header.Get("Authorization")
-      if strings.HasPrefix(strings.ToLower(authHeader), "bearer ") {
-        idToken = strings.TrimPrefix(authHeader, authHeader[:7]) // Remove prefix
+
+      // First check for Bearer token in Authorization header
+      bearerToken := r.Header.Get("Authorization")
+
+      // If not present in header, check the token query parameter
+      // This is useful for WebSocket connections where headers might not be available
+      if bearerToken == "" {
+        if authParam := r.URL.Query().Get("authorization"); authParam != "" {
+          bearerToken = authParam
+        }
+      }
+
+      if strings.HasPrefix(strings.ToLower(bearerToken), "bearer ") {
+        idToken = strings.TrimPrefix(bearerToken, bearerToken[:7]) // Remove prefix
         idToken = strings.TrimSpace(idToken)
       } else {
         // Fallback to session cookie
@@ -315,7 +325,7 @@ func newAuthMiddlewareForOIDC(oidc *OIDC) (func(http.Handler) http.Handler, erro
         if err != nil {
           // No session cookie or bearer token, return 401 Unauthorized
           log.Error(err, "No session cookie or bearer token found")
-          http.Error(w, "Unauthorized: No valid session or token", http.StatusUnauthorized)
+          http.Error(w, "Unauthorized: No valid session", http.StatusUnauthorized)
           return
         }
         idToken = cookie.Value

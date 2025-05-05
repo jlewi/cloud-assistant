@@ -22,6 +22,7 @@ import {
   SocketResponse,
   SocketResponseSchema,
 } from '../../gen/es/cassie/sockets_pb'
+import { getTokenValue } from '../../token'
 import './renderers/client'
 // @ts-expect-error because the webcomponents are not typed
 import { ClientMessages, setContext } from './renderers/client'
@@ -379,6 +380,10 @@ function isInViewport(element: Element) {
 
 function createWebSocket(runnerEndpoint: string): WebSocket {
   const url = new URL(runnerEndpoint)
+  const token = getTokenValue()
+  if (token) {
+    url.searchParams.set('authorization', `Bearer ${token}`)
+  }
   const ws = new WebSocket(url.toString())
 
   ws.onopen = () => {
