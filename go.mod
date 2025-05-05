@@ -4,8 +4,7 @@ go 1.23.1
 
 toolchain go1.23.7
 
-// Use: https://github.com/runmedev/runme/tree/seb/env-collector
-replace github.com/runmedev/runme/v3 => github.com/jlewi/runme/v3 v3.0.0-20250404160548-32db243f3a52
+replace github.com/runmedev/runme/v3 => github.com/runmedev/runme/v3 v3.13.3-0.20250505225823-cd57fafe5466
 
 require (
 	connectrpc.com/connect v1.18.1
