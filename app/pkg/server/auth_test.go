@@ -734,7 +734,7 @@ func TestOIDC_TokenHierarchy(t *testing.T) {
   // Register a protected route that returns 200 OK
   mux.HandleProtected("/protected", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
     w.WriteHeader(http.StatusOK)
-    w.Write([]byte("OK"))
+    _, _ = w.Write([]byte("OK"))
   }), &DenyAllChecker{}, "test-role")
 
   // Generate three tokens for clarity
