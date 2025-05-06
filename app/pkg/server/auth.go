@@ -1,12 +1,14 @@
 package server
 
 import (
+  connectcors "connectrpc.com/cors"
   "context"
   "crypto/rand"
   "crypto/rsa"
   "encoding/base64"
   "encoding/json"
   "fmt"
+  "github.com/rs/cors"
   "math/big"
   "net/http"
   "net/url"
@@ -19,12 +21,10 @@ import (
   "github.com/jlewi/cloud-assistant/app/pkg/iam"
   "github.com/jlewi/cloud-assistant/app/pkg/logs"
 
-  connectcors "connectrpc.com/cors"
   "github.com/go-logr/zapr"
   "github.com/golang-jwt/jwt/v5"
   "github.com/jlewi/cloud-assistant/app/pkg/config"
   "github.com/pkg/errors"
-  "github.com/rs/cors"
   "go.uber.org/zap"
   "golang.org/x/oauth2"
   "golang.org/x/oauth2/google"
@@ -678,18 +678,6 @@ func (p *AuthMux) HandleFunc(pattern string, handler func(http.ResponseWriter, *
 
 // HandleProtected registers a protected handler for the given pattern
 func (p *AuthMux) HandleProtected(pattern string, handler http.Handler, checker iam.Checker, role string) {
-  // Apply CORS if origins are configured
-  if len(p.serverConfig.CorsOrigins) > 0 {
-    c := cors.New(cors.Options{
-      AllowedOrigins: p.serverConfig.CorsOrigins,
-      AllowedMethods: connectcors.AllowedMethods(),
-      AllowedHeaders: connectcors.AllowedHeaders(),
-      ExposedHeaders: connectcors.ExposedHeaders(),
-      MaxAge:         7200, // 2 hours in seconds
-    })
-    handler = c.Handler(handler)
-  }
-
   // We need to create a new Auth middleware that will apply the IAM checks specific to this handler
   iamChecker := func(next http.Handler) http.Handler {
     return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -726,9 +714,23 @@ func (p *AuthMux) HandleProtected(pattern string, handler http.Handler, checker 
       next.ServeHTTP(w, r)
     })
   }
-
-  // Create a chain: check the IDToken is valid -> Apply AuthZ -> call the handler
-  p.mux.Handle(pattern, p.authMiddleware(iamChecker(handler)))
+  // Create a chain: cors > check the IDToken is valid -> Apply AuthZ -> call the handler
+  // CORS needs to come first because it will terminate the request chain on OPTIONS requests
+  // OPTIONS requests won't carry authorization headers so we can't do authorization first
+  handler = p.authMiddleware(iamChecker(handler))
+  // Apply CORS if origins are configured
+  if len(p.serverConfig.CorsOrigins) > 0 {
+    c := cors.New(cors.Options{
+      AllowedOrigins: p.serverConfig.CorsOrigins,
+      AllowedMethods: connectcors.AllowedMethods(),
+      AllowedHeaders: connectcors.AllowedHeaders(),
+      ExposedHeaders: connectcors.ExposedHeaders(),
+      MaxAge:         7200, // 2 hours in seconds
+    })
+    handler = c.Handler(handler)
+  }
+  
+  p.mux.Handle(pattern, handler)
 }
 
 // HandleProtectedFunc registers a protected handler function for the given pattern
