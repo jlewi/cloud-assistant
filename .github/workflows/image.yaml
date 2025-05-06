@@ -35,4 +35,4 @@ jobs:
           push: true
           tags: |
             ghcr.io/${{ github.repository }}:latest
-            ghcr.io/${{ github.repository }}:commit-${{ github.sha::7 }}
+            ghcr.io/${{ github.repository }}:commit-${{ github.sha.substring(0, 7) }}
