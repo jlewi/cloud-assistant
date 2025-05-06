@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - main
+      # For testing the changes to the workflow to tag the commit and allow workflow dispatch. 
+      # We can get rid of this once we are happy with the updated workflow
+      - jlewi/oidc
   # Allow manual triggering
   # This allows building images from branches
   workflow_dispatch: {}
