@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - main
+  # Allow manual triggering
+  # This allows building images from branches
+  workflow_dispatch: {}
 
 jobs:
   build-and-push:
@@ -27,4 +30,6 @@ jobs:
         with:
           context: .
           push: true
-          tags: ghcr.io/${{ github.repository }}:latest
+          tags: |
+            ghcr.io/${{ github.repository }}:latest
+            ghcr.io/${{ github.repository }}:commit-${{ github.sha::7 }}
