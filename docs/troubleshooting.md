@@ -33,3 +33,21 @@ The server will show the error.
 ```plaintext
 2025/04/29 13:58:12 http: TLS handshake error from [::1]:57040: remote error: tls: unknown certificate
 ```
+
+### Unknown TLS Certificate
+
+If you imported your TLS Certificate into keychain and the backend is showing the error
+
+```
+2025/05/02 09:30:20 http: TLS handshake error from [::1]:49795: remote error: tls: unknown certificate
+```
+
+Try
+
+1. Deleting the certificate in keychain
+1. Reimporting the certificate
+
+It looks like if you already imported a `Cloud Assistant Certificate` into keychain, the new certificate will not
+get imported so you have to delete it first.
+
+TODO(jlewi@): What's a better solution for this?
