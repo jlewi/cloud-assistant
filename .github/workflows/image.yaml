@@ -27,7 +27,13 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
+      
+      # GITHUB doesn't provide the short SHA automatically
+      - name: Set short git commit SHA
+        id: vars
+        run: |
+          calculatedSha=$(git rev-parse --short ${{ github.sha }})
+          echo "COMMIT_SHORT_SHA=$calculatedSha" >> $GITHUB_ENV
       - name: Build and push Docker image
         uses: docker/build-push-action@v3
         with:
@@ -35,4 +41,4 @@ jobs:
           push: true
           tags: |
             ghcr.io/${{ github.repository }}:latest
-            ghcr.io/${{ github.repository }}:commit-${{ format('{0}', github.sha | slice(0, 7)) }}
+            ghcr.io/${{ github.repository }}:commit-${{  env.COMMIT_SHORT_SHA }}
