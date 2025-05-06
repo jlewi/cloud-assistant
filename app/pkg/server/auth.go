@@ -714,22 +714,26 @@ func (p *AuthMux) HandleProtected(pattern string, handler http.Handler, checker 
       next.ServeHTTP(w, r)
     })
   }
+  log := logs.NewLogger()
   // Create a chain: cors > check the IDToken is valid -> Apply AuthZ -> call the handler
   // CORS needs to come first because it will terminate the request chain on OPTIONS requests
   // OPTIONS requests won't carry authorization headers so we can't do authorization first
   handler = p.authMiddleware(iamChecker(handler))
   // Apply CORS if origins are configured
   if len(p.serverConfig.CorsOrigins) > 0 {
-    c := cors.New(cors.Options{
-      AllowedOrigins: p.serverConfig.CorsOrigins,
-      AllowedMethods: connectcors.AllowedMethods(),
-      AllowedHeaders: connectcors.AllowedHeaders(),
-      ExposedHeaders: connectcors.ExposedHeaders(),
-      MaxAge:         7200, // 2 hours in seconds
-    })
+    corsOptions := cors.Options{
+      AllowedOrigins:   p.serverConfig.CorsOrigins,
+      AllowedMethods:   connectcors.AllowedMethods(),
+      AllowedHeaders:   connectcors.AllowedHeaders(),
+      ExposedHeaders:   connectcors.ExposedHeaders(),
+      AllowCredentials: true,
+      MaxAge:           7200, // 2 hours in seconds
+    }
+    log.Info("Adding CORS support", "AllowedOrigins", corsOptions.AllowedOrigins, "AllowCredentials", corsOptions.AllowCredentials, "AllowedMethods", corsOptions.AllowedMethods, "AllowedHeaders", corsOptions.AllowedHeaders, "ExposedHeaders", corsOptions.ExposedHeaders)
+    c := cors.New(corsOptions)
     handler = c.Handler(handler)
   }
-  
+
   p.mux.Handle(pattern, handler)
 }
 

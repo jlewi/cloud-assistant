@@ -382,7 +382,10 @@ function createWebSocket(runnerEndpoint: string): WebSocket {
   const url = new URL(runnerEndpoint)
   const token = getTokenValue()
   if (token) {
+    console.log("Adding auth token")
     url.searchParams.set('authorization', `Bearer ${token}`)
+  } else {
+    console.log("No auth token found")
   }
   const ws = new WebSocket(url.toString())
 
