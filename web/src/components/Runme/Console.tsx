@@ -140,7 +140,10 @@ function Console({
 
   setContext({
     postMessage: (message: unknown) => {
-      if ((message as any).type === ClientMessages.terminalOpen) {
+      if (
+        (message as any).type === ClientMessages.terminalOpen ||
+        (message as any).type === ClientMessages.terminalResize
+      ) {
         const columns = Number(
           (message as any).output.terminalDimensions.columns
         )
@@ -150,6 +153,14 @@ function Console({
           execReq.winsize!.rows = rows
         }
       }
+
+      if ((message as any).type === ClientMessages.terminalResize) {
+        const req = create(ExecuteRequestSchema, {
+          winsize: execReq.winsize,
+        })
+        sendExecuteRequest(socket, req)
+      }
+
       if ((message as any).type === ClientMessages.terminalStdin) {
         const inputData = encoder.encode((message as any).output.input)
         const req = create(ExecuteRequestSchema, { inputData })
