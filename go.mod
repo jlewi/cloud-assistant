@@ -4,7 +4,7 @@ go 1.24
 
 toolchain go1.24.2
 
-replace github.com/runmedev/runme/v3 => github.com/runmedev/runme/v3 v3.13.3-0.20250505225823-cd57fafe5466
+replace github.com/runmedev/runme/v3 => github.com/runmedev/runme/v3 v3.13.3-0.20250507191530-80111566ea81
 
 require (
 	connectrpc.com/connect v1.18.1
