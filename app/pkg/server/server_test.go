@@ -443,7 +443,11 @@ func runRunmeClient(baseURL string) (map[string]any, error) {
 	if err != nil {
 		return blocks, errors.Wrapf(err, "Failed to dial; %v", err)
 	}
-	defer c.Close()
+	defer func() {
+		if err := c.Close(); err != nil {
+			log.Error(err, "Could not close websocket")
+		}
+	}()
 
 	// Send one command
 	if err := sendExecuteRequest(c, newExecuteRequest([]string{"ls -la"})); err != nil {
@@ -495,7 +499,11 @@ func runRunmeClientConcurrent(baseURL string) (map[string]any, error) {
 	if err != nil {
 		return blocks, errors.Wrapf(err, "Failed to dial; %v", err)
 	}
-	defer c.Close()
+	defer func() {
+		if err := c.Close(); err != nil {
+			log.Error(err, "Could not close websocket")
+		}
+	}()
 
 	req := newExecuteRequest([]string{`
 for i in {1..10}

@@ -61,7 +61,11 @@ func (h *WebSocketHandler) Handler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	defer conn.Close()
+	defer func() {
+		if err := conn.Close(); err != nil {
+			log.Error(err, "Could not close websocket")
+		}
+	}()
 	processor := NewRunmeHandler(r.Context(), conn, h.runner)
 
 	// This will keep reading messages and streaming the outputs until the connection is closed.

@@ -43,7 +43,7 @@ func (a *App) LoadConfig(cmd *cobra.Command) error {
 	cfg := config.GetConfig()
 
 	if problems := cfg.IsValid(); len(problems) > 0 {
-		fmt.Fprintf(os.Stdout, "Invalid configuration; %s\n", strings.Join(problems, "\n"))
+		_, _ = fmt.Fprintf(os.Stdout, "Invalid configuration; %s\n", strings.Join(problems, "\n"))
 		return fmt.Errorf("invalid configuration; fix the problems and then try again")
 	}
 	a.Config = cfg
@@ -218,7 +218,7 @@ func (a *App) getRawLogFile() (string, error) {
 	logDir := filepath.Join(a.Config.GetLogDir(), "raw")
 	if _, err := os.Stat(logDir); os.IsNotExist(err) {
 		// Logger won't be setup yet so we can't use it.
-		fmt.Fprintf(os.Stdout, "Creating log directory %s\n", logDir)
+		_, _ = fmt.Fprintf(os.Stdout, "Creating log directory %s\n", logDir)
 		err := os.MkdirAll(logDir, 0755)
 		if err != nil {
 			return "", errors.Wrapf(err, "could not create log directory %s", logDir)
@@ -270,7 +270,7 @@ func (a *App) createJSONCoreLogger(paths []string) (zapcore.Core, error) {
 
 	jsonEncoder := zapcore.NewJSONEncoder(c)
 
-	fmt.Fprintf(os.Stdout, "Writing JSON logs to %s\n", paths)
+	_, _ = fmt.Fprintf(os.Stdout, "Writing JSON logs to %s\n", paths)
 
 	oFile, closer, err := zap.Open(paths...)
 	if err != nil {
@@ -314,7 +314,7 @@ func (a *App) Shutdown() error {
 	// sync so we call Sync explicitly.
 	if err := l.Sync(); err != nil {
 		log.Error(err, "Error flushing logs")
-		fmt.Fprintf(os.Stdout, "Error flushing logs: %v\n", err)
+		_, _ = fmt.Fprintf(os.Stdout, "Error flushing logs: %v\n", err)
 	}
 	for _, closer := range a.logClosers {
 		closer()
