@@ -720,9 +720,12 @@ func (p *AuthMux) HandleProtected(pattern string, handler http.Handler, checker 
 	// CORS needs to come first because it will terminate the request chain on OPTIONS requests
 	// OPTIONS requests won't carry authorization headers so we can't do authorization first
 	handler = p.authMiddleware(iamChecker(handler))
+
 	// Apply CORS if origins are configured
+	// This is modeled on cors.AllowAll() but we can't use that because we need to allow credentials
 	corsOptions := cors.Options{
 		AllowedOrigins: p.serverConfig.CorsOrigins,
+		// Allow all methods.
 		AllowedMethods: []string{
 			http.MethodHead,
 			http.MethodGet,
@@ -731,20 +734,28 @@ func (p *AuthMux) HandleProtected(pattern string, handler http.Handler, checker 
 			http.MethodPatch,
 			http.MethodDelete,
 		},
-		AllowedHeaders: []string{"*"},
-		//AllowedHeaders:   connectcors.AllowedHeaders(),
+		// Allow all headers.
+		AllowedHeaders:   []string{"*"},
 		ExposedHeaders:   connectcors.ExposedHeaders(),
 		AllowCredentials: true,
 		MaxAge:           7200, // 2 hours in seconds
 	}
-	//cors.AllowAll()
-	//corsOptions := cors.AllowAll()
-	//corsOptions.AllowCredentials = true
-	//corsOptions.MaxAge = 7200 // 2 hours in seconds
 	if len(p.serverConfig.CorsOrigins) > 0 {
 		log.Info("Adding CORS support", "AllowedOrigins", corsOptions.AllowedOrigins, "AllowCredentials", corsOptions.AllowCredentials, "AllowedMethods", corsOptions.AllowedMethods, "AllowedHeaders", corsOptions.AllowedHeaders, "ExposedHeaders", corsOptions.ExposedHeaders)
-		c := cors.New(corsOptions)
-		handler = c.Handler(handler)
+
+		if p.serverConfig.CorsOrigins[0] == "*" {
+			log.Info("Allowing all origins; enabling SetOriginHeader middleware")
+			// We need need to set the origin header to the request's origin
+			// To do that we need to set the passthrough option to true so that the handler will invoke our middleware
+			// after calling the cors handler
+			corsOptions.OptionsPassthrough = true
+			c := cors.New(corsOptions)
+			handler = c.Handler(SetOriginHeader(handler))
+		} else {
+			c := cors.New(corsOptions)
+			handler = c.Handler(handler)
+		}
+
 	}
 
 	p.mux.Handle(pattern, handler)
