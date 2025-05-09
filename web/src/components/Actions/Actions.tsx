@@ -167,6 +167,10 @@ const CodeEditor = memo(
           onEnterRef.current()
         }
       })
+      // if the value is empty, focus the editor
+      if (value === '') {
+        editor.focus()
+      }
     }
 
     const handleResizeStart = (e: React.MouseEvent) => {

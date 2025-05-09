@@ -198,7 +198,7 @@ export const BlockProvider = ({ children }: { children: ReactNode }) => {
       id: `code_${uuidv4()}`,
       role: BlockRole.USER,
       kind: BlockKind.CODE,
-      contents: '# Write your bash commands here',
+      contents: '',
     })
 
     updateBlock(block)
