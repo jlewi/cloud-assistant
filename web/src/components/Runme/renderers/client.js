@@ -41168,15 +41168,15 @@ const base64urlRegex = /^([0-9a-zA-Z-_]{4})*(([0-9a-zA-Z-_]{2}(==)?)|([0-9a-zA-Z
 const dateRegexSource = `((\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-((0[13578]|1[02])-(0[1-9]|[12]\\d|3[01])|(0[469]|11)-(0[1-9]|[12]\\d|30)|(02)-(0[1-9]|1\\d|2[0-8])))`;
 const dateRegex = new RegExp(`^${dateRegexSource}$`);
 function timeRegexSource(args) {
-    // let regex = `\\d{2}:\\d{2}:\\d{2}`;
-    let regex = `([01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d`;
+    let secondsRegexSource = `[0-5]\\d`;
     if (args.precision) {
-        regex = `${regex}\\.\\d{${args.precision}}`;
+        secondsRegexSource = `${secondsRegexSource}\\.\\d{${args.precision}}`;
     }
     else if (args.precision == null) {
-        regex = `${regex}(\\.\\d+)?`;
+        secondsRegexSource = `${secondsRegexSource}(\\.\\d+)?`;
     }
-    return regex;
+    const secondsQuantifier = args.precision ? "+" : "?"; // require seconds if precision is nonzero
+    return `([01]\\d|2[0-3]):[0-5]\\d(:${secondsRegexSource})${secondsQuantifier}`;
 }
 function timeRegex(args) {
     return new RegExp(`^${timeRegexSource(args)}$`);
@@ -54954,7 +54954,7 @@ var __classPrivateFieldGet = (this && this.__classPrivateFieldGet) || function (
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
-var _TerminalView_instances, _TerminalView_resizeTerminal, _TerminalView_createResizeHandle, _TerminalView_getTerminalElement, _TerminalView_updateTerminalTheme, _TerminalView_getThemeHexColor, _TerminalView_getWindowDimensions, _TerminalView_subscribeResizeTerminal, _TerminalView_subscribeSetTerminalRows, _TerminalView_onFocusWindow, _TerminalView_displayShareDialog, _TerminalView_triggerShareCellOutput, _TerminalView_triggerEscalation, _TerminalView_triggerOpenEscalation, _TerminalView_openSessionOutput, _TerminalView_shareCellOutput, _TerminalView_onWebLinkClick, _TerminalView_triggerOpenCellOutput, _TerminalView_onEscalateDisabled, _TerminalView_copy;
+var _TerminalView_instances, _TerminalView_resizeTerminal, _TerminalView_createResizeHandle, _TerminalView_getTerminalElement, _TerminalView_updateTerminalTheme, _TerminalView_getThemeHexColor, _TerminalView_getDimensions, _TerminalView_subscribeResizeTerminal, _TerminalView_subscribeSetTerminalRows, _TerminalView_onFocusWindow, _TerminalView_displayShareDialog, _TerminalView_triggerShareCellOutput, _TerminalView_triggerEscalation, _TerminalView_triggerOpenEscalation, _TerminalView_openSessionOutput, _TerminalView_shareCellOutput, _TerminalView_onWebLinkClick, _TerminalView_triggerOpenCellOutput, _TerminalView_onEscalateDisabled, _TerminalView_copy;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.TerminalView = void 0;
 const lit_1 = __webpack_require__(/*! lit */ "./node_modules/lit/index.js");
@@ -55087,9 +55087,6 @@ let TerminalView = class TerminalView extends lit_1.LitElement {
         this.terminal.unicode.activeVersion = '11';
         this.terminal.options.drawBoldTextInBrightColors;
         const ctx = (0, utils_1.getContext)();
-        const dims = new rxjs_1.Observable((observer) => window.addEventListener('resize', () => observer.next(__classPrivateFieldGet(this, _TerminalView_instances, "m", _TerminalView_getWindowDimensions).call(this)))).pipe((0, operators_1.share)());
-        __classPrivateFieldGet(this, _TerminalView_instances, "m", _TerminalView_subscribeResizeTerminal).call(this, dims);
-        __classPrivateFieldGet(this, _TerminalView_instances, "m", _TerminalView_subscribeSetTerminalRows).call(this, dims);
         this.disposables.push((0, messaging_1.onClientMessage)(ctx, async (e) => {
             if (!LISTEN_TO_EVENTS.some((event) => e.type.startsWith(event))) {
                 return;
@@ -55225,7 +55222,14 @@ let TerminalView = class TerminalView extends lit_1.LitElement {
         }
         __classPrivateFieldGet(this, _TerminalView_instances, "m", _TerminalView_resizeTerminal).call(this);
         __classPrivateFieldGet(this, _TerminalView_instances, "m", _TerminalView_updateTerminalTheme).call(this);
-        terminalContainer.appendChild(__classPrivateFieldGet(this, _TerminalView_instances, "m", _TerminalView_createResizeHandle).call(this));
+        const resizeDragHandle = __classPrivateFieldGet(this, _TerminalView_instances, "m", _TerminalView_createResizeHandle).call(this);
+        const dims = new rxjs_1.Observable((observer) => {
+            window.addEventListener('resize', () => observer.next(__classPrivateFieldGet(this, _TerminalView_instances, "m", _TerminalView_getDimensions).call(this, true)));
+            terminalContainer.addEventListener('mouseup', () => observer.next(__classPrivateFieldGet(this, _TerminalView_instances, "m", _TerminalView_getDimensions).call(this, false)));
+        }).pipe((0, operators_1.share)());
+        __classPrivateFieldGet(this, _TerminalView_instances, "m", _TerminalView_subscribeResizeTerminal).call(this, dims);
+        __classPrivateFieldGet(this, _TerminalView_instances, "m", _TerminalView_subscribeSetTerminalRows).call(this, dims);
+        terminalContainer.appendChild(resizeDragHandle);
         const ctx = (0, utils_1.getContext)();
         ctx.postMessage &&
             (0, messaging_1.postClientMessage)(ctx, constants_1.ClientMessages.terminalOpen, {
@@ -55389,13 +55393,14 @@ _TerminalView_getThemeHexColor = function _TerminalView_getThemeHexColor(variabl
     const terminalContainer = this.shadowRoot?.querySelector('#terminal');
     return getComputedStyle(terminalContainer).getPropertyValue(variableName) ?? undefined;
 };
-_TerminalView_getWindowDimensions = function _TerminalView_getWindowDimensions() {
+_TerminalView_getDimensions = function _TerminalView_getDimensions(checkWindowSize) {
     if (!this.fitAddon) {
         return;
     }
     const { innerWidth, innerHeight } = window;
-    // Prevent adjusting the terminal size if width & height remain the same
-    if (Math.abs(this.windowSize.width - innerWidth) <= Number.EPSILON &&
+    // Prevent adjusting the terminal size if window width & height remain the same
+    if (checkWindowSize &&
+        Math.abs(this.windowSize.width - innerWidth) <= Number.EPSILON &&
         Math.abs(this.windowSize.height - innerHeight) <= Number.EPSILON) {
         return;
     }

@@ -21,17 +21,20 @@ interface SettingsContextType {
   getDefaultSettings: () => Settings
 }
 
-const getDefaultSettings = (): Settings => ({
-  agentEndpoint:
-    window.location.hostname === 'localhost'
-      ? 'http://localhost:8080'
-      : window.location.origin,
-  runnerEndpoint:
-    window.location.hostname === 'localhost'
+const getDefaultSettings = (): Settings => {
+  const isLocalhost = window.location.hostname === 'localhost'
+  const isHttp = window.location.protocol === 'http:'
+  const isVite = window.location.port === '5173'
+  const isDev = isLocalhost && isHttp && isVite
+
+  return {
+    agentEndpoint: isDev ? 'http://localhost:8080' : window.location.origin,
+    runnerEndpoint: isDev
       ? 'ws://localhost:8080/ws'
       : `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws`,
-  requireAuth: false,
-})
+    requireAuth: false,
+  }
+}
 
 const SettingsContext = createContext<SettingsContextType | undefined>(
   undefined

@@ -29,7 +29,7 @@ func getAssetFileSystem(staticAssets string) (fs.FS, error) {
 
 	// Try to use embedded assets
 	distFS, _ := fs.Sub(embeddedAssets, "dist")
-	_, err := distFS.Open("index.js")
+	_, err := distFS.Open("index.html")
 	if err == nil {
 		log.Info("Serving embedded assets")
 		return distFS, nil
