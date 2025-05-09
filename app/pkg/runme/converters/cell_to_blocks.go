@@ -3,7 +3,7 @@ package converters
 import (
 	"github.com/jlewi/cloud-assistant/protos/gen/cassie"
 	"github.com/pkg/errors"
-	parserv1 "github.com/runmedev/runme/v3/pkg/api/gen/proto/go/runme/parser/v1"
+	parserv1 "github.com/runmedev/runme/v3/api/gen/proto/go/runme/parser/v1"
 )
 
 // Doc represents a document

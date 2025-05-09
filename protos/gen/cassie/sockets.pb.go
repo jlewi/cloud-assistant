@@ -7,7 +7,7 @@
 package cassie
 
 import (
-	v2 "github.com/runmedev/runme/v3/pkg/api/gen/proto/go/runme/runner/v2"
+	v2 "github.com/runmedev/runme/v3/api/gen/proto/go/runme/runner/v2"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
