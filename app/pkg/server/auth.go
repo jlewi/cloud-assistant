@@ -1,14 +1,12 @@
 package server
 
 import (
-	connectcors "connectrpc.com/cors"
 	"context"
 	"crypto/rand"
 	"crypto/rsa"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"github.com/rs/cors"
 	"math/big"
 	"net/http"
 	"net/url"
@@ -17,6 +15,9 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	connectcors "connectrpc.com/cors"
+	"github.com/rs/cors"
 
 	"github.com/jlewi/cloud-assistant/app/pkg/iam"
 	"github.com/jlewi/cloud-assistant/app/pkg/logs"
@@ -720,15 +721,27 @@ func (p *AuthMux) HandleProtected(pattern string, handler http.Handler, checker 
 	// OPTIONS requests won't carry authorization headers so we can't do authorization first
 	handler = p.authMiddleware(iamChecker(handler))
 	// Apply CORS if origins are configured
+	corsOptions := cors.Options{
+		AllowedOrigins: p.serverConfig.CorsOrigins,
+		AllowedMethods: []string{
+			http.MethodHead,
+			http.MethodGet,
+			http.MethodPost,
+			http.MethodPut,
+			http.MethodPatch,
+			http.MethodDelete,
+		},
+		AllowedHeaders: []string{"*"},
+		//AllowedHeaders:   connectcors.AllowedHeaders(),
+		ExposedHeaders:   connectcors.ExposedHeaders(),
+		AllowCredentials: true,
+		MaxAge:           7200, // 2 hours in seconds
+	}
+	//cors.AllowAll()
+	//corsOptions := cors.AllowAll()
+	//corsOptions.AllowCredentials = true
+	//corsOptions.MaxAge = 7200 // 2 hours in seconds
 	if len(p.serverConfig.CorsOrigins) > 0 {
-		corsOptions := cors.Options{
-			AllowedOrigins:   p.serverConfig.CorsOrigins,
-			AllowedMethods:   connectcors.AllowedMethods(),
-			AllowedHeaders:   connectcors.AllowedHeaders(),
-			ExposedHeaders:   connectcors.ExposedHeaders(),
-			AllowCredentials: true,
-			MaxAge:           7200, // 2 hours in seconds
-		}
 		log.Info("Adding CORS support", "AllowedOrigins", corsOptions.AllowedOrigins, "AllowCredentials", corsOptions.AllowCredentials, "AllowedMethods", corsOptions.AllowedMethods, "AllowedHeaders", corsOptions.AllowedHeaders, "ExposedHeaders", corsOptions.ExposedHeaders)
 		c := cors.New(corsOptions)
 		handler = c.Handler(handler)

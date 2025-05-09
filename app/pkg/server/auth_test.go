@@ -702,96 +702,96 @@ func TestOIDC_AccessForbidden(t *testing.T) {
 }
 
 func TestOIDC_TokenHierarchy(t *testing.T) {
-  idp, err := NewTestIDP()
-  if err != nil {
-    t.Fatalf("Failed to create test IDP: %v", err)
-  }
+	idp, err := NewTestIDP()
+	if err != nil {
+		t.Fatalf("Failed to create test IDP: %v", err)
+	}
 
-  // Create server config
-  serverConfig := &config.AssistantServerConfig{
-    CorsOrigins: []string{"http://localhost:3000"},
-    OIDC:        idp.oidcCfg,
-  }
+	// Create server config
+	serverConfig := &config.AssistantServerConfig{
+		CorsOrigins: []string{"http://localhost:3000"},
+		OIDC:        idp.oidcCfg,
+	}
 
-  // Create auth mux
-  mux, err := NewAuthMux(serverConfig)
-  if err != nil {
-    t.Fatalf("Failed to create auth mux: %v", err)
-  }
-  // Inject our test OIDC
-  authMiddleware, err := newAuthMiddlewareForOIDC(idp.oidc)
-  if err != nil {
-    t.Fatalf("Failed to create auth middleware: %v", err)
-  }
-  mux.authMiddleware = authMiddleware
+	// Create auth mux
+	mux, err := NewAuthMux(serverConfig)
+	if err != nil {
+		t.Fatalf("Failed to create auth mux: %v", err)
+	}
+	// Inject our test OIDC
+	authMiddleware, err := newAuthMiddlewareForOIDC(idp.oidc)
+	if err != nil {
+		t.Fatalf("Failed to create auth middleware: %v", err)
+	}
+	mux.authMiddleware = authMiddleware
 
-  // Register auth routes
-  if err := RegisterAuthRoutes(idp.oidcCfg, mux); err != nil {
-    t.Fatalf("Failed to register auth routes: %v", err)
-  }
+	// Register auth routes
+	if err := RegisterAuthRoutes(idp.oidcCfg, mux); err != nil {
+		t.Fatalf("Failed to register auth routes: %v", err)
+	}
 
-  // Register a protected route that returns 200 OK
-  mux.HandleProtected("/protected", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-    w.WriteHeader(http.StatusOK)
-    _, _ = w.Write([]byte("OK"))
-  }), &DenyAllChecker{}, "test-role")
+	// Register a protected route that returns 200 OK
+	mux.HandleProtected("/protected", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("OK"))
+	}), &DenyAllChecker{}, "test-role")
 
-  // Generate three tokens for clarity
-  claims := jwt.MapClaims{
-    "iss":   "https://accounts.google.com",
-    "aud":   "dummy-client-id",
-    "exp":   time.Now().Add(time.Hour).Unix(),
-    "hd":    "example.com",
-    "email": "john@acme.com",
-  }
-  token, err := idp.GenerateToken(claims)
-  if err != nil {
-    t.Fatalf("Failed to generate token: %v", err)
-  }
+	// Generate three tokens for clarity
+	claims := jwt.MapClaims{
+		"iss":   "https://accounts.google.com",
+		"aud":   "dummy-client-id",
+		"exp":   time.Now().Add(time.Hour).Unix(),
+		"hd":    "example.com",
+		"email": "john@acme.com",
+	}
+	token, err := idp.GenerateToken(claims)
+	if err != nil {
+		t.Fatalf("Failed to generate token: %v", err)
+	}
 
-  const AuthedButForbidden = http.StatusForbidden
+	const AuthedButForbidden = http.StatusForbidden
 
-  t.Run("Header takes precedence over query and cookie", func(t *testing.T) {
-    authParam := url.QueryEscape("authorization=Bearer invalid")
-    req := httptest.NewRequest("GET", "/protected?"+authParam, nil)
-    req.Header.Set("Authorization", "Bearer "+token)
-    req.AddCookie(&http.Cookie{Name: sessionCookieName, Value: "invalid"})
-    rec := httptest.NewRecorder()
-    mux.ServeHTTP(rec, req)
-    if rec.Code != AuthedButForbidden {
-      t.Errorf("Expected status %d, got %d", AuthedButForbidden, rec.Code)
-    }
-  })
+	t.Run("Header takes precedence over query and cookie", func(t *testing.T) {
+		authParam := url.QueryEscape("authorization=Bearer invalid")
+		req := httptest.NewRequest("GET", "/protected?"+authParam, nil)
+		req.Header.Set("Authorization", "Bearer "+token)
+		req.AddCookie(&http.Cookie{Name: sessionCookieName, Value: "invalid"})
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, req)
+		if rec.Code != AuthedButForbidden {
+			t.Errorf("Expected status %d, got %d", AuthedButForbidden, rec.Code)
+		}
+	})
 
-  t.Run("Query param takes precedence over cookie", func(t *testing.T) {
-    params := url.Values{}
-    params.Set("authorization", "Bearer "+token)
-    req := httptest.NewRequest("GET", "/protected?"+params.Encode(), nil)
-    req.Header.Set("Authorization", "")
-    req.AddCookie(&http.Cookie{Name: sessionCookieName, Value: "invalid"})
-    rec := httptest.NewRecorder()
-    mux.ServeHTTP(rec, req)
-    if rec.Code != AuthedButForbidden {
-      t.Errorf("Expected status %d, got %d", AuthedButForbidden, rec.Code)
-    }
-  })
+	t.Run("Query param takes precedence over cookie", func(t *testing.T) {
+		params := url.Values{}
+		params.Set("authorization", "Bearer "+token)
+		req := httptest.NewRequest("GET", "/protected?"+params.Encode(), nil)
+		req.Header.Set("Authorization", "")
+		req.AddCookie(&http.Cookie{Name: sessionCookieName, Value: "invalid"})
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, req)
+		if rec.Code != AuthedButForbidden {
+			t.Errorf("Expected status %d, got %d", AuthedButForbidden, rec.Code)
+		}
+	})
 
-  t.Run("Cookie is used if no header or query param", func(t *testing.T) {
-    req := httptest.NewRequest("GET", "/protected", nil)
-    req.AddCookie(&http.Cookie{Name: sessionCookieName, Value: token})
-    rec := httptest.NewRecorder()
-    mux.ServeHTTP(rec, req)
-    if rec.Code != AuthedButForbidden {
-      t.Errorf("Expected status %d, got %d", AuthedButForbidden, rec.Code)
-    }
-  })
+	t.Run("Cookie is used if no header or query param", func(t *testing.T) {
+		req := httptest.NewRequest("GET", "/protected", nil)
+		req.AddCookie(&http.Cookie{Name: sessionCookieName, Value: token})
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, req)
+		if rec.Code != AuthedButForbidden {
+			t.Errorf("Expected status %d, got %d", AuthedButForbidden, rec.Code)
+		}
+	})
 
-  t.Run("Unauthorized if no token anywhere", func(t *testing.T) {
-    req := httptest.NewRequest("GET", "/protected", nil)
-    rec := httptest.NewRecorder()
-    mux.ServeHTTP(rec, req)
-    if rec.Code != http.StatusUnauthorized {
-      t.Errorf("Expected status %d, got %d", http.StatusUnauthorized, rec.Code)
-    }
-  })
+	t.Run("Unauthorized if no token anywhere", func(t *testing.T) {
+		req := httptest.NewRequest("GET", "/protected", nil)
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, req)
+		if rec.Code != http.StatusUnauthorized {
+			t.Errorf("Expected status %d, got %d", http.StatusUnauthorized, rec.Code)
+		}
+	})
 }
