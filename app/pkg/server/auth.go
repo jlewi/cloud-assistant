@@ -749,6 +749,7 @@ func (p *AuthMux) HandleProtected(pattern string, handler http.Handler, checker 
 			// To do that we need to set the passthrough option to true so that the handler will invoke our middleware
 			// after calling the cors handler
 			corsOptions.OptionsPassthrough = true
+			corsOptions.Debug = true
 			c := cors.New(corsOptions)
 			handler = c.Handler(SetOriginHeader(handler))
 		} else {
