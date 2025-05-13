@@ -11,7 +11,7 @@ import (
 	"github.com/jlewi/cloud-assistant/app/pkg/logs"
 	"github.com/jlewi/cloud-assistant/protos/gen/cassie"
 	"github.com/pkg/errors"
-	v2 "github.com/runmedev/runme/v3/pkg/api/gen/proto/go/runme/runner/v2"
+	v2 "github.com/runmedev/runme/v3/api/gen/proto/go/runme/runner/v2"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
@@ -61,7 +61,11 @@ func (h *WebSocketHandler) Handler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	defer conn.Close()
+	defer func() {
+		if err := conn.Close(); err != nil {
+			log.Error(err, "Could not close websocket")
+		}
+	}()
 	processor := NewRunmeHandler(r.Context(), conn, h.runner)
 
 	// This will keep reading messages and streaming the outputs until the connection is closed.

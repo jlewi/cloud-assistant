@@ -24,7 +24,7 @@ import (
 	"github.com/jlewi/cloud-assistant/protos/gen/cassie/cassieconnect"
 	"github.com/jlewi/monogo/networking"
 	"github.com/pkg/errors"
-	v2 "github.com/runmedev/runme/v3/pkg/api/gen/proto/go/runme/runner/v2"
+	v2 "github.com/runmedev/runme/v3/api/gen/proto/go/runme/runner/v2"
 	"go.uber.org/zap"
 	"golang.org/x/net/http2"
 	"google.golang.org/grpc/health/grpc_health_v1"
@@ -443,7 +443,11 @@ func runRunmeClient(baseURL string) (map[string]any, error) {
 	if err != nil {
 		return blocks, errors.Wrapf(err, "Failed to dial; %v", err)
 	}
-	defer c.Close()
+	defer func() {
+		if err := c.Close(); err != nil {
+			log.Error(err, "Could not close websocket")
+		}
+	}()
 
 	// Send one command
 	if err := sendExecuteRequest(c, newExecuteRequest([]string{"ls -la"})); err != nil {
@@ -495,7 +499,11 @@ func runRunmeClientConcurrent(baseURL string) (map[string]any, error) {
 	if err != nil {
 		return blocks, errors.Wrapf(err, "Failed to dial; %v", err)
 	}
-	defer c.Close()
+	defer func() {
+		if err := c.Close(); err != nil {
+			log.Error(err, "Could not close websocket")
+		}
+	}()
 
 	req := newExecuteRequest([]string{`
 for i in {1..10}

@@ -2,9 +2,9 @@ package server
 
 import (
 	"github.com/pkg/errors"
-	runnerv2 "github.com/runmedev/runme/v3/pkg/api/gen/proto/go/runme/runner/v2"
-	"github.com/runmedev/runme/v3/pkg/command"
-	"github.com/runmedev/runme/v3/pkg/runnerv2service"
+	runnerv2 "github.com/runmedev/runme/v3/api/gen/proto/go/runme/runner/v2"
+	"github.com/runmedev/runme/v3/command"
+	"github.com/runmedev/runme/v3/runnerv2service"
 	"go.uber.org/zap"
 )
 
