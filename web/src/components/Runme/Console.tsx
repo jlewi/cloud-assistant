@@ -116,7 +116,7 @@ function Console({
   onPid?: (pid: number) => void
   onMimeType?: (mimeType: string) => void
 }) {
-  const { settings, runnerError: runnerAuthError } = useSettings()
+  const { settings, runnerError } = useSettings()
   const navigate = useNavigate()
   const execReq = buildExecuteRequest()
   const defaults = {
@@ -177,8 +177,8 @@ function Console({
   } as Partial<RendererContext<void>>)
 
   useEffect(() => {
-    if (runnerAuthError) {
-      const error = `Websocket authentication check failed: ${runnerAuthError.message}`
+    if (runnerError) {
+      const error = `Runner error: ${runnerError.message}`
       navigate(`/login?error=${encodeURIComponent(error)}`)
       return
     }
@@ -275,7 +275,7 @@ function Console({
     onStderr,
     onStdout,
     onMimeType,
-    runnerAuthError,
+    runnerError,
     settings.runnerEndpoint,
     navigate,
   ])
