@@ -25,10 +25,10 @@ export default function Settings() {
     if (!saveSettingsPending) {
       return
     }
+    setSaveSettingsPending(false)
     if (runnerError) {
       navigate('/')
     }
-    setSaveSettingsPending(false)
   }, [runnerError, saveSettingsPending, navigate])
 
   const handleRevert = () => {
