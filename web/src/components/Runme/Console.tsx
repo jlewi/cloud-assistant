@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 
 import {
   ExecuteResponse,
@@ -116,6 +117,7 @@ function Console({
   onMimeType?: (mimeType: string) => void
 }) {
   const { settings, runnerError: runnerAuthError } = useSettings()
+  const navigate = useNavigate()
   const execReq = buildExecuteRequest()
   const defaults = {
     output: {
@@ -177,7 +179,7 @@ function Console({
   useEffect(() => {
     if (runnerAuthError) {
       const error = `Websocket authentication check failed: ${runnerAuthError.message}`
-      window.location.href = `/login?error=${encodeURIComponent(error)}`
+      navigate(`/login?error=${encodeURIComponent(error)}`)
       return
     }
 
@@ -275,6 +277,7 @@ function Console({
     onMimeType,
     runnerAuthError,
     settings.runnerEndpoint,
+    navigate,
   ])
 
   useEffect(() => {
