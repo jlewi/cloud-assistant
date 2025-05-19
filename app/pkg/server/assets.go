@@ -3,6 +3,7 @@ package server
 import (
 	"bytes"
 	"embed"
+	"encoding/json"
 	"io/fs"
 	"net/http"
 	"os"
@@ -41,7 +42,7 @@ func getAssetFileSystem(staticAssets string) (fs.FS, error) {
 
 // processIndexHTMLWithConfig reads the index.html file and injects configuration values
 // such as authentication requirements into the HTML content
-func processIndexHTMLWithConfig(assetsFS fs.FS, oidcConfig *config.OIDCConfig) ([]byte, error) {
+func (s *Server) processIndexHTMLWithConfig(assetsFS fs.FS) ([]byte, error) {
 	// Read index.html
 	file, err := assetsFS.Open("index.html")
 	if err != nil {
@@ -60,17 +61,25 @@ func processIndexHTMLWithConfig(assetsFS fs.FS, oidcConfig *config.OIDCConfig) (
 	}
 	content := buf.Bytes()
 
-	// Define template values
-	templateValues := map[string][]byte{}
-
-	if oidcConfig != nil {
-		templateValues["{ requireAuth: false }"] = []byte("{ requireAuth: true }")
+	type initialState struct {
+		RequireAuth  bool                 `json:"requireAuth"`
+		WebAppConfig *config.WebAppConfig `json:"webApp,omitempty"`
 	}
 
-	// Replace each template value
-	for placeholder, value := range templateValues {
-		content = bytes.ReplaceAll(content, []byte(placeholder), value)
+	state := initialState{RequireAuth: false, WebAppConfig: s.webAppConfig}
+	if s.serverConfig.OIDC != nil {
+		state.RequireAuth = true
 	}
+
+	jsonState, err := json.Marshal(state)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to marshal initial state")
+	}
+
+	// Replace the assignment in index.html
+	placeholder := "window.__INITIAL_STATE__ = {}"
+	replacement := "window.__INITIAL_STATE__ = " + string(jsonState)
+	content = bytes.ReplaceAll(content, []byte(placeholder), []byte(replacement))
 
 	return content, nil
 }
@@ -97,7 +106,7 @@ func (s *Server) singlePageAppHandler() (http.Handler, error) {
 			return err
 		}()) {
 			// Read and process index.html
-			content, err := processIndexHTMLWithConfig(assetsFS, s.serverConfig.OIDC)
+			content, err := s.processIndexHTMLWithConfig(assetsFS)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return

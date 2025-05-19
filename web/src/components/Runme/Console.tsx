@@ -115,7 +115,7 @@ function Console({
   onPid?: (pid: number) => void
   onMimeType?: (mimeType: string) => void
 }) {
-  const { settings, runnerAuthError } = useSettings()
+  const { settings, runnerError: runnerAuthError } = useSettings()
   const execReq = buildExecuteRequest()
   const defaults = {
     output: {
@@ -393,10 +393,10 @@ function createWebSocket(runnerEndpoint: string): WebSocket {
   const url = new URL(runnerEndpoint)
   const token = getTokenValue()
   if (token) {
-    console.log("Adding auth token")
+    console.log('Adding auth token')
     url.searchParams.set('authorization', `Bearer ${token}`)
   } else {
-    console.log("No auth token found")
+    console.log('No auth token found')
   }
   const ws = new WebSocket(url.toString())
 

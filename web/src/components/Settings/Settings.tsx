@@ -1,13 +1,15 @@
-import { ChangeEvent, useState } from 'react'
+import { ChangeEvent, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
-import { Box, Button, Flex, Text, TextArea } from '@radix-ui/themes'
+import { Box, Button, Callout, Flex, Text, TextArea } from '@radix-ui/themes'
 
 import { useSettings } from '../../contexts/SettingsContext'
 
 export default function Settings() {
   const navigate = useNavigate()
-  const { settings, updateSettings, getDefaultSettings } = useSettings()
+  const { settings, updateSettings, runnerError, defaultSettings } =
+    useSettings()
+  const [saveSettingsPending, setSaveSettingsPending] = useState(false)
   const [endpoint, setEndpoint] = useState(settings.agentEndpoint)
   const [runnerEndpoint, setRunnerEndpoint] = useState(settings.runnerEndpoint)
 
@@ -16,11 +18,20 @@ export default function Settings() {
       agentEndpoint: endpoint,
       runnerEndpoint: runnerEndpoint,
     })
-    navigate('/')
+    setSaveSettingsPending(true)
   }
 
+  useEffect(() => {
+    if (!saveSettingsPending) {
+      return
+    }
+    if (runnerError) {
+      navigate('/')
+    }
+    setSaveSettingsPending(false)
+  }, [runnerError, saveSettingsPending, navigate])
+
   const handleRevert = () => {
-    const defaultSettings = getDefaultSettings()
     setEndpoint(defaultSettings.agentEndpoint)
     setRunnerEndpoint(defaultSettings.runnerEndpoint)
   }
@@ -55,6 +66,7 @@ export default function Settings() {
             />
           </Flex>
 
+          {/* Display runner authentication error if present, specific to Runner Endpoint Configuration */}
           <Flex direction="column" gap="2">
             <Text size="3" weight="bold">
               Runner Endpoint Configuration
@@ -63,6 +75,13 @@ export default function Settings() {
               Configure the WebSocket endpoint URL for the runner. Changes will
               take effect after saving.
             </Text>
+            {runnerError && (
+              <Callout.Root color="red">
+                <Callout.Text className="font-bold">
+                  Runner error: {runnerError.message}
+                </Callout.Text>
+              </Callout.Root>
+            )}
             <TextArea
               size="3"
               placeholder="Enter Runner WebSocket endpoint URL"

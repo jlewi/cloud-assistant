@@ -3,6 +3,7 @@ import {
   createContext,
   useContext,
   useEffect,
+  useMemo,
   useState,
 } from 'react'
 
@@ -16,24 +17,9 @@ interface Settings {
 
 interface SettingsContextType {
   settings: Settings
-  runnerAuthError: Error | null
+  runnerError: Error | null
   updateSettings: (newSettings: Partial<Settings>) => void
-  getDefaultSettings: () => Settings
-}
-
-const getDefaultSettings = (): Settings => {
-  const isLocalhost = window.location.hostname === 'localhost'
-  const isHttp = window.location.protocol === 'http:'
-  const isVite = window.location.port === '5173'
-  const isDev = isLocalhost && isHttp && isVite
-
-  return {
-    agentEndpoint: isDev ? 'http://localhost:8080' : window.location.origin,
-    runnerEndpoint: isDev
-      ? 'ws://localhost:8080/ws'
-      : `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws`,
-    requireAuth: false,
-  }
+  defaultSettings: Settings
 }
 
 const SettingsContext = createContext<SettingsContextType | undefined>(
@@ -52,25 +38,51 @@ export const useSettings = () => {
 interface SettingsProviderProps {
   children: ReactNode
   requireAuth?: boolean
+  webApp?: {
+    runner?: string
+  }
 }
 
 export const SettingsProvider = ({
   children,
   requireAuth,
+  webApp,
 }: SettingsProviderProps) => {
-  const [runnerAuthError, setRunnerAuthError] = useState<Error | null>(null)
-  const [settings, setSettings] = useState<Settings>(() => {
-    const savedSettings = localStorage.getItem('cloudAssistantSettings')
-    const defaultSettings = getDefaultSettings()
-    const mergedSettings = savedSettings
-      ? { ...defaultSettings, ...JSON.parse(savedSettings) }
-      : defaultSettings
+  const [runnerError, setRunnerError] = useState<Error | null>(null)
+
+  const defaultSettings: Settings = useMemo(() => {
+    const isLocalhost = window.location.hostname === 'localhost'
+    const isHttp = window.location.protocol === 'http:'
+    const isVite = window.location.port === '5173'
+    const isDev = isLocalhost && isHttp && isVite
+
+    let runnerLocation = new URL(window.location.href)
+    // Overwrite runnerEndpoint if webApp.runner is provided
+    if (webApp?.runner) {
+      runnerLocation = new URL(webApp.runner)
+    }
+
+    const baseSettings: Settings = {
+      agentEndpoint: isDev ? 'http://localhost:8080' : window.location.origin,
+      runnerEndpoint: isDev
+        ? 'ws://localhost:8080/ws'
+        : `${runnerLocation.protocol === 'https:' ? 'wss:' : 'ws:'}//${runnerLocation.host}/ws`,
+      requireAuth: false,
+    }
 
     // Override requireAuth if provided
     if (requireAuth !== undefined) {
-      mergedSettings.requireAuth = requireAuth
+      baseSettings.requireAuth = requireAuth
     }
 
+    return baseSettings
+  }, [requireAuth, webApp])
+
+  const [settings, setSettings] = useState<Settings>(() => {
+    const savedSettings = localStorage.getItem('cloudAssistantSettings')
+    const mergedSettings = savedSettings
+      ? { ...defaultSettings, ...JSON.parse(savedSettings) }
+      : defaultSettings
     return mergedSettings
   })
 
@@ -79,10 +91,6 @@ export const SettingsProvider = ({
   }, [settings])
 
   useEffect(() => {
-    if (!requireAuth) {
-      return
-    }
-
     // Use the same endpoint as the WebSocket but with HTTP
     const endpoint = settings.runnerEndpoint
       .replace('ws://', 'http://')
@@ -90,7 +98,7 @@ export const SettingsProvider = ({
 
     const endpointUrl = new URL(endpoint)
     const token = getTokenValue()
-    if (token) {
+    if (token && settings.requireAuth) {
       endpointUrl.searchParams.set('authorization', `Bearer ${token}`)
     }
 
@@ -103,18 +111,18 @@ export const SettingsProvider = ({
     })
       .then((response) => {
         if (response.status === 401) {
-          setRunnerAuthError(
+          setRunnerError(
             new Error(`${response.status}: ${response.statusText}`)
           )
         } else {
-          setRunnerAuthError(null)
+          setRunnerError(null)
         }
       })
       .catch((error) => {
         console.error('Error checking authentication:', error)
-        setRunnerAuthError(error)
+        setRunnerError(error)
       })
-  }, [requireAuth, settings.runnerEndpoint])
+  }, [requireAuth, settings.requireAuth, settings.runnerEndpoint])
 
   const updateSettings = (newSettings: Partial<Settings>) => {
     setSettings((prev) => ({ ...prev, ...newSettings }))
@@ -124,9 +132,9 @@ export const SettingsProvider = ({
     <SettingsContext.Provider
       value={{
         settings,
-        runnerAuthError,
+        runnerError,
         updateSettings,
-        getDefaultSettings,
+        defaultSettings,
       }}
     >
       {children}

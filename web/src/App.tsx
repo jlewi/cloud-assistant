@@ -19,6 +19,9 @@ import Layout from './layout'
 export interface AppProps {
   initialState?: {
     requireAuth?: boolean
+    webApp?: {
+      runner?: string
+    }
   }
 }
 
@@ -31,7 +34,10 @@ function App({ initialState = {} }: AppProps) {
           <meta name="description" content="An AI Assistant For Your Cloud" />
           <link rel="icon" href={openaiLogo} />
         </Helmet>
-        <SettingsProvider requireAuth={initialState.requireAuth}>
+        <SettingsProvider
+          requireAuth={initialState?.requireAuth}
+          webApp={initialState?.webApp}
+        >
           <AgentClientProvider>
             <BlockProvider>
               <BrowserRouter>
