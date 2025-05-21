@@ -40,3 +40,7 @@ lint:
 
 test:
 	GITHUB_ACTIONS=true go test -v ./...
+
+install/pre-commit:
+	pre-commit install
+	pre-commit install --install-hooks
