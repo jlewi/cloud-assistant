@@ -1,6 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
 
 import {
   ExecuteResponse,
@@ -116,8 +115,7 @@ function Console({
   onPid?: (pid: number) => void
   onMimeType?: (mimeType: string) => void
 }) {
-  const { settings, runnerError } = useSettings()
-  const navigate = useNavigate()
+  const { settings, checkRunnerAuth } = useSettings()
   const execReq = buildExecuteRequest()
   const defaults = {
     output: {
@@ -177,12 +175,6 @@ function Console({
   } as Partial<RendererContext<void>>)
 
   useEffect(() => {
-    if (runnerError) {
-      const error = `Runner error: ${runnerError.message}`
-      navigate(`/login?error=${encodeURIComponent(error)}`)
-      return
-    }
-
     socket = createWebSocket(settings.runnerEndpoint)
 
     socket.onclose = (e: CloseEvent) => {
@@ -191,6 +183,7 @@ function Console({
       }
 
       console.error('WebSocket closed with code:', e.code)
+      checkRunnerAuth()
     }
 
     socket.onmessage = (event) => {
@@ -275,9 +268,8 @@ function Console({
     onStderr,
     onStdout,
     onMimeType,
-    runnerError,
     settings.runnerEndpoint,
-    navigate,
+    checkRunnerAuth,
   ])
 
   useEffect(() => {
@@ -402,6 +394,14 @@ function createWebSocket(runnerEndpoint: string): WebSocket {
     console.log('No auth token found')
   }
   const ws = new WebSocket(url.toString())
+
+  ws.onerror = (event) => {
+    console.error('WebSocket error:', event)
+  }
+
+  ws.onclose = (event) => {
+    console.error('WebSocket closed:', event)
+  }
 
   ws.onopen = () => {
     console.log(

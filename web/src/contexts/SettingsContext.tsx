@@ -1,6 +1,7 @@
 import {
   ReactNode,
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useMemo,
@@ -16,10 +17,11 @@ interface Settings {
 }
 
 interface SettingsContextType {
-  settings: Settings
-  runnerError: Error | null
-  updateSettings: (newSettings: Partial<Settings>) => void
+  checkRunnerAuth: () => void
   defaultSettings: Settings
+  runnerError: Error | null
+  settings: Settings
+  updateSettings: (newSettings: Partial<Settings>) => void
 }
 
 const SettingsContext = createContext<SettingsContextType | undefined>(
@@ -90,7 +92,7 @@ export const SettingsProvider = ({
     localStorage.setItem('cloudAssistantSettings', JSON.stringify(settings))
   }, [settings])
 
-  useEffect(() => {
+  const checkRunnerAuth = useCallback(async () => {
     // Use the same endpoint as the WebSocket but with HTTP
     const endpoint = settings.runnerEndpoint
       .replace('ws://', 'http://')
@@ -102,27 +104,32 @@ export const SettingsProvider = ({
       endpointUrl.searchParams.set('authorization', `Bearer ${token}`)
     }
 
-    fetch(endpointUrl.toString(), {
-      method: 'HEAD',
-      credentials: 'include', // Include cookies for authentication
-      headers: {
-        Accept: 'application/json',
-      },
-    })
-      .then((response) => {
-        if (response.status === 401) {
-          setRunnerError(
-            new Error(`${response.status}: ${response.statusText}`)
-          )
-        } else {
-          setRunnerError(null)
-        }
+    try {
+      const response = await fetch(endpointUrl.toString(), {
+        method: 'HEAD',
+        credentials: 'include', // Include cookies for authentication
+        headers: {
+          Accept: 'application/json',
+        },
       })
-      .catch((error) => {
-        console.error('Error checking authentication:', error)
-        setRunnerError(error)
-      })
-  }, [requireAuth, settings.requireAuth, settings.runnerEndpoint])
+      if (response.status === 401) {
+        setRunnerError(new Error(`${response.status}: ${response.statusText}`))
+      } else {
+        setRunnerError(null)
+      }
+    } catch (error) {
+      console.error('Error checking runner endpoint:', error)
+      setRunnerError(error as Error)
+    }
+  }, [settings.runnerEndpoint, settings.requireAuth])
+
+  useEffect(() => {
+    if (!settings.requireAuth) {
+      return
+    }
+
+    checkRunnerAuth()
+  }, [checkRunnerAuth, settings.requireAuth])
 
   const updateSettings = (newSettings: Partial<Settings>) => {
     setSettings((prev) => ({ ...prev, ...newSettings }))
@@ -131,10 +138,11 @@ export const SettingsProvider = ({
   return (
     <SettingsContext.Provider
       value={{
-        settings,
-        runnerError,
-        updateSettings,
+        checkRunnerAuth,
         defaultSettings,
+        runnerError,
+        settings,
+        updateSettings,
       }}
     >
       {children}

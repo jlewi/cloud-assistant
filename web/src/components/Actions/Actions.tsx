@@ -1,12 +1,10 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 
 import Editor from '@monaco-editor/react'
 import { Box, Button, Card, ScrollArea, Text } from '@radix-ui/themes'
 import { v4 as uuidv4 } from 'uuid'
 
 import { Block, BlockOutputKind, useBlock } from '../../contexts/BlockContext'
-import { useSettings } from '../../contexts/SettingsContext'
 import Console from '../Runme/Console'
 import {
   ErrorIcon,
@@ -375,9 +373,7 @@ function Action({ block }: { block: Block }) {
 
 function Actions() {
   const { useColumns, addCodeBlock } = useBlock()
-  const { runnerError } = useSettings()
   const { actions } = useColumns()
-  const navigate = useNavigate()
 
   const actionsEndRef = useRef<HTMLDivElement | null>(null)
   // automatically scroll to bottom of chat
@@ -388,13 +384,6 @@ function Actions() {
   useEffect(() => {
     scrollToBottom()
   }, [actions])
-
-  useEffect(() => {
-    if (!runnerError) {
-      return
-    }
-    navigate(runnerError.toString().includes('401') ? '/login' : '/settings')
-  }, [runnerError, navigate])
 
   return (
     <div className="flex flex-col h-full">
