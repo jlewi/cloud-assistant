@@ -13,5 +13,5 @@ Since BIDI streaming isn't supported in the browser, we use websockets to allow 
 The server provides a WebsocketHandler for Execute requests that handles requests by invoking Runme.
 Runme is used by linking it in; rather than running it as a separate process and communicating via gRPC.
 
-This currently depends on a forked version of Runme available in 
+This currently depends on a forked version of Runme available in
 [runmedev/runme#767](https://github.com/runmedev/runme/pull/767).
