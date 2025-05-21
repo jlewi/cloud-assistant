@@ -39,7 +39,7 @@ repos:
         stages: [pre-commit]
       - id: lint
         name: lint
-        entry: make
+        entry: make -C app
         args: ["lint"]
         language: system
         types: [go]
@@ -47,7 +47,7 @@ repos:
         stages: [pre-commit]
       - id: build
         name: build
-        entry: make
+        entry: make -C app
         language: system
         types: [go]
         pass_filenames: false
