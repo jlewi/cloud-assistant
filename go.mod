@@ -2,8 +2,6 @@ module github.com/jlewi/cloud-assistant
 
 go 1.24
 
-replace github.com/runmedev/runme/v3 => github.com/runmedev/runme/v3 v3.14.1-0.20250522234431-bc1e917c6768
-
 require (
 	connectrpc.com/connect v1.18.1
 	connectrpc.com/cors v0.1.0
@@ -21,7 +19,7 @@ require (
 	github.com/openai/openai-go v0.1.0-alpha.66.0.20250320204127-9377508e45ae
 	github.com/pkg/errors v0.9.1
 	github.com/rs/cors v1.11.1
-	github.com/runmedev/runme/v3 v3.12.6
+	github.com/runmedev/runme/v3 v3.14.0
 	github.com/spf13/cobra v1.9.1
 	github.com/spf13/viper v1.19.0
 	github.com/stretchr/testify v1.10.0
