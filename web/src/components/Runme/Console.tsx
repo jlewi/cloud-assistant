@@ -115,7 +115,7 @@ function Console({
   onPid?: (pid: number) => void
   onMimeType?: (mimeType: string) => void
 }) {
-  const { settings, runnerAuthError } = useSettings()
+  const { settings, checkRunnerAuth } = useSettings()
   const execReq = buildExecuteRequest()
   const defaults = {
     output: {
@@ -175,12 +175,6 @@ function Console({
   } as Partial<RendererContext<void>>)
 
   useEffect(() => {
-    if (runnerAuthError) {
-      const error = `Websocket authentication check failed: ${runnerAuthError.message}`
-      window.location.href = `/login?error=${encodeURIComponent(error)}`
-      return
-    }
-
     socket = createWebSocket(settings.runnerEndpoint)
 
     socket.onclose = (e: CloseEvent) => {
@@ -189,6 +183,7 @@ function Console({
       }
 
       console.error('WebSocket closed with code:', e.code)
+      checkRunnerAuth()
     }
 
     socket.onmessage = (event) => {
@@ -273,8 +268,8 @@ function Console({
     onStderr,
     onStdout,
     onMimeType,
-    runnerAuthError,
     settings.runnerEndpoint,
+    checkRunnerAuth,
   ])
 
   useEffect(() => {
@@ -393,12 +388,20 @@ function createWebSocket(runnerEndpoint: string): WebSocket {
   const url = new URL(runnerEndpoint)
   const token = getTokenValue()
   if (token) {
-    console.log("Adding auth token")
+    console.log('Adding auth token')
     url.searchParams.set('authorization', `Bearer ${token}`)
   } else {
-    console.log("No auth token found")
+    console.log('No auth token found')
   }
   const ws = new WebSocket(url.toString())
+
+  ws.onerror = (event) => {
+    console.error('WebSocket error:', event)
+  }
+
+  ws.onclose = (event) => {
+    console.error('WebSocket closed:', event)
+  }
 
   ws.onopen = () => {
     console.log(

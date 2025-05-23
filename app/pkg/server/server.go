@@ -39,6 +39,7 @@ import (
 type Server struct {
 	telemetry        *config.TelemetryConfig
 	serverConfig     *config.AssistantServerConfig
+	webAppConfig     *config.WebAppConfig
 	hServer          *http.Server
 	engine           http.Handler
 	shutdownComplete chan bool
@@ -50,6 +51,7 @@ type Server struct {
 type Options struct {
 	Telemetry *config.TelemetryConfig
 	Server    *config.AssistantServerConfig
+	WebApp    *config.WebAppConfig
 	IAMPolicy *api.IAMPolicy
 }
 
@@ -112,6 +114,7 @@ func NewServer(opts Options, agent *ai.Agent) (*Server, error) {
 	s := &Server{
 		telemetry:    opts.Telemetry,
 		serverConfig: opts.Server,
+		webAppConfig: opts.WebApp,
 		runner:       runner,
 		agent:        agent,
 		checker:      checker,
