@@ -1,0 +1,24 @@
+syntax = "proto3";
+
+
+option go_package = "github.com/jlewi/cloud-assistant/protos/gen/cassie";
+
+// AppConfig is the application configuration.
+message AppConfig {
+  // runner is the address of the runner that the application should use.
+  string runner = 1;
+}
+
+
+// AppService is used by the webapp to get configuration and other information from the backend.
+service AppService {
+  // GetConfig gets the configuration
+  rpc GetConfig(GetConfigRequest) returns (stream GetConfigResponse) {}
+}
+
+message GetConfigRequest {
+}
+
+message GetConfigResponse {
+  AppConfig config = 1;
+}
