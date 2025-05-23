@@ -716,10 +716,13 @@ func (p *AuthMux) HandleProtected(pattern string, handler http.Handler, checker 
     })
   }
   log := logs.NewLogger()
-  // Create a chain: cors > check the IDToken is valid -> Apply AuthZ -> call the handler
-  // CORS needs to come first because it will terminate the request chain on OPTIONS requests
-  // OPTIONS requests won't carry authorization headers so we can't do authorization first
-  handler = p.authMiddleware(iamChecker(handler))
+  // Only do authz if authz is enabled. It's impossible to do authz without identity
+  if p.serverConfig != nil && p.serverConfig.OIDC != nil {
+    // Create a chain: cors > check the IDToken is valid -> Apply AuthZ -> call the handler
+    // CORS needs to come first because it will terminate the request chain on OPTIONS requests
+    // OPTIONS requests won't carry authorization headers so we can't do authorization first
+    handler = p.authMiddleware(iamChecker(handler))
+  }
 
   // Apply CORS if origins are configured
   // This is modeled on cors.AllowAll() but we can't use that because we need to allow credentials
