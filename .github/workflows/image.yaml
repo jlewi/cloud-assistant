@@ -6,7 +6,7 @@ on:
       - main
       # For testing the changes to the workflow to tag the commit and allow workflow dispatch. 
       # We can get rid of this once we are happy with the updated workflow
-      - jlewi/oidc
+      - jlewi/cache
   # Allow manual triggering
   # This allows building images from branches
   workflow_dispatch: {}
@@ -38,7 +38,10 @@ jobs:
         uses: docker/build-push-action@v3
         with:
           context: .
+          build-args: |
+            COMMIT_SHORT_SHA=${{ env.COMMIT_SHORT_SHA }}
           push: true
           tags: |
             ghcr.io/${{ github.repository }}:latest
             ghcr.io/${{ github.repository }}:commit-${{  env.COMMIT_SHORT_SHA }}
+          

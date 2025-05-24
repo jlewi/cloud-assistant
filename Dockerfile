@@ -12,6 +12,17 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GO111MODULE=on \
     -a -o /app/cas github.com/jlewi/cloud-assistant/app
 
 FROM node:18-alpine AS builder
+# Accept the build argument
+ARG COMMIT_SHORT_SHA
+
+# Set it as an environment variable
+# This gets picked by our vit configuration and names the file index${GIT_SHA_SHORT}.js.
+# This enables cache busting; when you refresh the app you get a new version.
+# You can also tell which version of the code you are running by looking at your index.html
+ENV GIT_SHA_SHORT=$COMMIT_SHORT_SHA
+
+# Optional: print it for debug
+RUN echo "Short SHA: GIT_SHA_SHORT"
 
 # Check https://github.com/nodejs/docker-node/tree/b4117f9333da4138b03a546ec926ef50a31506c3#nodealpine to understand why libc6-compat might be needed.
 # TODO(jlewi): Do we still need this
