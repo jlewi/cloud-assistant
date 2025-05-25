@@ -151,6 +151,7 @@ func (a *Agent) ProcessWithOpenAI(ctx context.Context, req *cassie.GenerateReque
 	log := logs.FromContext(ctx)
 	traceId := span.SpanContext().TraceID()
 	log = log.WithValues("traceId", traceId)
+	ctx = logs.IntoContext(ctx, log)
 	log.Info("Agent.Generate")
 
 	if (len(req.Blocks)) < 1 {

@@ -17,6 +17,10 @@ func FromContext(ctx context.Context) logr.Logger {
 	return l
 }
 
+func IntoContext(ctx context.Context, l logr.Logger) context.Context {
+	return logr.NewContext(ctx, l)
+}
+
 func NewLogger() logr.Logger {
 	// We need to AllowZapFields to ensure the protobuf message is logged correctly as a json object.
 	// For that to work we need to do logr.Info("message", zap.Object("key", protoMessage))
