@@ -180,7 +180,7 @@ func (a *Agent) ProcessWithOpenAI(ctx context.Context, req *cassie.GenerateReque
 		Description: openai.Opt(a.shellToolDescription),
 		Parameters:  shellToolJSONSchema,
 		// N.B. I'm not sure what the point of strict would be since we have a single string argument.
-		Strict: false,
+		Strict: openai.Opt(false),
 	}
 
 	tool := responses.ToolUnionParam{
@@ -281,7 +281,7 @@ func (a *Agent) ProcessWithOpenAI(ctx context.Context, req *cassie.GenerateReque
 	createResponse := responses.ResponseNewParams{
 		Input:             input,
 		Instructions:      openai.Opt(a.instructions),
-		Model:             openai.ChatModelGPT4oMini,
+		Model:             openai.ChatModelGPT4_1,
 		Tools:             tools,
 		ParallelToolCalls: openai.Bool(true),
 		ToolChoice:        toolChoice,

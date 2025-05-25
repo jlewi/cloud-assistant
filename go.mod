@@ -16,7 +16,7 @@ require (
 	github.com/hashicorp/go-retryablehttp v0.7.7
 	github.com/hashicorp/golang-lru/v2 v2.0.7
 	github.com/jlewi/monogo v0.0.0-20241216141120-2e83e825aa81
-	github.com/openai/openai-go v0.1.0-alpha.66.0.20250320204127-9377508e45ae
+	github.com/openai/openai-go v1.0.0
 	github.com/pkg/errors v0.9.1
 	github.com/rs/cors v1.11.1
 	github.com/runmedev/runme/v3 v3.14.0
