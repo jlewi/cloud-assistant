@@ -191,6 +191,9 @@ const CodeEditor = memo(
             defaultLanguage="shellscript"
             value={value}
             options={{
+              scrollbar: {
+                alwaysConsumeMouseWheel: false,
+              },
               minimap: { enabled: false },
               theme: 'vs-dark',
               wordWrap: 'wordWrapColumn',
