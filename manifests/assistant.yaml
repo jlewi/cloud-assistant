@@ -3,6 +3,10 @@ kind: ""
 logging:
     level: info
     json: true
+    logDir: /tmp/cloud-assistant
+    sinks:
+        - path: stderr
+          json: false
 openai:        
     apiKeyFile: /etc/openai/apikey
 cloudAssistant:
