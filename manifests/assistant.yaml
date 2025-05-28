@@ -1,0 +1,38 @@
+apiVersion: ""
+kind: ""
+logging:
+    level: info
+    json: true
+openai:        
+    apiKeyFile: /etc/openai/apikey
+cloudAssistant:
+    # Vectorstores should be changed to whatever your vector store is
+    vectorStores:
+        - vs_s123123124
+assistantServer:
+    staticAssets: /static
+    runnerService: false
+    # The agent mints OAuth tokens for the user to login to the assistant and the runners
+    oidc:
+        generic:
+            clientID: <YOUR CLIENT ID>            
+            clientSecret: "<YOUR CLIENT SECRET"
+            # The callback URL is specific to the instance we are running on 
+            # {{context}} is a template variable that is replaced by applied spec and evaluates to the full cluster
+            redirectURL: https://cloud-assistant.<YOURDOMAIN>/oidc/callback
+            discoveryURL: https://<YOUR IDP>/v2.0/.well-known/openid-configuration
+            scopes:
+                - "openid"
+                - "email"
+            issuer: <YOUR ISSUER>
+    tlsConfig:
+        # This should be a self-signed certificate created by cert-manager        
+        certFile: /etc/tls/tls.crt
+        keyFile: /etc/tls/tls.key
+iamPolicy:
+    bindings:
+    - role: "role/agent.user"
+      members:
+        # OR SET A suitable police
+        - name: "yourdomain.com"
+          kind: "domain"
