@@ -214,6 +214,11 @@ const ChatMessages = () => {
 const ChatInput = () => {
   const { sendUserBlock, isInputDisabled } = useBlock()
   const [userInput, setUserInput] = useState('')
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    inputRef.current?.focus()
+  }, [])
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -232,6 +237,7 @@ const ChatInput = () => {
           placeholder="Enter your question"
           size="2"
           className="flex-grow min-w-0 m-2"
+          ref={inputRef}
         >
           <TextField.Slot>
             <MagnifyingGlassIcon height="16" width="16" />
