@@ -2,9 +2,13 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 namespace: cloud-assistant
 configMapGenerator:
-  - name: assistant    
-    files:
-      - assistant.yaml
+- files:
+  - assistant.yaml
+  name: assistant
 
-resources:  
-  - deployment.yaml  
+resources:
+- deployment.yaml
+images:
+- name: cloud-assistant
+  newName: ghcr.io/jlewi/cloud-assistant
+  newTag: commit-a1b29c5
