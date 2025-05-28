@@ -11,7 +11,7 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GO111MODULE=on \
     -ldflags "${LDFLAGS}" \
     -a -o /app/cas github.com/jlewi/cloud-assistant/app
 
-FROM node:18-alpine AS builder
+FROM node:20-alpine AS builder
 # Accept the build argument
 ARG COMMIT_SHORT_SHA
 
