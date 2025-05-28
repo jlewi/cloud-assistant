@@ -17,8 +17,6 @@ assistantServer:
         generic:
             clientID: <YOUR CLIENT ID>            
             clientSecret: "<YOUR CLIENT SECRET"
-            # The callback URL is specific to the instance we are running on 
-            # {{context}} is a template variable that is replaced by applied spec and evaluates to the full cluster
             redirectURL: https://cloud-assistant.<YOURDOMAIN>/oidc/callback
             discoveryURL: https://<YOUR IDP>/v2.0/.well-known/openid-configuration
             scopes:
