@@ -1,3 +1,7 @@
+---
+cwd: ..
+---
+
 ## Replace the cert and key with your own
 
 ```sh {"terminalRows":"2"}
