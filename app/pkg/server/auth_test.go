@@ -559,6 +559,12 @@ func (d *DenyAllChecker) Check(principal string, role string) bool {
 	return false
 }
 
+func (d *DenyAllChecker) GetPrincipal(idToken *jwt.Token) (string, error) {
+	claims, _ := idToken.Claims.(jwt.MapClaims)
+	email, _ := claims["email"].(string)
+	return email, nil
+}
+
 func TestOIDC_UnauthenticatedRoutes_NoSession(t *testing.T) {
 	// This test verifies that if there is no session token the user gets back an Unuauthorized error
 	// Create test OIDC config
@@ -575,14 +581,22 @@ func TestOIDC_UnauthenticatedRoutes_NoSession(t *testing.T) {
 		OIDC:        oidcConfig,
 	}
 
+	// Create OIDC instance for tests
+	var oidc *OIDC
+	var err error
+	oidc, err = newOIDC(oidcConfig)
+	if err != nil {
+		t.Fatalf("Failed to create OIDC instance: %v", err)
+	}
+
 	// Create auth mux
-	mux, err := NewAuthMux(serverConfig)
+	mux, err := NewAuthMux(serverConfig, oidc)
 	if err != nil {
 		t.Fatalf("Failed to create auth mux: %v", err)
 	}
 
 	// Register auth routes
-	if err := RegisterAuthRoutes(oidcConfig, mux); err != nil {
+	if err := RegisterAuthRoutes(oidc, mux); err != nil {
 		t.Fatalf("Failed to register auth routes: %v", err)
 	}
 
@@ -635,8 +649,18 @@ func TestOIDC_AccessForbidden(t *testing.T) {
 		OIDC:        idp.oidcCfg,
 	}
 
+	// Create OIDC instance for tests
+	var oidc *OIDC
+	if idp.oidcCfg != nil {
+		var err error
+		oidc, err = newOIDC(idp.oidcCfg)
+		if err != nil {
+			t.Fatalf("Failed to create OIDC instance: %v", err)
+		}
+	}
+
 	// Create auth mux
-	mux, err := NewAuthMux(serverConfig)
+	mux, err := NewAuthMux(serverConfig, oidc)
 	if err != nil {
 		t.Fatalf("Failed to create auth mux: %v", err)
 	}
@@ -651,7 +675,7 @@ func TestOIDC_AccessForbidden(t *testing.T) {
 	}
 
 	// Register auth routes
-	if err := RegisterAuthRoutes(idp.oidcCfg, mux); err != nil {
+	if err := RegisterAuthRoutes(idp.oidc, mux); err != nil {
 		t.Fatalf("Failed to register auth routes: %v", err)
 	}
 
@@ -713,8 +737,18 @@ func TestOIDC_TokenHierarchy(t *testing.T) {
 		OIDC:        idp.oidcCfg,
 	}
 
+	// Create OIDC instance for tests
+	var oidc *OIDC
+	if idp.oidcCfg != nil {
+		var err error
+		oidc, err = newOIDC(idp.oidcCfg)
+		if err != nil {
+			t.Fatalf("Failed to create OIDC instance: %v", err)
+		}
+	}
+
 	// Create auth mux
-	mux, err := NewAuthMux(serverConfig)
+	mux, err := NewAuthMux(serverConfig, oidc)
 	if err != nil {
 		t.Fatalf("Failed to create auth mux: %v", err)
 	}
@@ -726,7 +760,7 @@ func TestOIDC_TokenHierarchy(t *testing.T) {
 	mux.authMiddleware = authMiddleware
 
 	// Register auth routes
-	if err := RegisterAuthRoutes(idp.oidcCfg, mux); err != nil {
+	if err := RegisterAuthRoutes(idp.oidc, mux); err != nil {
 		t.Fatalf("Failed to register auth routes: %v", err)
 	}
 
@@ -755,19 +789,6 @@ func TestOIDC_TokenHierarchy(t *testing.T) {
 		authParam := url.QueryEscape("authorization=Bearer invalid")
 		req := httptest.NewRequest("GET", "/protected?"+authParam, nil)
 		req.Header.Set("Authorization", "Bearer "+token)
-		req.AddCookie(&http.Cookie{Name: sessionCookieName, Value: "invalid"})
-		rec := httptest.NewRecorder()
-		mux.ServeHTTP(rec, req)
-		if rec.Code != AuthedButForbidden {
-			t.Errorf("Expected status %d, got %d", AuthedButForbidden, rec.Code)
-		}
-	})
-
-	t.Run("Query param takes precedence over cookie", func(t *testing.T) {
-		params := url.Values{}
-		params.Set("authorization", "Bearer "+token)
-		req := httptest.NewRequest("GET", "/protected?"+params.Encode(), nil)
-		req.Header.Set("Authorization", "")
 		req.AddCookie(&http.Cookie{Name: sessionCookieName, Value: "invalid"})
 		rec := httptest.NewRecorder()
 		mux.ServeHTTP(rec, req)

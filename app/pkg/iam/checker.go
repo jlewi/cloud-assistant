@@ -4,12 +4,14 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/jlewi/cloud-assistant/app/api"
 	"github.com/pkg/errors"
 )
 
 type Checker interface {
 	Check(principal string, role string) bool
+	GetPrincipal(idToken *jwt.Token) (string, error)
 }
 
 // PolicyChecker enforces IAMPolicies. It checks if a user has the required permissions to perform an action.
@@ -80,6 +82,16 @@ func (c *PolicyChecker) Check(principal string, role string) bool {
 	return false
 }
 
+// GetPrincipal returns the principal from the idToken.
+func (c *PolicyChecker) GetPrincipal(idToken *jwt.Token) (string, error) {
+	email, err := extractEmailFromIDToken(idToken)
+	if err != nil {
+		return "", err
+	}
+
+	return email, nil
+}
+
 // IsValidPolicy checks if the IAM policy is valid. If its not it returns a string with a human readable
 // message about the violations
 func IsValidPolicy(policy api.IAMPolicy) (bool, string) {
@@ -134,6 +146,11 @@ func (c *AllowAllChecker) Check(principal string, role string) bool {
 	return true
 }
 
+// GetPrincipal returns empty principal.
+func (c *AllowAllChecker) GetPrincipal(idToken *jwt.Token) (string, error) {
+	return "", nil
+}
+
 // memberMatcher checks whether a member is allowed under some set of rules
 type memberMatcher interface {
 	Check(principal string) bool
@@ -147,4 +164,20 @@ type userChecker struct {
 func (m *userChecker) Check(principal string) bool {
 	_, ok := m.members[principal]
 	return ok
+}
+
+// extractEmailFromIDToken extracts the email from the idToken, returning an error if any check fails.
+func extractEmailFromIDToken(idToken *jwt.Token) (string, error) {
+	if idToken == nil {
+		return "", errors.New("No valid session")
+	}
+	claims, ok := idToken.Claims.(jwt.MapClaims)
+	if !ok {
+		return "", errors.New("Invalid token claims")
+	}
+	email, ok := claims["email"].(string)
+	if !ok {
+		return "", errors.New("Missing email claim")
+	}
+	return email, nil
 }

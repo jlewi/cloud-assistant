@@ -1,7 +1,6 @@
 package server
 
 import (
-	"context"
 	"crypto/rand"
 	"crypto/rsa"
 	"encoding/base64"
@@ -197,9 +196,26 @@ func (o *OIDC) downloadJWKS() error {
 	return nil
 }
 
+// verifyBearerToken verifies the JWT token in the bearer token and returns whether it's valid and any error encountered
+func (o *OIDC) verifyBearerToken(bearerToken string) (*jwt.Token, error) {
+	if !strings.HasPrefix(strings.ToLower(bearerToken), "bearer ") {
+		return nil, errors.New("bearer token must start with 'Bearer '")
+	}
+
+	// Remove prefix case-insensitive, trim whitespace
+	idToken := strings.TrimPrefix(bearerToken, bearerToken[:7])
+	idToken = strings.TrimSpace(idToken)
+
+	return o.verifyToken(idToken)
+}
+
 // verifyToken verifies the JWT token and returns whether it's valid and any error encountered
 // result is nil if its an invalid token and non-nil if its valid
 func (o *OIDC) verifyToken(idToken string) (*jwt.Token, error) {
+	if o == nil {
+		return nil, errors.New("OIDC is not configured")
+	}
+
 	// Verify the token signature using JWKS
 	token, err := jwt.Parse(idToken, func(token *jwt.Token) (any, error) {
 		// Verify the signing method is what we expect
@@ -257,14 +273,9 @@ func (o *OIDC) verifyToken(idToken string) (*jwt.Token, error) {
 }
 
 // RegisterAuthRoutes registers the OAuth2 authentication routes
-func RegisterAuthRoutes(config *config.OIDCConfig, mux *AuthMux) error {
-	if config == nil {
+func RegisterAuthRoutes(oidc *OIDC, mux *AuthMux) error {
+	if oidc == nil {
 		return nil
-	}
-
-	oidc, err := newOIDC(config)
-	if err != nil {
-		return errors.Wrapf(err, "Failed to create OAuth2 manager")
 	}
 
 	// Register OAuth2 endpoints
@@ -277,18 +288,7 @@ func RegisterAuthRoutes(config *config.OIDCConfig, mux *AuthMux) error {
 }
 
 // NewAuthMiddleware creates a middleware that enforces OIDC authentication
-func NewAuthMiddleware(config *config.OIDCConfig) (func(http.Handler) http.Handler, error) {
-	if config == nil {
-		// Return a no-op middleware if OIDC is not configured
-		return func(next http.Handler) http.Handler {
-			return next
-		}, nil
-	}
-
-	oidc, err := newOIDC(config)
-	if err != nil {
-		return nil, errors.Wrapf(err, "Failed to create OAuth2 manager")
-	}
+func NewAuthMiddleware(oidc *OIDC) (func(http.Handler) http.Handler, error) {
 	return newAuthMiddlewareForOIDC(oidc)
 }
 
@@ -304,36 +304,25 @@ func newAuthMiddlewareForOIDC(oidc *OIDC) (func(http.Handler) http.Handler, erro
 				return
 			}
 
-			var idToken string
+			var token *jwt.Token
+			var err error
 
-			// First check for Bearer token in Authorization header
+			// Prefer bearer token over session cookie
 			bearerToken := r.Header.Get("Authorization")
-
-			// If not present in header, check the token query parameter
-			// This is useful for WebSocket connections where headers might not be available
-			if bearerToken == "" {
-				if authParam := r.URL.Query().Get("authorization"); authParam != "" {
-					bearerToken = authParam
-				}
-			}
-
 			if strings.HasPrefix(strings.ToLower(bearerToken), "bearer ") {
-				idToken = strings.TrimPrefix(bearerToken, bearerToken[:7]) // Remove prefix
-				idToken = strings.TrimSpace(idToken)
+				token, err = oidc.verifyBearerToken(bearerToken)
 			} else {
 				// Fallback to session cookie
-				cookie, err := r.Cookie(sessionCookieName)
-				if err != nil {
+				cookie, cookieErr := r.Cookie(sessionCookieName)
+				if cookieErr != nil {
 					// No session cookie or bearer token, return 401 Unauthorized
-					log.Error(err, "No session cookie or bearer token found")
+					log.Error(cookieErr, "No session cookie or bearer token found")
 					http.Error(w, "Unauthorized: No valid session", http.StatusUnauthorized)
 					return
 				}
-				idToken = cookie.Value
+				token, err = oidc.verifyToken(cookie.Value)
 			}
 
-			// Verify the token by parsing and validating the JWT
-			token, err := oidc.verifyToken(idToken)
 			if token == nil {
 				log.Error(err, "Token validation failed")
 				// Return HTTP 401 and let the client handle the redirect to the login page
@@ -341,8 +330,7 @@ func newAuthMiddlewareForOIDC(oidc *OIDC) (func(http.Handler) http.Handler, erro
 				return
 			}
 
-			// Add the IDToken to the context
-			ctx := context.WithValue(r.Context(), IDTokenKey, token)
+			ctx := contextWithIDToken(r.Context(), token)
 
 			// Token is valid, proceed with the request
 			next.ServeHTTP(w, r.WithContext(ctx))
@@ -642,13 +630,13 @@ type AuthMux struct {
 }
 
 // NewAuthMux creates a new AuthMux
-func NewAuthMux(serverConfig *config.AssistantServerConfig) (*AuthMux, error) {
+func NewAuthMux(serverConfig *config.AssistantServerConfig, oidc *OIDC) (*AuthMux, error) {
 	mux := http.NewServeMux()
 
 	// Create auth middleware if OIDC is configured
 	var authMiddleware func(http.Handler) http.Handler
-	if serverConfig != nil && serverConfig.OIDC != nil {
-		middleware, err := NewAuthMiddleware(serverConfig.OIDC)
+	if oidc != nil {
+		middleware, err := NewAuthMiddleware(oidc)
 		if err != nil {
 			return nil, errors.Wrapf(err, "Failed to create auth middleware")
 		}
@@ -684,30 +672,23 @@ func (p *AuthMux) HandleProtected(pattern string, handler http.Handler, checker 
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 			log := logs.FromContext(r.Context())
-			idToken := getIDToken(r.Context())
-			if idToken == nil {
-				log.Info("Unauthorized: No session")
-				http.Error(w, "Unauthorized: No valid session", http.StatusUnauthorized)
+
+			idToken, err := getIDToken(r.Context())
+			// Nil token is not fatal until authz check
+			if err != nil {
+				log.Info("Unauthenticated: ", "error", err)
+			}
+
+			principal, err := checker.GetPrincipal(idToken)
+			if err != nil {
+				log.Info("Unauthorized: ", "error", err)
+				http.Error(w, "Unauthorized: "+err.Error(), http.StatusUnauthorized)
 				return
 			}
 
-			claims, ok := idToken.Claims.(jwt.MapClaims)
-			if !ok {
-				log.Info("Unauthorized invalid claims")
-				http.Error(w, "Unauthorized: Invalid token claims", http.StatusUnauthorized)
-				return
-			}
-
-			email, ok := claims["email"].(string)
-			if !ok {
-				log.Info("Unauthorized: Missing email claim")
-				http.Error(w, "Unauthorized: Missing email claim", http.StatusUnauthorized)
-				return
-			}
-
-			if !checker.Check(email, role) {
-				log.Info("Unauthorized", "user", email, "role", role)
-				http.Error(w, fmt.Sprintf("Forbidden: user %s doesn't have role %s", email, role), http.StatusForbidden)
+			if !checker.Check(principal, role) {
+				log.Info("Unauthorized", "user", principal, "role", role)
+				http.Error(w, fmt.Sprintf("Forbidden: user %s doesn't have role %s", principal, role), http.StatusForbidden)
 				return
 			}
 
@@ -720,7 +701,6 @@ func (p *AuthMux) HandleProtected(pattern string, handler http.Handler, checker 
 	// CORS needs to come first because it will terminate the request chain on OPTIONS requests
 	// OPTIONS requests won't carry authorization headers so we can't do authorization first
 	handler = p.authMiddleware(iamChecker(handler))
-
 	// Apply CORS if origins are configured
 	// This is modeled on cors.AllowAll() but we can't use that because we need to allow credentials
 	corsOptions := cors.Options{
@@ -770,19 +750,4 @@ func (p *AuthMux) HandleProtectedFunc(pattern string, handler func(http.Response
 // ServeHTTP implements http.Handler
 func (p *AuthMux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	p.mux.ServeHTTP(w, r)
-}
-
-// getIDToken retrieves the ID token from the context if there is one or nil
-func getIDToken(ctx context.Context) *jwt.Token {
-	idToken := ctx.Value(IDTokenKey)
-	if idToken == nil {
-		return nil
-	}
-	token, ok := idToken.(*jwt.Token)
-	if !ok {
-		log := zapr.NewLogger(zap.L())
-		log.Error(errors.New("ID token is not of type *jwt.Token"), "invalid ID token")
-		return nil
-	}
-	return token
 }

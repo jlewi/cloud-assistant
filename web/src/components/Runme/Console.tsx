@@ -22,6 +22,7 @@ import {
   SocketResponse,
   SocketResponseSchema,
 } from '../../gen/es/cassie/sockets_pb'
+import { Code } from '../../gen/es/google/rpc/code_pb'
 import { getTokenValue } from '../../token'
 import './renderers/client'
 // @ts-expect-error because the webcomponents are not typed
@@ -43,12 +44,17 @@ function sendExecuteRequest(socket: WebSocket, execReq: ExecuteRequest) {
     },
   })
 
+  const token = getTokenValue()
+
   sendQueue.push(request)
   if (socket.readyState === WebSocket.OPEN) {
     console.log('Socket is open, sending ExecuteRequest')
     // Send all the messages in the queue
     while (sendQueue.length > 0) {
       const req = sendQueue.shift()
+      if (token && req) {
+        req.authorization = `Bearer ${token}`
+      }
       socket.send(JSON.stringify(toJson(SocketRequestSchema, req!)))
     }
   }
@@ -183,7 +189,7 @@ function Console({
       }
 
       console.error('WebSocket closed with code:', e.code)
-      checkRunnerAuth()
+      // checkRunnerAuth()
     }
 
     socket.onmessage = (event) => {
@@ -205,7 +211,13 @@ function Console({
         console.error('Failed to parse SocketResponse:', err)
       }
 
-      //const socketResponse = fromJson(SocketResponseSchema, event.data);
+      const status = message!.status
+      if (status && status.code !== Code.OK) {
+        console.error(`Runner error ${Code[status.code]}: ${status.message}`)
+        socket.close()
+        return
+      }
+
       const response = message!.payload.value as ExecuteResponse
       if (response.stdoutData) {
         callback?.({
@@ -386,13 +398,6 @@ function isInViewport(element: Element) {
 
 function createWebSocket(runnerEndpoint: string): WebSocket {
   const url = new URL(runnerEndpoint)
-  const token = getTokenValue()
-  if (token) {
-    console.log('Adding auth token')
-    url.searchParams.set('authorization', `Bearer ${token}`)
-  } else {
-    console.log('No auth token found')
-  }
   const ws = new WebSocket(url.toString())
 
   ws.onerror = (event) => {
@@ -414,13 +419,17 @@ function createWebSocket(runnerEndpoint: string): WebSocket {
       console.log('Sending queued messages')
     }
 
+    const token = getTokenValue()
     // Send all the messages in the queue
     // These will be messages that were enqueued before the socket was open.
     // If we try to send a message before the socket is open it will fail and
     // close the connection so we need to enqueue htem.
     while (sendQueue.length > 0) {
-      const req = sendQueue.shift()
-      ws.send(JSON.stringify(toJson(SocketRequestSchema, req!)))
+      const req = sendQueue.shift()!
+      if (token && req) {
+        req.authorization = `Bearer ${token}`
+      }
+      ws.send(JSON.stringify(toJson(SocketRequestSchema, req)))
     }
   }
   return ws

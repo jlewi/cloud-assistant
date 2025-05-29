@@ -8,7 +8,7 @@ import {
   useState,
 } from 'react'
 
-import { getTokenValue } from '../token'
+// import { getTokenValue } from '../token'
 
 interface Settings {
   agentEndpoint: string
@@ -50,7 +50,7 @@ export const SettingsProvider = ({
   requireAuth,
   webApp,
 }: SettingsProviderProps) => {
-  const [runnerError, setRunnerError] = useState<Error | null>(null)
+  const [runnerError] = useState<Error | null>(null)
 
   const defaultSettings: Settings = useMemo(() => {
     const isLocalhost = window.location.hostname === 'localhost'
@@ -93,35 +93,34 @@ export const SettingsProvider = ({
   }, [settings])
 
   const checkRunnerAuth = useCallback(async () => {
-    // Use the same endpoint as the WebSocket but with HTTP
-    const endpoint = settings.runnerEndpoint
-      .replace('ws://', 'http://')
-      .replace('wss://', 'https://')
-
-    const endpointUrl = new URL(endpoint)
-    const token = getTokenValue()
-    if (token && settings.requireAuth) {
-      endpointUrl.searchParams.set('authorization', `Bearer ${token}`)
-    }
-
-    try {
-      const response = await fetch(endpointUrl.toString(), {
-        method: 'HEAD',
-        credentials: 'include', // Include cookies for authentication
-        headers: {
-          Accept: 'application/json',
-        },
-      })
-      if (response.status === 401) {
-        setRunnerError(new Error(`${response.status}: ${response.statusText}`))
-      } else {
-        setRunnerError(null)
-      }
-    } catch (error) {
-      console.error('Error checking runner endpoint:', error)
-      setRunnerError(error as Error)
-    }
-  }, [settings.runnerEndpoint, settings.requireAuth])
+    // // Use the same endpoint as the WebSocket but with HTTP
+    // const endpoint = settings.runnerEndpoint
+    //   .replace('ws://', 'http://')
+    //   .replace('wss://', 'https://')
+    // const endpointUrl = new URL(endpoint)
+    // const token = getTokenValue()
+    // const headers: Record<string, string> = {
+    //   Accept: 'application/json',
+    // }
+    // if (token !== undefined) {
+    //   headers.Authorization = `Bearer ${token}`
+    // }
+    // try {
+    //   const response = await fetch(endpointUrl.toString(), {
+    //     method: 'HEAD',
+    //     credentials: 'include', // Include cookies for authentication
+    //     headers,
+    //   })
+    //   if (response.status === 401) {
+    //     setRunnerError(new Error(`${response.status}: ${response.statusText}`))
+    //   } else {
+    //     setRunnerError(null)
+    //   }
+    // } catch (error) {
+    //   console.error('Error checking runner endpoint:', error)
+    //   setRunnerError(error as Error)
+    // }
+  }, [])
 
   useEffect(() => {
     if (!settings.requireAuth) {
