@@ -68,7 +68,7 @@ npm run build
 
 ### Build and start the server
 
-```bash
+```bash {"name":"build"}
 cd app
 make build
 ```
