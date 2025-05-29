@@ -4,12 +4,53 @@
 
 import type { GenFile, GenMessage } from "@bufbuild/protobuf/codegenv1";
 import type { Message } from "@bufbuild/protobuf";
+import type { Code, CodeJson } from "../google/rpc/code_pb";
 import type { ExecuteRequest, ExecuteRequestJson, ExecuteResponse, ExecuteResponseJson } from "../runme/runner/v2/runner_pb";
 
 /**
  * Describes the file cassie/sockets.proto.
  */
 export declare const file_cassie_sockets: GenFile;
+
+/**
+ * Represents socket-level status (e.g., for auth, protocol, or other errors).
+ *
+ * @generated from message SocketStatus
+ */
+export declare type SocketStatus = Message<"SocketStatus"> & {
+  /**
+   * @generated from field: google.rpc.Code code = 1;
+   */
+  code: Code;
+
+  /**
+   * @generated from field: string message = 2;
+   */
+  message: string;
+};
+
+/**
+ * Represents socket-level status (e.g., for auth, protocol, or other errors).
+ *
+ * @generated from message SocketStatus
+ */
+export declare type SocketStatusJson = {
+  /**
+   * @generated from field: google.rpc.Code code = 1;
+   */
+  code?: CodeJson;
+
+  /**
+   * @generated from field: string message = 2;
+   */
+  message?: string;
+};
+
+/**
+ * Describes the message SocketStatus.
+ * Use `create(SocketStatusSchema)` to create a new message.
+ */
+export declare const SocketStatusSchema: GenMessage<SocketStatus, SocketStatusJson>;
 
 /**
  * SocketRequest defines the message sent by the client over a websocket.
@@ -23,11 +64,20 @@ export declare type SocketRequest = Message<"SocketRequest"> & {
    */
   payload: {
     /**
+     * Add other payloads here as needed.
+     *
      * @generated from field: runme.runner.v2.ExecuteRequest execute_request = 1;
      */
     value: ExecuteRequest;
     case: "executeRequest";
   } | { case: undefined; value?: undefined };
+
+  /**
+   * Optional authorization header, similar to the HTTP Authorization header.
+   *
+   * @generated from field: string authorization = 2;
+   */
+  authorization: string;
 };
 
 /**
@@ -38,9 +88,18 @@ export declare type SocketRequest = Message<"SocketRequest"> & {
  */
 export declare type SocketRequestJson = {
   /**
+   * Add other payloads here as needed.
+   *
    * @generated from field: runme.runner.v2.ExecuteRequest execute_request = 1;
    */
   executeRequest?: ExecuteRequestJson;
+
+  /**
+   * Optional authorization header, similar to the HTTP Authorization header.
+   *
+   * @generated from field: string authorization = 2;
+   */
+  authorization?: string;
 };
 
 /**
@@ -51,7 +110,7 @@ export declare const SocketRequestSchema: GenMessage<SocketRequest, SocketReques
 
 /**
  * SocketResponse defines the message sent by the server over a websocket.
- * The request is a union of types that indicate the type of message.
+ * The response is a union of types that indicate the type of message.
  *
  * @generated from message SocketResponse
  */
@@ -61,24 +120,42 @@ export declare type SocketResponse = Message<"SocketResponse"> & {
    */
   payload: {
     /**
+     * Add other payloads here as needed.
+     *
      * @generated from field: runme.runner.v2.ExecuteResponse execute_response = 1;
      */
     value: ExecuteResponse;
     case: "executeResponse";
   } | { case: undefined; value?: undefined };
+
+  /**
+   * Optional socket-level status.
+   *
+   * @generated from field: SocketStatus status = 2;
+   */
+  status?: SocketStatus;
 };
 
 /**
  * SocketResponse defines the message sent by the server over a websocket.
- * The request is a union of types that indicate the type of message.
+ * The response is a union of types that indicate the type of message.
  *
  * @generated from message SocketResponse
  */
 export declare type SocketResponseJson = {
   /**
+   * Add other payloads here as needed.
+   *
    * @generated from field: runme.runner.v2.ExecuteResponse execute_response = 1;
    */
   executeResponse?: ExecuteResponseJson;
+
+  /**
+   * Optional socket-level status.
+   *
+   * @generated from field: SocketStatus status = 2;
+   */
+  status?: SocketStatusJson;
 };
 
 /**

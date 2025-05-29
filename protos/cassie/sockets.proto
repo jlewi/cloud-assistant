@@ -1,20 +1,35 @@
 syntax = "proto3";
 import "runme/runner/v2/runner.proto";
+import "google/rpc/code.proto";
 
 option go_package = "github.com/jlewi/cloud-assistant/protos/gen/cassie";
+
+// Represents socket-level status (e.g., for auth, protocol, or other errors).
+message SocketStatus {
+    google.rpc.Code code = 1;
+    string message = 2;
+}
 
 // SocketRequest defines the message sent by the client over a websocket.
 // The request is a union of types that indicate the type of message.
 message SocketRequest {
     oneof payload {
         runme.runner.v2.ExecuteRequest execute_request = 1;
+        // Add other payloads here as needed.
     }
+
+    // Optional authorization header, similar to the HTTP Authorization header.
+    string authorization = 2;
 }
 
 // SocketResponse defines the message sent by the server over a websocket.
-// The request is a union of types that indicate the type of message.
+// The response is a union of types that indicate the type of message.
 message SocketResponse {
     oneof payload {
         runme.runner.v2.ExecuteResponse execute_response = 1;
+        // Add other payloads here as needed.
     }
+
+    // Optional socket-level status.
+    SocketStatus status = 2;
 }
