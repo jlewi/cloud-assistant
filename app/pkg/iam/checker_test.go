@@ -3,6 +3,7 @@ package iam
 import (
 	"testing"
 
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/jlewi/cloud-assistant/app/api"
 )
 
@@ -36,41 +37,41 @@ func TestChecker_Check(t *testing.T) {
 	}
 
 	testCases := []struct {
-		name      string
-		principal string
-		role      string
-		policy    api.IAMPolicy
-		expected  bool
+		name     string
+		idToken  *jwt.Token
+		role     string
+		policy   api.IAMPolicy
+		expected bool
 	}{
 		{
-			name:      "User doesn't have role",
-			principal: "bob@beta.com",
-			role:      api.RunnerUserRole,
-			policy:    complexPolicy,
-			expected:  false,
+			name:     "User doesn't have role",
+			idToken:  &jwt.Token{Claims: jwt.MapClaims{"email": "bob@beta.com"}},
+			role:     api.RunnerUserRole,
+			policy:   complexPolicy,
+			expected: false,
 		},
 		{
-			name:      "Domain has role",
-			principal: "alice@acme.com",
-			role:      api.RunnerUserRole,
-			policy:    complexPolicy,
-			expected:  true,
+			name:     "Domain has role",
+			idToken:  &jwt.Token{Claims: jwt.MapClaims{"email": "alice@acme.com"}},
+			role:     api.RunnerUserRole,
+			policy:   complexPolicy,
+			expected: true,
 		},
 		{
 			// This test is intended to verify that the domain rule gets correctly
 			// scoped to the role. Alice should have runner access but not agent access
-			name:      "Role doesn't have domain rule but other does",
-			principal: "alice@acme.com",
-			role:      api.AgentUserRole,
-			policy:    complexPolicy,
-			expected:  false,
+			name:     "Role doesn't have domain rule but other does",
+			idToken:  &jwt.Token{Claims: jwt.MapClaims{"email": "alice@acme.com"}},
+			role:     api.AgentUserRole,
+			policy:   complexPolicy,
+			expected: false,
 		},
 		{
-			name:      "User1 is allowed under member rule not domain rule",
-			principal: "user1",
-			role:      api.RunnerUserRole,
-			policy:    complexPolicy,
-			expected:  true,
+			name:     "User1 is allowed under member rule not domain rule",
+			idToken:  &jwt.Token{Claims: jwt.MapClaims{"email": "user1"}},
+			role:     api.RunnerUserRole,
+			policy:   complexPolicy,
+			expected: true,
 		},
 	}
 
@@ -81,7 +82,12 @@ func TestChecker_Check(t *testing.T) {
 				t.Fatalf("failed to create checker: %v", err)
 			}
 
-			result := checker.Check(tc.principal, tc.role)
+			principal, err := checker.GetPrincipal(tc.idToken)
+			if err != nil {
+				t.Fatalf("failed to extract principal from idToken: %v", err)
+			}
+
+			result := checker.Check(principal, tc.role)
 			if result != tc.expected {
 				t.Errorf("expected %v, got %v", tc.expected, result)
 			}

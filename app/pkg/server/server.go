@@ -212,8 +212,18 @@ func (s *Server) Run() error {
 func (s *Server) registerServices() error {
 	log := zapr.NewLogger(zap.L())
 
+	// Create OIDC instance if configured
+	var oidc *OIDC
+	var err error
+	if s.serverConfig.OIDC != nil {
+		oidc, err = newOIDC(s.serverConfig.OIDC)
+		if err != nil {
+			return errors.Wrapf(err, "Failed to create OIDC instance")
+		}
+	}
+
 	// Create auth mux
-	mux, err := NewAuthMux(s.serverConfig)
+	mux, err := NewAuthMux(s.serverConfig, oidc)
 	if err != nil {
 		return errors.Wrapf(err, "Failed to create auth mux")
 	}
@@ -234,9 +244,9 @@ func (s *Server) registerServices() error {
 	}
 
 	// Register auth routes if OIDC is configured
-	if s.serverConfig.OIDC != nil {
+	if oidc != nil {
 		log.Info("OIDC is configured; registering auth routes")
-		if err := RegisterAuthRoutes(s.serverConfig.OIDC, mux); err != nil {
+		if err := RegisterAuthRoutes(oidc, mux); err != nil {
 			return errors.Wrapf(err, "Failed to register auth routes")
 		}
 	} else {
@@ -253,11 +263,9 @@ func (s *Server) registerServices() error {
 	}
 
 	if s.runner != nil {
-		sHandler := &WebSocketHandler{
-			runner: s.runner,
-		}
-		// Protect the WebSocket handler
-		mux.HandleProtected("/ws", http.HandlerFunc(sHandler.Handler), s.checker, api.RunnerUserRole)
+		sHandler := NewWebSocketHandler(s.runner, oidc, s.checker, api.RunnerUserRole)
+		// Unprotected WebSockets handler since socket protection is done on the app-level (messages)
+		mux.Handle("/ws", http.HandlerFunc(sHandler.Handler))
 		log.Info("Setting up runner service", "path", "/ws")
 	}
 

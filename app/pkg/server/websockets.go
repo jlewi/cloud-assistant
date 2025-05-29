@@ -6,8 +6,11 @@ import (
 	"net/http"
 	"sync"
 
+	"google.golang.org/genproto/googleapis/rpc/code"
+
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
+	"github.com/jlewi/cloud-assistant/app/pkg/iam"
 	"github.com/jlewi/cloud-assistant/app/pkg/logs"
 	"github.com/jlewi/cloud-assistant/protos/gen/cassie"
 	"github.com/pkg/errors"
@@ -30,6 +33,19 @@ var upgrader = websocket.Upgrader{
 // WebSocketHandler is a handler for websockets.
 type WebSocketHandler struct {
 	runner *Runner
+
+	oidc    *OIDC
+	checker iam.Checker
+	role    string
+}
+
+func NewWebSocketHandler(runner *Runner, oidc *OIDC, checker iam.Checker, role string) *WebSocketHandler {
+	return &WebSocketHandler{
+		runner:  runner,
+		oidc:    oidc,
+		checker: checker,
+		role:    role,
+	}
 }
 
 func (h *WebSocketHandler) Handler(w http.ResponseWriter, r *http.Request) {
@@ -47,13 +63,6 @@ func (h *WebSocketHandler) Handler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if r.Method == http.MethodHead {
-		// Front end issues a HEAD request to test if its authenticated
-		log.Info("HEAD request; returning 200 OK")
-		w.WriteHeader(http.StatusOK)
-		return
-	}
-
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Error(err, "Could not upgrade to websocket")
@@ -66,7 +75,7 @@ func (h *WebSocketHandler) Handler(w http.ResponseWriter, r *http.Request) {
 			log.Error(err, "Could not close websocket")
 		}
 	}()
-	processor := NewRunmeHandler(r.Context(), conn, h.runner)
+	processor := NewRunmeHandler(r.Context(), conn, h.runner, h.oidc, h.checker, h.role)
 
 	// This will keep reading messages and streaming the outputs until the connection is closed.
 	processor.receive()
@@ -92,16 +101,23 @@ type RunmeHandler struct {
 	Conn   *websocket.Conn
 	Runner *Runner
 
+	oidc    *OIDC
+	checker iam.Checker
+	role    string
+
 	mu sync.Mutex
 	// p is the processor that is currently processing messages. If p is nil then no processor is currently processing
 	p *SocketMessageProcessor
 }
 
-func NewRunmeHandler(ctx context.Context, conn *websocket.Conn, runner *Runner) *RunmeHandler {
+func NewRunmeHandler(ctx context.Context, conn *websocket.Conn, runner *Runner, oidc *OIDC, checker iam.Checker, role string) *RunmeHandler {
 	return &RunmeHandler{
-		Ctx:    ctx,
-		Conn:   conn,
-		Runner: runner,
+		Ctx:     ctx,
+		Conn:    conn,
+		Runner:  runner,
+		oidc:    oidc,
+		checker: checker,
+		role:    role,
 	}
 }
 
@@ -153,6 +169,26 @@ func (h *RunmeHandler) receive() {
 		default:
 			log.Error(nil, "Unsupported message type", "messageType", messageType)
 			continue
+		}
+
+		// Nil token is not fatal until authz check
+		idToken, err := h.oidc.verifyBearerToken(req.GetAuthorization())
+		if err != nil {
+			log.Info("Unauthenticated: ", "error", err)
+		}
+
+		principal, err := h.checker.GetPrincipal(idToken)
+		if err != nil {
+			log.Error(err, "Could not extract principal from token")
+			h.sendError(code.Code_PERMISSION_DENIED, "Could not extract principal from token")
+			return
+		}
+		if h.checker != nil {
+			if ok := h.checker.Check(principal, h.role); !ok {
+				log.Info("User does not have the required role", "principal", principal)
+				h.sendError(code.Code_PERMISSION_DENIED, "User does not have the required role")
+				return
+			}
 		}
 
 		if req.GetExecuteRequest() == nil {
@@ -216,6 +252,9 @@ func (h *RunmeHandler) sendResponses(c <-chan *v2.ExecuteResponse) {
 			return
 		}
 		response := &cassie.SocketResponse{
+			Status: &cassie.SocketStatus{
+				Code: code.Code_OK,
+			},
 			Payload: &cassie.SocketResponse_ExecuteResponse{
 				ExecuteResponse: res,
 			},
@@ -229,6 +268,33 @@ func (h *RunmeHandler) sendResponses(c <-chan *v2.ExecuteResponse) {
 		if err != nil {
 			log.Error(err, "Could not send message")
 		}
+	}
+}
+
+func (h *RunmeHandler) sendError(code code.Code, message string) {
+	log := logs.FromContext(h.Ctx)
+
+	defer func() {
+		if err := h.Conn.Close(); err != nil {
+			log.Error(err, "Could not close websocket")
+		}
+	}()
+
+	response := &cassie.SocketResponse{
+		Status: &cassie.SocketStatus{
+			Code:    code,
+			Message: message,
+		},
+	}
+
+	responseData, err := protojson.Marshal(response)
+	if err != nil {
+		log.Error(err, "Could not marshal response")
+	}
+
+	err = h.Conn.WriteMessage(websocket.TextMessage, responseData)
+	if err != nil {
+		log.Error(err, "Could not send error message")
 	}
 }
 
