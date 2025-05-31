@@ -1,12 +1,10 @@
----
-
 apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: cloud-assistant
   namespace: cloud-assistant
   labels:
-        app: cloud-assistant
+    app: cloud-assistant
 ---        
 apiVersion: apps/v1
 kind: Deployment
@@ -18,7 +16,12 @@ metadata:
 spec:  
   replicas: 1
   selector:    
+    matchLabels:
+      app: cloud-assistant-ui
   template:    
+    metadata:
+      labels:
+        app: cloud-assistant-ui
     spec:
       serviceAccountName: cloud-assistant
       containers:
@@ -27,11 +30,12 @@ spec:
         command:
         - /cas
         - --config=/etc/config/assistant.yaml
-        - assist
         - serve
         ports:
         - containerPort: 8081
           name: cloud-assi-http
+        - containerPort: 8443
+          name: cloud-assi-tls
         resources:
           limits:
             cpu: "5"
@@ -65,3 +69,6 @@ spec:
       - name: openai
         secret:
           secretName: openai
+      - name: tls-certs
+        secret:
+          secretName: tls-certs
