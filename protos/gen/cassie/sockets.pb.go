@@ -8,6 +8,7 @@ package cassie
 
 import (
 	v2 "github.com/runmedev/runme/v3/api/gen/proto/go/runme/runner/v2"
+	code "google.golang.org/genproto/googleapis/rpc/code"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -22,6 +23,59 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// Represents socket-level status (e.g., for auth, protocol, or other errors).
+type SocketStatus struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Code          code.Code              `protobuf:"varint,1,opt,name=code,proto3,enum=google.rpc.Code" json:"code,omitempty"`
+	Message       string                 `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SocketStatus) Reset() {
+	*x = SocketStatus{}
+	mi := &file_cassie_sockets_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SocketStatus) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SocketStatus) ProtoMessage() {}
+
+func (x *SocketStatus) ProtoReflect() protoreflect.Message {
+	mi := &file_cassie_sockets_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SocketStatus.ProtoReflect.Descriptor instead.
+func (*SocketStatus) Descriptor() ([]byte, []int) {
+	return file_cassie_sockets_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *SocketStatus) GetCode() code.Code {
+	if x != nil {
+		return x.Code
+	}
+	return code.Code(0)
+}
+
+func (x *SocketStatus) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
 // SocketRequest defines the message sent by the client over a websocket.
 // The request is a union of types that indicate the type of message.
 type SocketRequest struct {
@@ -29,14 +83,16 @@ type SocketRequest struct {
 	// Types that are valid to be assigned to Payload:
 	//
 	//	*SocketRequest_ExecuteRequest
-	Payload       isSocketRequest_Payload `protobuf_oneof:"payload"`
+	Payload isSocketRequest_Payload `protobuf_oneof:"payload"`
+	// Optional authorization header, similar to the HTTP Authorization header.
+	Authorization string `protobuf:"bytes,2,opt,name=authorization,proto3" json:"authorization,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *SocketRequest) Reset() {
 	*x = SocketRequest{}
-	mi := &file_cassie_sockets_proto_msgTypes[0]
+	mi := &file_cassie_sockets_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -48,7 +104,7 @@ func (x *SocketRequest) String() string {
 func (*SocketRequest) ProtoMessage() {}
 
 func (x *SocketRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_cassie_sockets_proto_msgTypes[0]
+	mi := &file_cassie_sockets_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -61,7 +117,7 @@ func (x *SocketRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SocketRequest.ProtoReflect.Descriptor instead.
 func (*SocketRequest) Descriptor() ([]byte, []int) {
-	return file_cassie_sockets_proto_rawDescGZIP(), []int{0}
+	return file_cassie_sockets_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *SocketRequest) GetPayload() isSocketRequest_Payload {
@@ -80,31 +136,40 @@ func (x *SocketRequest) GetExecuteRequest() *v2.ExecuteRequest {
 	return nil
 }
 
+func (x *SocketRequest) GetAuthorization() string {
+	if x != nil {
+		return x.Authorization
+	}
+	return ""
+}
+
 type isSocketRequest_Payload interface {
 	isSocketRequest_Payload()
 }
 
 type SocketRequest_ExecuteRequest struct {
-	ExecuteRequest *v2.ExecuteRequest `protobuf:"bytes,1,opt,name=execute_request,json=executeRequest,proto3,oneof"`
+	ExecuteRequest *v2.ExecuteRequest `protobuf:"bytes,1,opt,name=execute_request,json=executeRequest,proto3,oneof"` // Add other payloads here as needed.
 }
 
 func (*SocketRequest_ExecuteRequest) isSocketRequest_Payload() {}
 
 // SocketResponse defines the message sent by the server over a websocket.
-// The request is a union of types that indicate the type of message.
+// The response is a union of types that indicate the type of message.
 type SocketResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Types that are valid to be assigned to Payload:
 	//
 	//	*SocketResponse_ExecuteResponse
-	Payload       isSocketResponse_Payload `protobuf_oneof:"payload"`
+	Payload isSocketResponse_Payload `protobuf_oneof:"payload"`
+	// Optional socket-level status.
+	Status        *SocketStatus `protobuf:"bytes,2,opt,name=status,proto3" json:"status,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *SocketResponse) Reset() {
 	*x = SocketResponse{}
-	mi := &file_cassie_sockets_proto_msgTypes[1]
+	mi := &file_cassie_sockets_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -116,7 +181,7 @@ func (x *SocketResponse) String() string {
 func (*SocketResponse) ProtoMessage() {}
 
 func (x *SocketResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_cassie_sockets_proto_msgTypes[1]
+	mi := &file_cassie_sockets_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -129,7 +194,7 @@ func (x *SocketResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SocketResponse.ProtoReflect.Descriptor instead.
 func (*SocketResponse) Descriptor() ([]byte, []int) {
-	return file_cassie_sockets_proto_rawDescGZIP(), []int{1}
+	return file_cassie_sockets_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *SocketResponse) GetPayload() isSocketResponse_Payload {
@@ -148,12 +213,19 @@ func (x *SocketResponse) GetExecuteResponse() *v2.ExecuteResponse {
 	return nil
 }
 
+func (x *SocketResponse) GetStatus() *SocketStatus {
+	if x != nil {
+		return x.Status
+	}
+	return nil
+}
+
 type isSocketResponse_Payload interface {
 	isSocketResponse_Payload()
 }
 
 type SocketResponse_ExecuteResponse struct {
-	ExecuteResponse *v2.ExecuteResponse `protobuf:"bytes,1,opt,name=execute_response,json=executeResponse,proto3,oneof"`
+	ExecuteResponse *v2.ExecuteResponse `protobuf:"bytes,1,opt,name=execute_response,json=executeResponse,proto3,oneof"` // Add other payloads here as needed.
 }
 
 func (*SocketResponse_ExecuteResponse) isSocketResponse_Payload() {}
@@ -162,12 +234,17 @@ var File_cassie_sockets_proto protoreflect.FileDescriptor
 
 const file_cassie_sockets_proto_rawDesc = "" +
 	"\n" +
-	"\x14cassie/sockets.proto\x1a\x1crunme/runner/v2/runner.proto\"f\n" +
+	"\x14cassie/sockets.proto\x1a\x1crunme/runner/v2/runner.proto\x1a\x15google/rpc/code.proto\"N\n" +
+	"\fSocketStatus\x12$\n" +
+	"\x04code\x18\x01 \x01(\x0e2\x10.google.rpc.CodeR\x04code\x12\x18\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage\"\x8c\x01\n" +
 	"\rSocketRequest\x12J\n" +
-	"\x0fexecute_request\x18\x01 \x01(\v2\x1f.runme.runner.v2.ExecuteRequestH\x00R\x0eexecuteRequestB\t\n" +
-	"\apayload\"j\n" +
+	"\x0fexecute_request\x18\x01 \x01(\v2\x1f.runme.runner.v2.ExecuteRequestH\x00R\x0eexecuteRequest\x12$\n" +
+	"\rauthorization\x18\x02 \x01(\tR\rauthorizationB\t\n" +
+	"\apayload\"\x91\x01\n" +
 	"\x0eSocketResponse\x12M\n" +
-	"\x10execute_response\x18\x01 \x01(\v2 .runme.runner.v2.ExecuteResponseH\x00R\x0fexecuteResponseB\t\n" +
+	"\x10execute_response\x18\x01 \x01(\v2 .runme.runner.v2.ExecuteResponseH\x00R\x0fexecuteResponse\x12%\n" +
+	"\x06status\x18\x02 \x01(\v2\r.SocketStatusR\x06statusB\t\n" +
 	"\apayloadBDB\fSocketsProtoP\x01Z2github.com/jlewi/cloud-assistant/protos/gen/cassieb\x06proto3"
 
 var (
@@ -182,21 +259,25 @@ func file_cassie_sockets_proto_rawDescGZIP() []byte {
 	return file_cassie_sockets_proto_rawDescData
 }
 
-var file_cassie_sockets_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
+var file_cassie_sockets_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
 var file_cassie_sockets_proto_goTypes = []any{
-	(*SocketRequest)(nil),      // 0: SocketRequest
-	(*SocketResponse)(nil),     // 1: SocketResponse
-	(*v2.ExecuteRequest)(nil),  // 2: runme.runner.v2.ExecuteRequest
-	(*v2.ExecuteResponse)(nil), // 3: runme.runner.v2.ExecuteResponse
+	(*SocketStatus)(nil),       // 0: SocketStatus
+	(*SocketRequest)(nil),      // 1: SocketRequest
+	(*SocketResponse)(nil),     // 2: SocketResponse
+	(code.Code)(0),             // 3: google.rpc.Code
+	(*v2.ExecuteRequest)(nil),  // 4: runme.runner.v2.ExecuteRequest
+	(*v2.ExecuteResponse)(nil), // 5: runme.runner.v2.ExecuteResponse
 }
 var file_cassie_sockets_proto_depIdxs = []int32{
-	2, // 0: SocketRequest.execute_request:type_name -> runme.runner.v2.ExecuteRequest
-	3, // 1: SocketResponse.execute_response:type_name -> runme.runner.v2.ExecuteResponse
-	2, // [2:2] is the sub-list for method output_type
-	2, // [2:2] is the sub-list for method input_type
-	2, // [2:2] is the sub-list for extension type_name
-	2, // [2:2] is the sub-list for extension extendee
-	0, // [0:2] is the sub-list for field type_name
+	3, // 0: SocketStatus.code:type_name -> google.rpc.Code
+	4, // 1: SocketRequest.execute_request:type_name -> runme.runner.v2.ExecuteRequest
+	5, // 2: SocketResponse.execute_response:type_name -> runme.runner.v2.ExecuteResponse
+	0, // 3: SocketResponse.status:type_name -> SocketStatus
+	4, // [4:4] is the sub-list for method output_type
+	4, // [4:4] is the sub-list for method input_type
+	4, // [4:4] is the sub-list for extension type_name
+	4, // [4:4] is the sub-list for extension extendee
+	0, // [0:4] is the sub-list for field type_name
 }
 
 func init() { file_cassie_sockets_proto_init() }
@@ -204,10 +285,10 @@ func file_cassie_sockets_proto_init() {
 	if File_cassie_sockets_proto != nil {
 		return
 	}
-	file_cassie_sockets_proto_msgTypes[0].OneofWrappers = []any{
+	file_cassie_sockets_proto_msgTypes[1].OneofWrappers = []any{
 		(*SocketRequest_ExecuteRequest)(nil),
 	}
-	file_cassie_sockets_proto_msgTypes[1].OneofWrappers = []any{
+	file_cassie_sockets_proto_msgTypes[2].OneofWrappers = []any{
 		(*SocketResponse_ExecuteResponse)(nil),
 	}
 	type x struct{}
@@ -216,7 +297,7 @@ func file_cassie_sockets_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_cassie_sockets_proto_rawDesc), len(file_cassie_sockets_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   2,
+			NumMessages:   3,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

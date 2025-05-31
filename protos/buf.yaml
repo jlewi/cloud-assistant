@@ -5,6 +5,7 @@ lint:
     - STANDARD
 deps:
   - buf.build/stateful/runme
+  - buf.build/googleapis/googleapis
 breaking:
   use:
     - FILE

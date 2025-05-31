@@ -4,24 +4,32 @@
 
 import { fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv1";
 import { file_runme_runner_v2_runner } from "../runme/runner/v2/runner_pb";
+import { file_google_rpc_code } from "../google/rpc/code_pb";
 
 /**
  * Describes the file cassie/sockets.proto.
  */
 export const file_cassie_sockets = /*@__PURE__*/
-  fileDesc("ChRjYXNzaWUvc29ja2V0cy5wcm90byJWCg1Tb2NrZXRSZXF1ZXN0EjoKD2V4ZWN1dGVfcmVxdWVzdBgBIAEoCzIfLnJ1bm1lLnJ1bm5lci52Mi5FeGVjdXRlUmVxdWVzdEgAQgkKB3BheWxvYWQiWQoOU29ja2V0UmVzcG9uc2USPAoQZXhlY3V0ZV9yZXNwb25zZRgBIAEoCzIgLnJ1bm1lLnJ1bm5lci52Mi5FeGVjdXRlUmVzcG9uc2VIAEIJCgdwYXlsb2FkQkRCDFNvY2tldHNQcm90b1ABWjJnaXRodWIuY29tL2psZXdpL2Nsb3VkLWFzc2lzdGFudC9wcm90b3MvZ2VuL2Nhc3NpZWIGcHJvdG8z", [file_runme_runner_v2_runner]);
+  fileDesc("ChRjYXNzaWUvc29ja2V0cy5wcm90byI/CgxTb2NrZXRTdGF0dXMSHgoEY29kZRgBIAEoDjIQLmdvb2dsZS5ycGMuQ29kZRIPCgdtZXNzYWdlGAIgASgJIm0KDVNvY2tldFJlcXVlc3QSOgoPZXhlY3V0ZV9yZXF1ZXN0GAEgASgLMh8ucnVubWUucnVubmVyLnYyLkV4ZWN1dGVSZXF1ZXN0SAASFQoNYXV0aG9yaXphdGlvbhgCIAEoCUIJCgdwYXlsb2FkIngKDlNvY2tldFJlc3BvbnNlEjwKEGV4ZWN1dGVfcmVzcG9uc2UYASABKAsyIC5ydW5tZS5ydW5uZXIudjIuRXhlY3V0ZVJlc3BvbnNlSAASHQoGc3RhdHVzGAIgASgLMg0uU29ja2V0U3RhdHVzQgkKB3BheWxvYWRCREIMU29ja2V0c1Byb3RvUAFaMmdpdGh1Yi5jb20vamxld2kvY2xvdWQtYXNzaXN0YW50L3Byb3Rvcy9nZW4vY2Fzc2llYgZwcm90bzM", [file_runme_runner_v2_runner, file_google_rpc_code]);
+
+/**
+ * Describes the message SocketStatus.
+ * Use `create(SocketStatusSchema)` to create a new message.
+ */
+export const SocketStatusSchema = /*@__PURE__*/
+  messageDesc(file_cassie_sockets, 0);
 
 /**
  * Describes the message SocketRequest.
  * Use `create(SocketRequestSchema)` to create a new message.
  */
 export const SocketRequestSchema = /*@__PURE__*/
-  messageDesc(file_cassie_sockets, 0);
+  messageDesc(file_cassie_sockets, 1);
 
 /**
  * Describes the message SocketResponse.
  * Use `create(SocketResponseSchema)` to create a new message.
  */
 export const SocketResponseSchema = /*@__PURE__*/
-  messageDesc(file_cassie_sockets, 1);
+  messageDesc(file_cassie_sockets, 2);
 
