@@ -6,7 +6,7 @@ logging:
     logDir: /tmp/cloud-assistant
     sinks:
         - path: stderr
-          json: false
+          json: true
 openai:        
     apiKeyFile: /etc/openai/apikey
 cloudAssistant:
