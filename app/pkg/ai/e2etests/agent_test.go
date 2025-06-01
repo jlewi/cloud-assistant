@@ -3,6 +3,7 @@ package e2etests
 import (
 	"bytes"
 	"context"
+	"github.com/jlewi/cloud-assistant/app/pkg/config"
 	"github.com/openai/openai-go"
 	"os"
 	"os/exec"
@@ -41,10 +42,16 @@ func Test_Agent(t *testing.T) {
 
 	var client *openai.Client
 	var err error
+
+	agentOptions := &ai.AgentOptions{}
+	var agentConfg config.CloudAssistantConfig
 	if !isGHA {
 		// When running locally create the OpenAI client using the config
 		client, err = ai.NewClient(*cfg.OpenAI)
-		t.Fatalf("Failed to create client from application configuration; %v", err)
+		if err != nil {
+			t.Fatalf("Failed to create client from application configuration; %v", err)
+		}
+		agentConfg = *cfg.CloudAssistant
 	} else {
 		// In GHA we get the API key from the environment variable
 		apiKey := os.Getenv("OPENAI_API_KEY")
@@ -56,14 +63,12 @@ func Test_Agent(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Failed to create client from environment variable OPENAI_API_KEY; %v", err)
 		}
+		agentConfg.VectorStores = []string{"vs_67a829aae998819189b2ba29cef645f6"}
 	}
-
-	agentOptions := &ai.AgentOptions{}
 
 	if err := agentOptions.FromAssistantConfig(*cfg.CloudAssistant); err != nil {
 		t.Fatalf("Failed to create agent options; %v", err)
 	}
-
 	agentOptions.Client = client
 
 	agent, err := ai.NewAgent(*agentOptions)
