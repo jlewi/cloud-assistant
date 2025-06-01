@@ -67,7 +67,7 @@ func Test_Agent(t *testing.T) {
 		agentConfg.VectorStores = []string{"vs_67a829aae998819189b2ba29cef645f6"}
 	}
 
-	if err := agentOptions.FromAssistantConfig(*cfg.CloudAssistant); err != nil {
+	if err := agentOptions.FromAssistantConfig(agentConfg); err != nil {
 		t.Fatalf("Failed to create agent options; %v", err)
 	}
 	agentOptions.Client = client
