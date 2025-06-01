@@ -3,14 +3,15 @@ package e2etests
 import (
 	"bytes"
 	"context"
-	"github.com/jlewi/cloud-assistant/app/pkg/config"
-	"github.com/openai/openai-go"
 	"os"
 	"os/exec"
 	"regexp"
 	"strings"
 	"sync"
 	"testing"
+
+	"github.com/jlewi/cloud-assistant/app/pkg/config"
+	"github.com/openai/openai-go"
 
 	"github.com/go-logr/zapr"
 	"github.com/jlewi/cloud-assistant/app/pkg/ai"
