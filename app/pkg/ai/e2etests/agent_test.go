@@ -27,6 +27,9 @@ func Test_Agent(t *testing.T) {
 	if err := app.SetupLogging(); err != nil {
 		t.Fatal(err)
 	}
+	if err := app.SetupOTEL(); err != nil {
+		t.Fatal(err)
+	}
 	cfg := app.GetConfig()
 
 	client, err := ai.NewClient(*cfg.OpenAI)
@@ -95,6 +98,12 @@ func Test_Agent(t *testing.T) {
 
 	if len(codeBlocks) == 0 {
 		t.Fatalf("No code blocks found in response")
+	}
+
+	for _, b := range codeBlocks {
+		if b.CallId == "" {
+			t.Fatalf("Code block with ID %s does not have a CallId", b.Id)
+		}
 	}
 
 	// Now lets execute a command and provide it to the AI to see how it responds.

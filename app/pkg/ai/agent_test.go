@@ -10,14 +10,7 @@ import (
 	"google.golang.org/protobuf/testing/protocmp"
 )
 
-// Define a mock Block struct if it's not available
-// This is just a placeholder. Replace with the correct implementation.
-type Block struct {
-	Id string
-}
-
 func TestFillInToolcalls(t *testing.T) {
-
 	// Define test cases
 	tests := []struct {
 		name               string

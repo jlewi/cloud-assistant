@@ -24,11 +24,19 @@ type BlocksBuilder struct {
 	responseCache *lru.Cache[string, []string]
 	blocksCache   *lru.Cache[string, *cassie.Block]
 
+	responseID string
+
+	// idToCallID is a map from the OpenAI item id to the call_id for function calling.
+	// Per the spec https://platform.openai.com/docs/guides/function-calling?api-mode=responses#streaming
+	// item ids and call_ids are not the same
+	// call_ids are provided on response.output_item.added and response.output_item.done events but not
+	// response.function_call_arguments.delta. So we cache them in order to be able to always include the CallID
+	// in blocks.
+	idToCallID map[string]string
+
 	// Map from block ID to block
 	blocks map[string]*cassie.Block
-	// Events from OpenAI reference blocks by index, so we need to keep track of the mapping
-	//indexToID map[int]string
-	mu sync.Mutex
+	mu     sync.Mutex
 }
 
 func NewBlocksBuilder(filenameToLink func(string) string, responseCache *lru.Cache[string, []string], blocksCache *lru.Cache[string, *cassie.Block]) *BlocksBuilder {
@@ -37,7 +45,7 @@ func NewBlocksBuilder(filenameToLink func(string) string, responseCache *lru.Cac
 		filenameToLink: filenameToLink,
 		responseCache:  responseCache,
 		blocksCache:    blocksCache,
-		//indexToID: make(map[int]string),
+		idToCallID:     make(map[string]string),
 	}
 }
 
@@ -50,7 +58,8 @@ func (b *BlocksBuilder) HandleEvents(ctx context.Context, events *ssestream.Stre
 	log := logs.FromContext(ctx)
 	defer func() {
 		resp := &cassie.GenerateResponse{
-			Blocks: make([]*cassie.Block, 0, len(b.blocks)),
+			Blocks:     make([]*cassie.Block, 0, len(b.blocks)),
+			ResponseId: b.responseID,
 		}
 
 		previousIDs := make([]string, 0, len(b.blocks))
@@ -108,15 +117,30 @@ func (b *BlocksBuilder) ProcessEvent(ctx context.Context, e responses.ResponseSt
 	log := logs.FromContext(ctx)
 	log.V(logs.Debug).Info("Processing event", "event", e)
 
+	// Per the APISpec the ResponseID is not set on all messages.
+	// https://platform.openai.com/docs/api-reference/responses-streaming/response
+	// So we store it and then attach it to all responses that we stream back.
+	if e.Response.ID != "" {
+		if b.responseID == "" {
+			b.responseID = e.Response.ID
+		} else {
+			if b.responseID != e.Response.ID {
+				log.Error(errors.New("response ID changed mid-stream"), "old", b.responseID, "new", e.Response.ID)
+			}
+		}
+	}
+
 	resp := &cassie.GenerateResponse{
-		ResponseId: e.Response.ID,
+		ResponseId: b.responseID,
 		Blocks:     make([]*cassie.Block, 0, 5),
 	}
 
-	// CallID should be set for function calls
-	callID := e.Item.CallID
-
 	switch e.AsAny().(type) {
+	case responses.ResponseOutputItemAddedEvent:
+		item := e.AsResponseOutputItemAdded()
+		if item.Item.CallID != "" {
+			b.idToCallID[item.Item.ID] = item.Item.CallID
+		}
 	case responses.ResponseContentPartDoneEvent:
 		log.Info(e.Type, "event", e)
 	case responses.ResponseTextDeltaEvent:
@@ -152,9 +176,18 @@ func (b *BlocksBuilder) ProcessEvent(ctx context.Context, e responses.ResponseSt
 		b.mu.Lock()
 		defer b.mu.Unlock()
 		var block *cassie.Block
+
+		callID, callIDOK := b.idToCallID[itemID]
+
+		if !callIDOK {
+			// The call ID should come from the ResponseOutputItemAddedEvent so either there was no
+			// ResponseOutputItemAddedEvent or it was missing a call_id.
+			return errors.New("function call arguments delta has no call ID")
+		}
 		ok := false
 		block, ok = b.blocks[itemID]
 		if !ok {
+			// There is no existing block so we need to initialize a new one.
 			block = &cassie.Block{
 				Id:       itemID,
 				Kind:     cassie.BlockKind_CODE,
@@ -175,6 +208,13 @@ func (b *BlocksBuilder) ProcessEvent(ctx context.Context, e responses.ResponseSt
 		itemID := item.ItemID
 		if itemID == "" {
 			return errors.New("function call arguments delta has no item ID")
+		}
+		callID, callIDok := b.idToCallID[itemID]
+
+		if !callIDok {
+			// The call ID should come from the ResponseOutputItemAddedEvent so either there was no
+			// ResponseOutputItemAddedEvent or it was missing a call_id.
+			return errors.New("function call arguments delta has no call ID")
 		}
 		b.mu.Lock()
 		defer b.mu.Unlock()
