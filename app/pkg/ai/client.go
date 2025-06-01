@@ -14,15 +14,6 @@ import (
 
 // NewClient helper function to create a new OpenAI client from  a config
 func NewClient(cfg config.OpenAIConfig) (*openai.Client, error) {
-	// ************************************************************************
-	// Setup middleware
-	// ************************************************************************
-
-	// Handle retryable errors
-	// To handle retryable errors we use hashi corp's retryable client. This client will automatically retry on
-	// retryable errors like 429; rate limiting
-	retryClient := retryablehttp.NewClient()
-	httpClient := retryClient.StandardClient()
 
 	if cfg.APIKeyFile == "" {
 		return nil, errors.New("OpenAI API key is empty")
@@ -34,6 +25,21 @@ func NewClient(cfg config.OpenAIConfig) (*openai.Client, error) {
 	}
 
 	key := strings.TrimSpace(string(b))
+
+	return NewClientWithKey(key)
+}
+
+func NewClientWithKey(key string) (*openai.Client, error) {
+	// ************************************************************************
+	// Setup middleware
+	// ************************************************************************
+
+	// Handle retryable errors
+	// To handle retryable errors we use hashi corp's retryable client. This client will automatically retry on
+	// retryable errors like 429; rate limiting
+	retryClient := retryablehttp.NewClient()
+	httpClient := retryClient.StandardClient()
+
 	client := openai.NewClient(
 		option.WithAPIKey(key), // defaults to os.LookupEnv("OPENAI_API_KEY")
 		option.WithHTTPClient(httpClient),

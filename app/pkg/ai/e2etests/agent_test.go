@@ -3,6 +3,8 @@ package e2etests
 import (
 	"bytes"
 	"context"
+	"github.com/openai/openai-go"
+	"os"
 	"os/exec"
 	"regexp"
 	"strings"
@@ -19,7 +21,12 @@ import (
 )
 
 func Test_Agent(t *testing.T) {
-	SkipIfMissing(t, "RUN_MANUAL_TESTS")
+	// This test verifies that function calling works.
+	// We run it in GHA or locally if RUN_MANUAL_TESTS is set
+	isGHA := os.Getenv("GITHUB_ACTIONS") == "true"
+	if !isGHA {
+		SkipIfMissing(t, "RUN_MANUAL_TESTS")
+	}
 	app := application.NewApp()
 	if err := app.LoadConfig(nil); err != nil {
 		t.Fatal(err)
@@ -32,10 +39,23 @@ func Test_Agent(t *testing.T) {
 	}
 	cfg := app.GetConfig()
 
-	client, err := ai.NewClient(*cfg.OpenAI)
+	var client *openai.Client
+	var err error
+	if !isGHA {
+		// When running locally create the OpenAI client using the config
+		client, err = ai.NewClient(*cfg.OpenAI)
+		t.Fatalf("Failed to create client from application configuration; %v", err)
+	} else {
+		// In GHA we get the API key from the environment variable
+		apiKey := os.Getenv("OPENAI_API_KEY")
+		if apiKey == "" {
+			t.Fatal("OPENAI_API_KEY environment variable is not set")
+		}
+		client, err = ai.NewClientWithKey(apiKey)
 
-	if err != nil {
-		t.Fatalf("Failed to create client; %v", err)
+		if err != nil {
+			t.Fatalf("Failed to create client from environment variable OPENAI_API_KEY; %v", err)
+		}
 	}
 
 	agentOptions := &ai.AgentOptions{}
@@ -107,7 +127,7 @@ func Test_Agent(t *testing.T) {
 	}
 
 	// Now lets execute a command and provide it to the AI to see how it responds.
-	if err := executeBlock(codeBlocks[0]); err != nil {
+	if err := executeBlock(codeBlocks[0], true); err != nil {
 		t.Fatalf("Failed to execute command: %+v", err)
 	}
 
@@ -163,47 +183,43 @@ func (s *ServerResponseStream) Send(e *cassie.GenerateResponse) error {
 }
 
 // Run the given command and return the output
-func executeBlock(b *cassie.Block) error {
+// This can either run the command for real or return canned outputs
+func executeBlock(b *cassie.Block, useCached bool) error {
 	log := zapr.NewLogger(zap.L())
 	args := strings.Split(b.Contents, " ")
 
-	cmd := exec.Command(args[0], args[1:]...)
-	//cmd := exec.Command("kubectl", "--context=a0s", "-n", "rube", "get", "deployment", "rube-dev", "-o", "yaml")
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
+	stdOutStr := cannedStdout
+	stdErrStr := ""
 
-	err := cmd.Run()
+	if !useCached {
+		cmd := exec.Command(args[0], args[1:]...)
+		var stdout, stderr bytes.Buffer
+		cmd.Stdout = &stdout
+		cmd.Stderr = &stderr
 
-	if err != nil {
-		log.Error(err, "Failed to run command", "cmd", b.Contents, "stdout", stdout.String(), "stderr", stderr.String())
-		return errors.Wrapf(err, "Failed to run %s", b.Contents)
+		err := cmd.Run()
+
+		if err != nil {
+			log.Error(err, "Failed to run command", "cmd", b.Contents, "stdout", stdout.String(), "stderr", stderr.String())
+			return errors.Wrapf(err, "Failed to run %s", b.Contents)
+		}
+
+		log.Info("Command completed successfully", "stdout", stdout.String(), "stderr", stderr.String())
+
+		if stdout.Len() == 0 && stderr.Len() == 0 {
+			return errors.New("No output from command")
+		}
+
+		stdOutStr = stdout.String()
+		stdErrStr = stderr.String()
+
 	}
-
-	//applyCmd := cmd.NewCmdOptions(cmd.Options{
-	//	Streaming: false,
-	//}, args[0], args[1:]...)
-	//
-	//// Start the command and immediately return
-	//log.Info("Running command", "cmd", helpers.CmdToString(*applyCmd))
-	//statusChan := applyCmd.Start()
-	//
-	//// Wait for the command to complete
-	//finalStatus := <-statusChan
-	//
-	//if finalStatus.Error != nil {
-	//	log.Error(finalStatus.Error, "Command didn't complete successfully", "cmd", helpers.CmdToString(*applyCmd), "exitCode", finalStatus.Exit)
-	//	return errors.Wrapf(finalStatus.Error, "Failed to run %s", helpers.CmdToString(*applyCmd))
-	//}
-
-	log.Info("Command completed successfully", "stdout", stdout.String(), "stderr", stderr.String())
-
 	b.Outputs = []*cassie.BlockOutput{
 		{
 			Kind: cassie.BlockOutputKind_STDOUT,
 			Items: []*cassie.BlockOutputItem{
 				{
-					TextData: stdout.String(),
+					TextData: stdOutStr,
 				},
 			},
 		},
@@ -211,15 +227,123 @@ func executeBlock(b *cassie.Block) error {
 			Kind: cassie.BlockOutputKind_STDERR,
 			Items: []*cassie.BlockOutputItem{
 				{
-					TextData: stderr.String(),
+					TextData: stdErrStr,
 				},
 			},
 		},
 	}
 
-	if stdout.Len() == 0 && stderr.Len() == 0 {
-		return errors.New("No output from command")
-	}
-
 	return nil
 }
+
+const (
+	cannedStdout = `apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    deployment.kubernetes.io/revision: "9" 
+  creationTimestamp: "2024-12-10T19:36:25Z"
+  generation: 20
+  labels:
+    app: rube
+    env: dev
+  name: rube-dev
+  namespace: rube
+  resourceVersion: "629424835"
+  uid: 73e83e63-e160-4e86-ab5f-e5ba99d25266
+spec:
+  progressDeadlineSeconds: 600
+  replicas: 1
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app: rube
+      env: dev
+  strategy:
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+    type: RollingUpdate
+  template:
+    metadata:
+      annotations:
+        kubectl.kubernetes.io/restartedAt: "2024-12-10T14:30:53-08:00"
+      creationTimestamp: null
+      labels:
+        app: rube
+        env: dev
+    spec:
+      containers:
+      - args:
+        - --openai-apikey=/etc/secrets/openai-key/openai.api.key
+        image: ghcr.io/jlewi/rube/rube@sha256:a60e69f9fbf9995a78db8bb457b3b4fba6ef400825188ea67e213e0c966ceff6
+        imagePullPolicy: IfNotPresent
+        livenessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /healthz
+            port: 8080
+            scheme: HTTP
+          initialDelaySeconds: 15
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 1
+        name: rube
+        ports:
+        - containerPort: 8080
+          protocol: TCP
+        readinessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /healthz
+            port: 8080
+            scheme: HTTP
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          successThreshold: 1
+          timeoutSeconds: 1
+        resources:
+          limits:
+            cpu: 250m
+            memory: 256Mi
+          requests:
+            cpu: 250m
+            memory: 256Mi
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+        volumeMounts:
+        - mountPath: /etc/secrets/openai-key
+          name: openai-key
+          readOnly: true
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext: {}
+      serviceAccount: rube
+      serviceAccountName: rube
+      terminationGracePeriodSeconds: 30
+      volumes:
+      - name: openai-key
+        secret:
+          defaultMode: 420
+          secretName: openai-key
+status:
+  conditions:
+  - lastTransitionTime: "2025-04-09T23:31:59Z"
+    lastUpdateTime: "2025-04-09T23:32:14Z"
+    message: ReplicaSet "rube-dev-8569595945" has successfully progressed.
+    reason: NewReplicaSetAvailable
+    status: "True"
+    type: Progressing
+  - lastTransitionTime: "2025-05-01T23:41:09Z"
+    lastUpdateTime: "2025-05-01T23:41:09Z"
+    message: Deployment does not have minimum availability.
+    reason: MinimumReplicasUnavailable
+    status: "False"
+    type: Available
+  observedGeneration: 20
+  replicas: 1
+  unavailableReplicas: 1
+  updatedReplicas: 1
+`
+)
