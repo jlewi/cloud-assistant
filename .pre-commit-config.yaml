@@ -52,3 +52,11 @@ repos:
         types: [go]
         pass_filenames: false
         stages: [pre-commit]
+      - id: gofmt
+        name: gofmt
+        entry: gofmt
+        args: ["-s", "-w", "."]
+        language: system
+        types: [go]
+        pass_filenames: false
+        stages: [pre-commit]
