@@ -24,6 +24,7 @@ import {
 } from '../../gen/es/cassie/sockets_pb'
 import { Code } from '../../gen/es/google/rpc/code_pb'
 import { getTokenValue } from '../../token'
+// anything below is required for the webcomponents to work
 import './renderers/client'
 // @ts-expect-error because the webcomponents are not typed
 import { ClientMessages, setContext } from './renderers/client'
