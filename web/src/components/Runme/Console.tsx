@@ -65,7 +65,7 @@ function buildExecuteRequest({ blockID }: { blockID: string }): ExecuteRequest {
     sessionStrategy: SessionStrategy.MOST_RECENT, // without this every exec gets its own session
     storeStdoutInEnv: true,
     config: {
-      programName: '/bin/zsh', // unset uses system shell
+      // programName: '/bin/zsh', // unset uses system shell
       // arguments: [],
       // directory:
       //     "/Users/sourishkrout/Projects/stateful/oss/vscode-runme/examples",
