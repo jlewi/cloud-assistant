@@ -85,7 +85,7 @@ type SocketRequest struct {
 	//	*SocketRequest_ExecuteRequest
 	Payload isSocketRequest_Payload `protobuf_oneof:"payload"`
 	// Optional authorization header, similar to the HTTP Authorization header.
-	Authorization string `protobuf:"bytes,2,opt,name=authorization,proto3" json:"authorization,omitempty"`
+	Authorization string `protobuf:"bytes,200,opt,name=authorization,proto3" json:"authorization,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -162,7 +162,7 @@ type SocketResponse struct {
 	//	*SocketResponse_ExecuteResponse
 	Payload isSocketResponse_Payload `protobuf_oneof:"payload"`
 	// Optional socket-level status.
-	Status        *SocketStatus `protobuf:"bytes,2,opt,name=status,proto3" json:"status,omitempty"`
+	Status        *SocketStatus `protobuf:"bytes,200,opt,name=status,proto3" json:"status,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -237,14 +237,14 @@ const file_cassie_sockets_proto_rawDesc = "" +
 	"\x14cassie/sockets.proto\x1a\x1crunme/runner/v2/runner.proto\x1a\x15google/rpc/code.proto\"N\n" +
 	"\fSocketStatus\x12$\n" +
 	"\x04code\x18\x01 \x01(\x0e2\x10.google.rpc.CodeR\x04code\x12\x18\n" +
-	"\amessage\x18\x02 \x01(\tR\amessage\"\x8c\x01\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage\"\x8d\x01\n" +
 	"\rSocketRequest\x12J\n" +
-	"\x0fexecute_request\x18\x01 \x01(\v2\x1f.runme.runner.v2.ExecuteRequestH\x00R\x0eexecuteRequest\x12$\n" +
-	"\rauthorization\x18\x02 \x01(\tR\rauthorizationB\t\n" +
-	"\apayload\"\x91\x01\n" +
+	"\x0fexecute_request\x18\x01 \x01(\v2\x1f.runme.runner.v2.ExecuteRequestH\x00R\x0eexecuteRequest\x12%\n" +
+	"\rauthorization\x18\xc8\x01 \x01(\tR\rauthorizationB\t\n" +
+	"\apayload\"\x92\x01\n" +
 	"\x0eSocketResponse\x12M\n" +
-	"\x10execute_response\x18\x01 \x01(\v2 .runme.runner.v2.ExecuteResponseH\x00R\x0fexecuteResponse\x12%\n" +
-	"\x06status\x18\x02 \x01(\v2\r.SocketStatusR\x06statusB\t\n" +
+	"\x10execute_response\x18\x01 \x01(\v2 .runme.runner.v2.ExecuteResponseH\x00R\x0fexecuteResponse\x12&\n" +
+	"\x06status\x18\xc8\x01 \x01(\v2\r.SocketStatusR\x06statusB\t\n" +
 	"\apayloadBDB\fSocketsProtoP\x01Z2github.com/jlewi/cloud-assistant/protos/gen/cassieb\x06proto3"
 
 var (

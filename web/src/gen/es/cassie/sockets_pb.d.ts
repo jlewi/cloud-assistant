@@ -75,7 +75,7 @@ export declare type SocketRequest = Message<"SocketRequest"> & {
   /**
    * Optional authorization header, similar to the HTTP Authorization header.
    *
-   * @generated from field: string authorization = 2;
+   * @generated from field: string authorization = 200;
    */
   authorization: string;
 };
@@ -97,7 +97,7 @@ export declare type SocketRequestJson = {
   /**
    * Optional authorization header, similar to the HTTP Authorization header.
    *
-   * @generated from field: string authorization = 2;
+   * @generated from field: string authorization = 200;
    */
   authorization?: string;
 };
@@ -131,7 +131,7 @@ export declare type SocketResponse = Message<"SocketResponse"> & {
   /**
    * Optional socket-level status.
    *
-   * @generated from field: SocketStatus status = 2;
+   * @generated from field: SocketStatus status = 200;
    */
   status?: SocketStatus;
 };
@@ -153,7 +153,7 @@ export declare type SocketResponseJson = {
   /**
    * Optional socket-level status.
    *
-   * @generated from field: SocketStatus status = 2;
+   * @generated from field: SocketStatus status = 200;
    */
   status?: SocketStatusJson;
 };

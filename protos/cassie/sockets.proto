@@ -19,7 +19,7 @@ message SocketRequest {
     }
 
     // Optional authorization header, similar to the HTTP Authorization header.
-    string authorization = 2;
+    string authorization = 200;
 }
 
 // SocketResponse defines the message sent by the server over a websocket.
@@ -31,5 +31,5 @@ message SocketResponse {
     }
 
     // Optional socket-level status.
-    SocketStatus status = 2;
+    SocketStatus status = 200;
 }
