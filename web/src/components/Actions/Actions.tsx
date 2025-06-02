@@ -1,7 +1,7 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { Box, Button, Card, ScrollArea, Text } from '@radix-ui/themes'
-import { v4 as uuidv4 } from 'uuid'
+import { ulid } from 'ulid'
 
 import { Block, BlockOutputKind, useBlock } from '../../contexts/BlockContext'
 import Console from '../Runme/Console'
@@ -42,9 +42,10 @@ function RunActionButton({
 
 const CodeConsole = memo(
   ({
-    className,
-    value,
+    blockID,
     runID,
+    value,
+    className,
     takeFocus = false,
     onStdout,
     onStderr,
@@ -52,9 +53,10 @@ const CodeConsole = memo(
     onPid,
     onMimeType,
   }: {
-    className?: string
-    value: string
+    blockID: string
     runID: string
+    value: string
+    className?: string
     takeFocus?: boolean
     onStdout: (data: Uint8Array) => void
     onStderr: (data: Uint8Array) => void
@@ -66,6 +68,7 @@ const CodeConsole = memo(
       value != '' &&
       runID != '' && (
         <Console
+          blockID={blockID}
           className={className}
           rows={14}
           commands={value.split('\n')}
@@ -83,6 +86,7 @@ const CodeConsole = memo(
   },
   (prevProps, nextProps) => {
     return (
+      prevProps.blockID === nextProps.blockID &&
       JSON.stringify(prevProps.value) === JSON.stringify(nextProps.value) &&
       prevProps.runID === nextProps.runID
     )
@@ -111,7 +115,7 @@ function Action({ block }: { block: Block }) {
       setStderr('')
       setPid(null)
       setExitCode(null)
-      setExec({ value: editorValue, runID: uuidv4() })
+      setExec({ value: editorValue, runID: ulid() })
       setTakeFocus(takeFocus)
     },
     [editorValue]
@@ -226,6 +230,7 @@ function Action({ block }: { block: Block }) {
             <CodeConsole
               key={exec.runID}
               runID={exec.runID}
+              blockID={block.id}
               value={exec.value}
               takeFocus={takeFocus}
               onStdout={(data: Uint8Array) =>

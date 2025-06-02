@@ -11,7 +11,6 @@ import {
 } from '@buf/stateful_runme.bufbuild_es/runme/runner/v2/runner_pb'
 import { fromJson, toJson } from '@bufbuild/protobuf'
 import { create } from '@bufbuild/protobuf'
-import { ulid } from 'ulid'
 import { RendererContext } from 'vscode-notebook-renderer'
 import { VSCodeEvent } from 'vscode-notebook-renderer/events'
 
@@ -61,8 +60,7 @@ function sendExecuteRequest(socket: WebSocket, execReq: ExecuteRequest) {
   }
 }
 
-function buildExecuteRequest(): ExecuteRequest {
-  const blockID = ulid()
+function buildExecuteRequest({ blockID }: { blockID: string }): ExecuteRequest {
   return create(ExecuteRequestSchema, {
     sessionStrategy: SessionStrategy.MOST_RECENT, // without this every exec gets its own session
     storeStdoutInEnv: true,
@@ -98,6 +96,7 @@ function buildExecuteRequest(): ExecuteRequest {
 }
 
 function Console({
+  blockID,
   commands,
   rows = 20,
   className,
@@ -110,6 +109,7 @@ function Console({
   onPid,
   onMimeType,
 }: {
+  blockID: string
   commands: string[]
   rows?: number
   className?: string
@@ -123,7 +123,7 @@ function Console({
   onMimeType?: (mimeType: string) => void
 }) {
   const { settings, checkRunnerAuth } = useSettings()
-  const execReq = buildExecuteRequest()
+  const execReq = buildExecuteRequest({ blockID })
   const defaults = {
     output: {
       'runme.dev/id': execReq.config?.knownId,
