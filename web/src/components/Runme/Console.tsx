@@ -124,7 +124,7 @@ function Console({
 }) {
   const { settings, checkRunnerAuth } = useSettings()
   const execReq = buildExecuteRequest({ blockID })
-  const defaults = {
+  const webComponentDefaults = {
     output: {
       'runme.dev/id': execReq.config?.knownId,
       fontFamily: fontFamily || 'monospace',
@@ -133,7 +133,7 @@ function Console({
       cursorBlink: true,
       cursorWidth: 1,
       takeFocus,
-      // smoothScrollDuration: 100,
+      smoothScrollDuration: 0,
       scrollback: 1000,
       initialRows: rows,
       content: '',
@@ -303,71 +303,86 @@ function Console({
         const terminalElem = document.createElement('terminal-view')
         terminalElem.setAttribute('buttons', 'false')
 
-        terminalElem.setAttribute('id', defaults.output['runme.dev/id']!)
-        terminalElem.setAttribute('fontFamily', defaults.output.fontFamily)
-        if (typeof defaults.output.fontSize === 'number') {
+        terminalElem.setAttribute(
+          'id',
+          webComponentDefaults.output['runme.dev/id']!
+        )
+        terminalElem.setAttribute(
+          'fontFamily',
+          webComponentDefaults.output.fontFamily
+        )
+        if (typeof webComponentDefaults.output.fontSize === 'number') {
           terminalElem.setAttribute(
             'fontSize',
-            defaults.output.fontSize.toString()
+            webComponentDefaults.output.fontSize.toString()
           )
         }
-        if (defaults.output.cursorStyle) {
-          terminalElem.setAttribute('cursorStyle', defaults.output.cursorStyle)
+        if (webComponentDefaults.output.cursorStyle) {
+          terminalElem.setAttribute(
+            'cursorStyle',
+            webComponentDefaults.output.cursorStyle
+          )
         }
-        if (typeof defaults.output.cursorBlink === 'boolean') {
+        if (typeof webComponentDefaults.output.cursorBlink === 'boolean') {
           terminalElem.setAttribute(
             'cursorBlink',
-            defaults.output.cursorBlink ? 'true' : 'false'
+            webComponentDefaults.output.cursorBlink ? 'true' : 'false'
           )
         }
-        if (typeof defaults.output.cursorWidth === 'number') {
+        if (typeof webComponentDefaults.output.cursorWidth === 'number') {
           terminalElem.setAttribute(
             'cursorWidth',
-            defaults.output.cursorWidth.toString()
+            webComponentDefaults.output.cursorWidth.toString()
           )
         }
 
-        if (typeof defaults.output.takeFocus === 'boolean') {
+        if (typeof webComponentDefaults.output.takeFocus === 'boolean') {
           terminalElem.setAttribute(
             'takeFocus',
-            defaults.output.takeFocus ? 'true' : 'false'
+            webComponentDefaults.output.takeFocus ? 'true' : 'false'
           )
         }
 
-        // if (typeof defaults.output.smoothScrollDuration === 'number') {
-        //   terminalElem.setAttribute(
-        //     'smoothScrollDuration',
-        //     defaults.output.smoothScrollDuration.toString(),
-        //   )
-        // }
-        if (typeof defaults.output.scrollback === 'number') {
+        if (
+          typeof webComponentDefaults.output.smoothScrollDuration === 'number'
+        ) {
+          terminalElem.setAttribute(
+            'smoothScrollDuration',
+            webComponentDefaults.output.smoothScrollDuration.toString()
+          )
+        }
+
+        if (typeof webComponentDefaults.output.scrollback === 'number') {
           terminalElem.setAttribute(
             'scrollback',
-            defaults.output.scrollback.toString()
+            webComponentDefaults.output.scrollback.toString()
           )
         }
-        if (defaults.output.initialRows !== undefined) {
+        if (webComponentDefaults.output.initialRows !== undefined) {
           terminalElem.setAttribute(
             'initialRows',
-            defaults.output.initialRows.toString()
+            webComponentDefaults.output.initialRows.toString()
           )
         }
 
-        if (defaults.output.content !== undefined) {
-          terminalElem.setAttribute('initialContent', defaults.output.content)
+        if (webComponentDefaults.output.content !== undefined) {
+          terminalElem.setAttribute(
+            'initialContent',
+            webComponentDefaults.output.content
+          )
         }
 
-        if (defaults.output.isAutoSaveEnabled) {
+        if (webComponentDefaults.output.isAutoSaveEnabled) {
           terminalElem.setAttribute(
             'isAutoSaveEnabled',
-            defaults.output.isAutoSaveEnabled.toString()
+            webComponentDefaults.output.isAutoSaveEnabled.toString()
           )
         }
 
-        if (defaults.output.isPlatformAuthEnabled) {
+        if (webComponentDefaults.output.isPlatformAuthEnabled) {
           terminalElem.setAttribute(
             'isPlatformAuthEnabled',
-            defaults.output.isPlatformAuthEnabled.toString()
+            webComponentDefaults.output.isPlatformAuthEnabled.toString()
           )
         }
 
