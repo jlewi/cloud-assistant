@@ -1,9 +1,11 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useEffect } from 'react'
+import { useEffect, useMemo } from 'react'
 
+import { CommandMode } from '@buf/stateful_runme.bufbuild_es/runme/runner/v2/config_pb'
 import {
   ExecuteResponse,
   SessionStrategy,
+  WinsizeSchema,
 } from '@buf/stateful_runme.bufbuild_es/runme/runner/v2/runner_pb'
 import {
   ExecuteRequest,
@@ -60,41 +62,6 @@ function sendExecuteRequest(socket: WebSocket, execReq: ExecuteRequest) {
   }
 }
 
-function buildExecuteRequest({ blockID }: { blockID: string }): ExecuteRequest {
-  return create(ExecuteRequestSchema, {
-    sessionStrategy: SessionStrategy.MOST_RECENT, // without this every exec gets its own session
-    storeStdoutInEnv: true,
-    config: {
-      // programName: '/bin/zsh', // unset uses system shell
-      // arguments: [],
-      // directory:
-      //     "/Users/sourishkrout/Projects/stateful/oss/vscode-runme/examples",
-      languageId: 'sh',
-      background: false,
-      fileExtension: '',
-      env: [`RUNME_ID=${blockID}`, 'RUNME_RUNNER=v2', 'TERM=xterm-256color'],
-      source: {
-        case: 'commands',
-        value: {
-          items: [
-            // 'for i in {1..10}; do',
-            // '  echo "Value: $i"',
-            // '  sleep 1',
-            // 'done',
-            // 'runme',
-            'ls -la',
-          ],
-        },
-      },
-      interactive: true,
-      mode: 1,
-      knownId: blockID,
-      // knownName: "for-i",
-    },
-    winsize: { rows: 34, cols: 100, x: 0, y: 0 },
-  })
-}
-
 function Console({
   blockID,
   commands,
@@ -123,24 +90,59 @@ function Console({
   onMimeType?: (mimeType: string) => void
 }) {
   const { settings, checkRunnerAuth } = useSettings()
-  const execReq = buildExecuteRequest({ blockID })
-  const webComponentDefaults = {
-    output: {
-      'runme.dev/id': execReq.config?.knownId,
-      fontFamily: fontFamily || 'monospace',
-      fontSize: fontSize || 12,
-      cursorStyle: 'block',
-      cursorBlink: true,
-      cursorWidth: 1,
-      takeFocus,
-      smoothScrollDuration: 0,
-      scrollback: 1000,
-      initialRows: rows,
-      content: '',
-      isAutoSaveEnabled: false,
-      isPlatformAuthEnabled: false,
-    },
-  }
+
+  let winsize = create(WinsizeSchema, {
+    rows: 34,
+    cols: 100,
+    x: 0,
+    y: 0,
+  })
+  console.log('winsize', JSON.stringify(winsize, null, 1))
+
+  const executeRequest = useMemo(() => {
+    return create(ExecuteRequestSchema, {
+      sessionStrategy: SessionStrategy.MOST_RECENT, // without this every exec gets its own session
+      storeStdoutInEnv: true,
+      config: {
+        languageId: 'sh',
+        background: false,
+        fileExtension: '',
+        env: [`RUNME_ID=${blockID}`, 'RUNME_RUNNER=v2', 'TERM=xterm-256color'],
+        source: {
+          case: 'commands',
+          value: {
+            items: commands,
+          },
+        },
+        interactive: true,
+        mode: CommandMode.INLINE,
+        knownId: blockID,
+        // knownName: "the-block-name",
+      },
+      winsize,
+    })
+  }, [blockID, commands, winsize])
+
+  const webComponentDefaults = useMemo(
+    () => ({
+      output: {
+        'runme.dev/id': executeRequest.config?.knownId,
+        fontFamily: fontFamily || 'monospace',
+        fontSize: fontSize || 12,
+        cursorStyle: 'block',
+        cursorBlink: true,
+        cursorWidth: 1,
+        takeFocus,
+        smoothScrollDuration: 0,
+        scrollback: 1000,
+        initialRows: rows,
+        content: '',
+        isAutoSaveEnabled: false,
+        isPlatformAuthEnabled: false,
+      },
+    }),
+    [fontFamily, fontSize, takeFocus, rows, executeRequest.config?.knownId]
+  )
 
   const encoder = new TextEncoder()
   let callback: VSCodeEvent<any> | undefined
@@ -151,21 +153,24 @@ function Console({
         (message as any).type === ClientMessages.terminalOpen ||
         (message as any).type === ClientMessages.terminalResize
       ) {
-        const columns = Number(
-          (message as any).output.terminalDimensions.columns
-        )
+        const cols = Number((message as any).output.terminalDimensions.columns)
         const rows = Number((message as any).output.terminalDimensions.rows)
-        if (Number.isFinite(columns) && Number.isFinite(rows)) {
-          execReq.winsize!.cols = columns
-          execReq.winsize!.rows = rows
+        if (Number.isFinite(cols) && Number.isFinite(rows)) {
+          // If the dimensions are the same, return early
+          if (winsize.cols === cols && winsize.rows === rows) {
+            return
+          }
+          winsize = create(WinsizeSchema, {
+            cols,
+            rows,
+            x: 0,
+            y: 0,
+          })
+          const req = create(ExecuteRequestSchema, {
+            winsize,
+          })
+          sendExecuteRequest(socket, req)
         }
-      }
-
-      if ((message as any).type === ClientMessages.terminalResize) {
-        const req = create(ExecuteRequestSchema, {
-          winsize: execReq.winsize,
-        })
-        sendExecuteRequest(socket, req)
       }
 
       if ((message as any).type === ClientMessages.terminalStdin) {
@@ -224,7 +229,7 @@ function Console({
         callback?.({
           type: ClientMessages.terminalStdout,
           output: {
-            'runme.dev/id': execReq.config!.knownId,
+            'runme.dev/id': executeRequest.config!.knownId,
             data: response.stdoutData,
           },
         } as any)
@@ -238,7 +243,7 @@ function Console({
         callback?.({
           type: ClientMessages.terminalStderr,
           output: {
-            'runme.dev/id': execReq.config!.knownId,
+            'runme.dev/id': executeRequest.config!.knownId,
             data: response.stderrData,
           },
         } as any)
@@ -275,7 +280,7 @@ function Console({
     }
   }, [
     callback,
-    execReq.config,
+    executeRequest.config,
     onExitCode,
     onPid,
     onStderr,
@@ -286,13 +291,16 @@ function Console({
   ])
 
   useEffect(() => {
-    console.log('useEffect invoked - Commands changed:', commands)
-    if (execReq.config?.source?.case === 'commands') {
-      execReq.config!.source!.value!.items = commands
+    if (!socket || !executeRequest) {
+      return
     }
+    console.log(
+      'useEffect invoked - Commands changed:',
+      JSON.stringify(executeRequest.config!.source!.value)
+    )
+    sendExecuteRequest(socket, executeRequest)
+  }, [executeRequest])
 
-    sendExecuteRequest(socket, execReq)
-  }, [commands, execReq])
   return (
     <div
       className={className}
