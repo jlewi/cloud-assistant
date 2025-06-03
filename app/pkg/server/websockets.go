@@ -85,10 +85,10 @@ func (h *WebSocketHandler) Handler(w http.ResponseWriter, r *http.Request) {
 //
 // There is one instance of this struct per websocket connection; i.e. each instance handles a single websocket
 // connection. There is also 1 websocket connection per RunmeConsole element (block) in the UI.
-// So this RunmeHandler is only handling one UI block. However, multiple commands can be sent over
-// the websocket connection. Right now we only support non-interactive commands. So the protocol is
-// client sends a single ExecuteRequest and then the server responds with multiple ExecuteResponses.
-// The runnerv2service.Execute method is invoked once per ExecuteRequest; it will terminate when execution finishes.
+// So this RunmeHandler is only handling one UI block. Multiple commands, including interactive ones, can be sent over
+// the websocket connection. The protocol supports bidirectional streaming: the client sends an ExecuteRequest and the server
+// responds with multiple ExecuteResponses. The runnerv2service.Execute method is invoked once per ExecuteRequest;
+// it will terminate when execution finishes.
 // However, the UI could send additional ExecuteRequests over the same websocket connection. These could
 // be a stop/terminate message to indicate we should abort a long running command.
 //
