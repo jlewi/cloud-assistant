@@ -237,8 +237,6 @@ class RunmeStream {
     const merged = merge(
       // Flatten buffered arrays
       buffered.pipe(
-        // Each buffer is an array, so emit each item
-        map((buffer) => buffer),
         // Use mergeMap to flatten
         mergeMap((buffer) => buffer)
       ),
