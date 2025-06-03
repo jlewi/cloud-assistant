@@ -8,13 +8,14 @@ import (
 
 	"google.golang.org/genproto/googleapis/rpc/code"
 
-	"github.com/google/uuid"
+	"github.com/go-logr/logr"
 	"github.com/gorilla/websocket"
 	"github.com/jlewi/cloud-assistant/app/pkg/iam"
 	"github.com/jlewi/cloud-assistant/app/pkg/logs"
 	"github.com/jlewi/cloud-assistant/protos/gen/cassie"
 	"github.com/pkg/errors"
 	v2 "github.com/runmedev/runme/v3/api/gen/proto/go/runme/runner/v2"
+	"go.opentelemetry.io/otel"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
@@ -49,13 +50,10 @@ func NewWebSocketHandler(runner *Runner, oidc *OIDC, checker iam.Checker, role s
 }
 
 func (h *WebSocketHandler) Handler(w http.ResponseWriter, r *http.Request) {
-	log := logs.FromContext(r.Context())
-
-	// This is a hack to see if we are getting multiple requests.
-	// We should really use OTEL and traces
-	requestID := uuid.NewString()[0:8]
-	log = log.WithValues("requestID", requestID)
-	log.Info("Handling websocket request")
+	ctx := r.Context()
+	log := logs.FromContextWithTrace(ctx)
+	ctx = logr.NewContext(ctx, log)
+	log.Info("WebsocketHandler.Handler")
 
 	if h.runner.server == nil {
 		log.Error(errors.New("Runner server is nil"), "Runner server is nil")
@@ -75,7 +73,7 @@ func (h *WebSocketHandler) Handler(w http.ResponseWriter, r *http.Request) {
 			log.Error(err, "Could not close websocket")
 		}
 	}()
-	processor := NewRunmeHandler(r.Context(), conn, h.runner, h.oidc, h.checker, h.role)
+	processor := NewRunmeHandler(ctx, conn, h.runner, h.oidc, h.checker, h.role)
 
 	// This will keep reading messages and streaming the outputs until the connection is closed.
 	processor.receive()
@@ -123,7 +121,11 @@ func NewRunmeHandler(ctx context.Context, conn *websocket.Conn, runner *Runner, 
 
 // receive reads messages from the websocket connection and puts them on the ExecuteRequests channel.
 func (h *RunmeHandler) receive() {
-	log := logs.FromContext(h.Ctx)
+	tracer := otel.Tracer("github.com/jlewi/cloud-assistant/app/pkg/server/websockets")
+	ctx, span := tracer.Start(h.Ctx, "RunmeHandler.receive")
+	defer span.End()
+	log := logs.FromContextWithTrace(ctx)
+
 	for {
 
 		messageType, message, err := h.Conn.ReadMessage()
@@ -198,7 +200,7 @@ func (h *RunmeHandler) receive() {
 
 		p := h.getInflight()
 		if p == nil {
-			p = NewSocketMessageProcessor(h.Ctx)
+			p = NewSocketMessageProcessor(ctx)
 			h.setInflight(p)
 			go h.execute(p)
 
@@ -230,10 +232,13 @@ func (h *RunmeHandler) setInflight(p *SocketMessageProcessor) {
 // execute invokes the Runme runner to execute the request.
 // It returns when the request has been processed by Runme.
 func (h *RunmeHandler) execute(p *SocketMessageProcessor) {
+	tracer := otel.Tracer("github.com/jlewi/cloud-assistant/app/pkg/server/websockets")
+	ctx, span := tracer.Start(h.Ctx, "RunmeHandler.execute")
+	defer span.End()
+	log := logs.FromContextWithTrace(ctx)
 	defer h.setInflight(nil)
 	// On exit we close the executeResponses channel because no more responses are expected from runme.
 	defer close(p.ExecuteResponses)
-	log := logs.FromContext(h.Ctx)
 	// Send the request to the runner
 	if err := h.Runner.server.Execute(p); err != nil {
 		log.Error(err, "Failed to execute request")
