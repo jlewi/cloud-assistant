@@ -116,8 +116,8 @@ function Action({ block }: { block: Block }) {
       setStderr('')
       setPid(null)
       setExitCode(null)
-      setExec({ value: editorValue, runID: ulid() })
       setTakeFocus(takeFocus)
+      setExec({ value: editorValue, runID: ulid() })
     },
     [editorValue]
   )
@@ -217,6 +217,7 @@ function Action({ block }: { block: Block }) {
           />
           <Card className="whitespace-nowrap overflow-hidden flex-1 ml-2">
             <Editor
+              key={block.id}
               id={block.id}
               value={editorValue}
               fontSize={fontSize}

@@ -177,7 +177,7 @@ class RunmeStream {
         socket.onopen = () => {
           console.log(
             new Date(),
-            `✅ Connected WebSocket for block ${this.blockID} with runID: ${this.runID}`
+            `✅ Connected WebSocket for block ${this.blockID} with runID ${this.runID}`
           )
           subscriber.next(socket)
         }
@@ -185,7 +185,7 @@ class RunmeStream {
         return () => {
           console.log(
             new Date(),
-            `☑️ Cleanly disconnected WebSocket for block ${this.blockID} with runID: ${this.runID}`
+            `☑️ Cleanly disconnected WebSocket for block ${this.blockID} with runID ${this.runID}`
           )
 
           // complete so that any subscribers can unsubscribe
