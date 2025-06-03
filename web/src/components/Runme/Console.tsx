@@ -13,6 +13,19 @@ import {
 } from '@buf/stateful_runme.bufbuild_es/runme/runner/v2/runner_pb'
 import { fromJson, toJson } from '@bufbuild/protobuf'
 import { create } from '@bufbuild/protobuf'
+import {
+  Observable,
+  Subject,
+  Subscription,
+  bufferWhen,
+  connectable,
+  filter,
+  map,
+  merge,
+  mergeMap,
+  take,
+  withLatestFrom,
+} from 'rxjs'
 import { RendererContext } from 'vscode-notebook-renderer'
 import { VSCodeEvent } from 'vscode-notebook-renderer/events'
 
@@ -31,39 +44,245 @@ import './renderers/client'
 import { ClientMessages, setContext } from './renderers/client'
 import './runme-vscode.css'
 
-let socket: WebSocket
+class RunmeStream {
+  private callback: VSCodeEvent<any> | undefined
 
-// A queue for socket requests.
-// We enqueue messages to deal with the case where the socket isn't open yet.
-const sendQueue: SocketRequest[] = []
+  private readonly connected: Subscription
+  private readonly queue = new Subject<SocketRequest>()
 
-function sendExecuteRequest(socket: WebSocket, execReq: ExecuteRequest) {
-  console.log('Sending ExecuteRequest:', execReq)
-  const request = create(SocketRequestSchema, {
-    payload: {
-      value: execReq,
-      case: 'executeRequest',
-    },
-  })
+  private _stdout = new Subject<Uint8Array>()
+  private _stderr = new Subject<Uint8Array>()
+  private _exitCode = new Subject<number>()
+  private _pid = new Subject<number>()
+  private _mimeType = new Subject<string>()
 
-  const token = getTokenValue()
+  // Make them multicast so that we can subscribe to them multiple times
+  private _stdoutConnectable = connectable(this._stdout.asObservable())
+  private _stderrConnectable = connectable(this._stderr.asObservable())
+  private _exitCodeConnectable = connectable(this._exitCode.asObservable())
+  private _pidConnectable = connectable(this._pid.asObservable())
+  private _mimeTypeConnectable = connectable(this._mimeType.asObservable())
 
-  sendQueue.push(request)
-  if (socket.readyState === WebSocket.OPEN) {
-    console.log('Socket is open, sending ExecuteRequest')
-    // Send all the messages in the queue
-    while (sendQueue.length > 0) {
-      const req = sendQueue.shift()
-      if (token && req) {
-        req.authorization = `Bearer ${token}`
-      }
-      socket.send(JSON.stringify(toJson(SocketRequestSchema, req!)))
-    }
+  public get stdout() {
+    return this._stdoutConnectable
+  }
+  public get stderr() {
+    return this._stderrConnectable
+  }
+  public get exitCode() {
+    return this._exitCodeConnectable
+  }
+  public get pid() {
+    return this._pidConnectable
+  }
+  public get mimeType() {
+    return this._mimeTypeConnectable
+  }
+
+  constructor(
+    private readonly blockID: string,
+    private readonly runID: string,
+    private readonly runnerEndpoint: string
+  ) {
+    this._stdoutConnectable.connect()
+    this._stderrConnectable.connect()
+    this._exitCodeConnectable.connect()
+    this._pidConnectable.connect()
+    this._mimeTypeConnectable.connect()
+
+    const ws = connectable(
+      new Observable<WebSocket>((subscriber) => {
+        const url = new URL(this.runnerEndpoint)
+        const socket = new WebSocket(url.toString())
+
+        socket.onclose = () => {
+          console.error('WebSocket closed:', event)
+          subscriber.complete()
+        }
+        socket.onerror = (event) => {
+          console.error('WebSocket error:', event)
+          subscriber.error(event)
+        }
+
+        socket.onmessage = (event) => {
+          if (typeof event.data !== 'string') {
+            console.warn(
+              'Unexpected WebSocket message type:',
+              typeof event.data
+            )
+            return
+          }
+          let message: SocketResponse
+          try {
+            // Parse the string into an object
+            const parsed = JSON.parse(event.data)
+
+            // Parse the payload into a Protobuf message
+            message = fromJson(SocketResponseSchema, parsed)
+
+            // Use the message
+            console.log('Received SocketResponse:', message)
+          } catch (err) {
+            console.error('Failed to parse SocketResponse:', err)
+          }
+
+          const status = message!.status
+          if (status && status.code !== Code.OK) {
+            console.error(
+              `Runner error ${Code[status.code]}: ${status.message}`
+            )
+            this.close()
+            return
+          }
+
+          const response = message!.payload.value as ExecuteResponse
+          if (response.stdoutData && response.stdoutData.length > 0) {
+            this.callback?.({
+              type: ClientMessages.terminalStdout,
+              output: {
+                'runme.dev/id': this.blockID,
+                data: response.stdoutData,
+              },
+            } as any)
+            this._stdout.next(response.stdoutData)
+          }
+
+          if (response.stderrData && response.stderrData.length > 0) {
+            this.callback?.({
+              type: ClientMessages.terminalStderr,
+              output: {
+                'runme.dev/id': this.blockID,
+                data: response.stderrData,
+              },
+            } as any)
+            this._stderr.next(response.stderrData)
+          }
+
+          if (response.exitCode !== undefined) {
+            this._exitCode.next(response.exitCode)
+            this.close()
+          }
+
+          if (response.pid !== undefined) {
+            this._pid.next(response.pid)
+          }
+
+          if (response.mimeType) {
+            const parts = response.mimeType.split(';')
+            const mimeType = parts[0]
+            this._mimeType.next(mimeType)
+          }
+        }
+
+        socket.onopen = () => {
+          console.log(
+            new Date(),
+            `✅ Connected WebSocket for block ${this.blockID} with runID: ${this.runID}`
+          )
+          subscriber.next(socket)
+        }
+
+        return () => {
+          console.log(
+            new Date(),
+            `☑️ Cleanly disconnected WebSocket for block ${this.blockID} with runID: ${this.runID}`
+          )
+
+          // complete so that any subscribers can unsubscribe
+          this._stdout.complete()
+          this._stderr.complete()
+          this._exitCode.complete()
+          this._pid.complete()
+          this._mimeType.complete()
+
+          socket.close()
+        }
+      })
+    )
+    this.connected = ws.connect()
+
+    // makes sure messages are buffered until the socket is open, then sent
+    const socketIsOpen = ws.pipe(
+      filter((socket) => socket.readyState === WebSocket.OPEN),
+      take(1)
+    )
+
+    // Buffer messages until the socket is open, then emit them as an array
+    const buffered = this.queue.pipe(
+      bufferWhen(() => socketIsOpen),
+      filter((buffer) => buffer.length > 0), // Only emit if there are buffered messages
+      // Flatten the array of buffered messages into individual emissions
+      map((buffer) => buffer)
+      // We'll flatten this array in the merge below
+    )
+
+    // Pass through messages that arrive after the socket is open
+    const passthrough = this.queue.pipe(
+      withLatestFrom(ws),
+      filter(([, socket]) => socket && socket.readyState === WebSocket.OPEN),
+      map(([req]) => req)
+    )
+
+    // Merge the buffered and passthrough streams
+    const merged = merge(
+      // Flatten buffered arrays
+      buffered.pipe(
+        // Each buffer is an array, so emit each item
+        map((buffer) => buffer),
+        // Use mergeMap to flatten
+        mergeMap((buffer) => buffer)
+      ),
+      passthrough
+    )
+
+    // Now send messages as before
+    const sender = merged.pipe(
+      withLatestFrom(ws),
+      map(([req, socket]) => {
+        const token = getTokenValue()
+        // Add bearer token, if available
+        if (token && req) {
+          req.authorization = `Bearer ${token}`
+        }
+        socket.send(JSON.stringify(toJson(SocketRequestSchema, req)))
+        return `${new Date().toISOString()}: Sending ${JSON.stringify(
+          req.payload.value
+        )}`
+      })
+    )
+
+    // this will make sender's subscriber log
+    // sender.subscribe(console.log)
+
+    // subscribe to the sender without logging
+    sender.subscribe()
+  }
+
+  public setCallback(callback: VSCodeEvent<any>) {
+    this.callback = callback
+  }
+
+  public sendExecuteRequest(executeRequest: ExecuteRequest) {
+    this.queue.next(
+      create(SocketRequestSchema, {
+        payload: {
+          value: executeRequest,
+          case: 'executeRequest',
+        },
+      })
+    )
+  }
+
+  public close() {
+    this.queue.complete()
+    // this is the main sub to the websocket, it will close the websocket
+    this.connected.unsubscribe()
   }
 }
 
 function Console({
   blockID,
+  runID,
   commands,
   rows = 20,
   className,
@@ -77,6 +296,7 @@ function Console({
   onMimeType,
 }: {
   blockID: string
+  runID: string
   commands: string[]
   rows?: number
   className?: string
@@ -89,7 +309,17 @@ function Console({
   onPid?: (pid: number) => void
   onMimeType?: (mimeType: string) => void
 }) {
-  const { settings, checkRunnerAuth } = useSettings()
+  const { settings } = useSettings()
+  const stream = useMemo(() => {
+    return new RunmeStream(blockID, runID, settings.runnerEndpoint)
+  }, [blockID, runID, settings.runnerEndpoint])
+
+  useEffect(() => {
+    return () => {
+      // this will close previous stream, if still open
+      stream.close()
+    }
+  }, [stream])
 
   let winsize = create(WinsizeSchema, {
     rows: 34,
@@ -97,7 +327,6 @@ function Console({
     x: 0,
     y: 0,
   })
-  console.log('winsize', JSON.stringify(winsize, null, 1))
 
   const executeRequest = useMemo(() => {
     return create(ExecuteRequestSchema, {
@@ -145,7 +374,6 @@ function Console({
   )
 
   const encoder = new TextEncoder()
-  let callback: VSCodeEvent<any> | undefined
 
   setContext({
     postMessage: (message: unknown) => {
@@ -169,137 +397,68 @@ function Console({
           const req = create(ExecuteRequestSchema, {
             winsize,
           })
-          sendExecuteRequest(socket, req)
+          stream.sendExecuteRequest(req)
         }
       }
 
       if ((message as any).type === ClientMessages.terminalStdin) {
         const inputData = encoder.encode((message as any).output.input)
         const req = create(ExecuteRequestSchema, { inputData })
-        const reqJson = toJson(ExecuteRequestSchema, req)
-        console.log('terminalStdin', reqJson)
-        sendExecuteRequest(socket, req)
+        // const reqJson = toJson(ExecuteRequestSchema, req)
+        // console.log('terminalStdin', reqJson)
+        stream.sendExecuteRequest(req)
       }
     },
     onDidReceiveMessage: (listener: VSCodeEvent<any>) => {
-      callback = listener
+      stream.setCallback(listener)
     },
   } as Partial<RendererContext<void>>)
 
   useEffect(() => {
-    socket = createWebSocket(settings.runnerEndpoint)
-
-    socket.onclose = (e: CloseEvent) => {
-      if (e.code <= 1000) {
-        return
-      }
-
-      console.error('WebSocket closed with code:', e.code)
-      // checkRunnerAuth()
-    }
-
-    socket.onmessage = (event) => {
-      if (typeof event.data !== 'string') {
-        console.warn('Unexpected WebSocket message type:', typeof event.data)
-        return
-      }
-      let message: SocketResponse
-      try {
-        // Parse the string into an object
-        const parsed = JSON.parse(event.data)
-
-        // Parse the payload into a Protobuf message
-        message = fromJson(SocketResponseSchema, parsed)
-
-        // Use the message
-        console.log('Received SocketResponse:', message)
-      } catch (err) {
-        console.error('Failed to parse SocketResponse:', err)
-      }
-
-      const status = message!.status
-      if (status && status.code !== Code.OK) {
-        console.error(`Runner error ${Code[status.code]}: ${status.message}`)
-        socket.close()
-        return
-      }
-
-      const response = message!.payload.value as ExecuteResponse
-      if (response.stdoutData) {
-        callback?.({
-          type: ClientMessages.terminalStdout,
-          output: {
-            'runme.dev/id': executeRequest.config!.knownId,
-            data: response.stdoutData,
-          },
-        } as any)
-
-        if (onStdout) {
-          onStdout(response.stdoutData)
-        }
-      }
-
-      if (response.stderrData) {
-        callback?.({
-          type: ClientMessages.terminalStderr,
-          output: {
-            'runme.dev/id': executeRequest.config!.knownId,
-            data: response.stderrData,
-          },
-        } as any)
-
-        if (onStderr) {
-          onStderr(response.stderrData)
-        }
-      }
-
-      if (response.exitCode !== undefined) {
-        if (onExitCode) {
-          onExitCode(response.exitCode)
-        }
-      }
-
-      if (response.pid !== undefined) {
-        if (onPid) {
-          onPid(response.pid)
-        }
-      }
-
-      if (response.mimeType) {
-        const parts = response.mimeType.split(';')
-        const mimeType = parts[0]
-        if (onMimeType) {
-          onMimeType(mimeType)
-        }
-      }
-    }
-
-    return () => {
-      console.log(new Date(), 'Disconnected from WebSocket server')
-      socket.close()
-    }
-  }, [
-    callback,
-    executeRequest.config,
-    onExitCode,
-    onPid,
-    onStderr,
-    onStdout,
-    onMimeType,
-    settings.runnerEndpoint,
-    checkRunnerAuth,
-  ])
+    const stdoutSub = stream.stdout.subscribe((data) => {
+      onStdout?.(data)
+    })
+    return () => stdoutSub.unsubscribe()
+  }, [stream, onStdout])
 
   useEffect(() => {
-    if (!socket || !executeRequest) {
+    const stderrSub = stream.stderr.subscribe((data) => {
+      onStderr?.(data)
+    })
+    return () => stderrSub.unsubscribe()
+  }, [stream, onStderr])
+
+  useEffect(() => {
+    const exitCodeSub = stream.exitCode.subscribe((code) => {
+      onExitCode?.(code)
+    })
+    return () => exitCodeSub.unsubscribe()
+  }, [stream, onExitCode])
+
+  useEffect(() => {
+    const pidSub = stream.pid.subscribe((pid) => {
+      onPid?.(pid)
+    })
+    return () => pidSub.unsubscribe()
+  }, [stream, onPid])
+
+  useEffect(() => {
+    const mimeTypeSub = stream.mimeType.subscribe((mimeType) => {
+      onMimeType?.(mimeType)
+    })
+    return () => mimeTypeSub.unsubscribe()
+  }, [stream, onMimeType])
+
+  useEffect(() => {
+    if (!stream || !executeRequest) {
       return
     }
     console.log(
       'useEffect invoked - Commands changed:',
       JSON.stringify(executeRequest.config!.source!.value)
     )
-    sendExecuteRequest(socket, executeRequest)
-  }, [executeRequest])
+    stream.sendExecuteRequest(executeRequest)
+  }, [executeRequest, stream])
 
   return (
     <div
@@ -418,45 +577,6 @@ function isInViewport(element: Element) {
       (window.innerHeight || document.documentElement.clientHeight) &&
     rect.right <= (window.innerWidth || document.documentElement.clientWidth)
   )
-}
-
-function createWebSocket(runnerEndpoint: string): WebSocket {
-  const url = new URL(runnerEndpoint)
-  const ws = new WebSocket(url.toString())
-
-  ws.onerror = (event) => {
-    console.error('WebSocket error:', event)
-  }
-
-  ws.onclose = (event) => {
-    console.error('WebSocket closed:', event)
-  }
-
-  ws.onopen = () => {
-    console.log(
-      new Date(),
-      '✅ Connected to Runme WebSocket server at',
-      runnerEndpoint
-    )
-
-    if (sendQueue.length > 0) {
-      console.log('Sending queued messages')
-    }
-
-    const token = getTokenValue()
-    // Send all the messages in the queue
-    // These will be messages that were enqueued before the socket was open.
-    // If we try to send a message before the socket is open it will fail and
-    // close the connection so we need to enqueue htem.
-    while (sendQueue.length > 0) {
-      const req = sendQueue.shift()!
-      if (token && req) {
-        req.authorization = `Bearer ${token}`
-      }
-      ws.send(JSON.stringify(toJson(SocketRequestSchema, req)))
-    }
-  }
-  return ws
 }
 
 export default Console

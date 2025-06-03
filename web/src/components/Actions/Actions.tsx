@@ -69,6 +69,7 @@ const CodeConsole = memo(
       runID != '' && (
         <Console
           blockID={blockID}
+          runID={runID}
           className={className}
           rows={14}
           commands={value.split('\n')}
