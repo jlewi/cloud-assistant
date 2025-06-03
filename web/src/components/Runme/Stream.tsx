@@ -175,7 +175,7 @@ class Stream {
             `☑️ Cleanly disconnected WebSocket for block ${this.blockID} with runID ${this.runID}`
           )
 
-          // complete so that any subscribers can unsubscribe
+          // Complete so that any subscribers can unsubscribe
           this._stdout.complete()
           this._stderr.complete()
           this._exitCode.complete()
@@ -186,9 +186,10 @@ class Stream {
         }
       })
     )
+    // Hold handle to main subscription to close the websocket when the stream is closed
     this.connected = ws.connect()
 
-    // makes sure messages are buffered until the socket is open, then sent
+    // Makes sure messages are buffered until the socket is open, then sent
     const socketIsOpen = ws.pipe(
       filter((socket) => socket.readyState === WebSocket.OPEN),
       take(1)
@@ -198,7 +199,6 @@ class Stream {
     const buffered = this.queue.pipe(
       bufferWhen(() => socketIsOpen),
       filter((buffer) => buffer.length > 0), // Only emit if there are buffered messages
-      // Flatten the array of buffered messages into individual emissions
       map((buffer) =>
         // Sort to send requests with config first
         buffer.sort((a, b) => {
@@ -242,10 +242,10 @@ class Stream {
       })
     )
 
-    // this will make sender's subscriber log
+    // This will make sender's subscriber log
     // sender.subscribe(console.log)
 
-    // subscribe to the sender without logging
+    // Subscribe to the sender without logging
     sender.subscribe()
   }
 
