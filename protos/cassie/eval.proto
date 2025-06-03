@@ -82,3 +82,16 @@ message EvalSample {
 message EvalDataset{
   repeated EvalSample samples = 1;
 }
+
+
+// -------------------------------------------------------------------------
+// ExperimentRun – Configuration for running an evaluation experiment
+// -------------------------------------------------------------------------
+
+message ExperimentRun {
+  string name = 1;                    // Name of the experiment, e.g. "aks_flag_eval"
+  string dataset_path = 2;            // Path to the YAML dataset to evaluate
+  string cassie_auth_cookie = 3;      // Authorization cookie for backend eval server
+  string output_dir = 4;              // Directory to write experiment reports
+  string inference_endpoint = 5;      // URL of the backend inference service
+}

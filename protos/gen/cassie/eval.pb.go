@@ -407,6 +407,82 @@ func (x *EvalDataset) GetSamples() []*EvalSample {
 	return nil
 }
 
+type ExperimentRun struct {
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	Name              string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`                                                    // Name of the experiment, e.g. "aks_flag_eval"
+	DatasetPath       string                 `protobuf:"bytes,2,opt,name=dataset_path,json=datasetPath,proto3" json:"dataset_path,omitempty"`                   // Path to the YAML dataset to evaluate
+	CassieAuthCookie  string                 `protobuf:"bytes,3,opt,name=cassie_auth_cookie,json=cassieAuthCookie,proto3" json:"cassie_auth_cookie,omitempty"`  // Authorization cookie for backend eval server
+	OutputDir         string                 `protobuf:"bytes,4,opt,name=output_dir,json=outputDir,proto3" json:"output_dir,omitempty"`                         // Directory to write experiment reports
+	InferenceEndpoint string                 `protobuf:"bytes,5,opt,name=inference_endpoint,json=inferenceEndpoint,proto3" json:"inference_endpoint,omitempty"` // URL of the backend inference service
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *ExperimentRun) Reset() {
+	*x = ExperimentRun{}
+	mi := &file_cassie_eval_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ExperimentRun) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ExperimentRun) ProtoMessage() {}
+
+func (x *ExperimentRun) ProtoReflect() protoreflect.Message {
+	mi := &file_cassie_eval_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ExperimentRun.ProtoReflect.Descriptor instead.
+func (*ExperimentRun) Descriptor() ([]byte, []int) {
+	return file_cassie_eval_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *ExperimentRun) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *ExperimentRun) GetDatasetPath() string {
+	if x != nil {
+		return x.DatasetPath
+	}
+	return ""
+}
+
+func (x *ExperimentRun) GetCassieAuthCookie() string {
+	if x != nil {
+		return x.CassieAuthCookie
+	}
+	return ""
+}
+
+func (x *ExperimentRun) GetOutputDir() string {
+	if x != nil {
+		return x.OutputDir
+	}
+	return ""
+}
+
+func (x *ExperimentRun) GetInferenceEndpoint() string {
+	if x != nil {
+		return x.InferenceEndpoint
+	}
+	return ""
+}
+
 // Verifies that a shell command includes specific flags.
 type Assertion_ShellRequiredFlag struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -418,7 +494,7 @@ type Assertion_ShellRequiredFlag struct {
 
 func (x *Assertion_ShellRequiredFlag) Reset() {
 	*x = Assertion_ShellRequiredFlag{}
-	mi := &file_cassie_eval_proto_msgTypes[3]
+	mi := &file_cassie_eval_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -430,7 +506,7 @@ func (x *Assertion_ShellRequiredFlag) String() string {
 func (*Assertion_ShellRequiredFlag) ProtoMessage() {}
 
 func (x *Assertion_ShellRequiredFlag) ProtoReflect() protoreflect.Message {
-	mi := &file_cassie_eval_proto_msgTypes[3]
+	mi := &file_cassie_eval_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -470,7 +546,7 @@ type Assertion_ToolInvocation struct {
 
 func (x *Assertion_ToolInvocation) Reset() {
 	*x = Assertion_ToolInvocation{}
-	mi := &file_cassie_eval_proto_msgTypes[4]
+	mi := &file_cassie_eval_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -482,7 +558,7 @@ func (x *Assertion_ToolInvocation) String() string {
 func (*Assertion_ToolInvocation) ProtoMessage() {}
 
 func (x *Assertion_ToolInvocation) ProtoReflect() protoreflect.Message {
-	mi := &file_cassie_eval_proto_msgTypes[4]
+	mi := &file_cassie_eval_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -516,7 +592,7 @@ type Assertion_FileRetrieval struct {
 
 func (x *Assertion_FileRetrieval) Reset() {
 	*x = Assertion_FileRetrieval{}
-	mi := &file_cassie_eval_proto_msgTypes[5]
+	mi := &file_cassie_eval_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -528,7 +604,7 @@ func (x *Assertion_FileRetrieval) String() string {
 func (*Assertion_FileRetrieval) ProtoMessage() {}
 
 func (x *Assertion_FileRetrieval) ProtoReflect() protoreflect.Message {
-	mi := &file_cassie_eval_proto_msgTypes[5]
+	mi := &file_cassie_eval_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -558,7 +634,7 @@ func (x *Assertion_FileRetrieval) GetFileName() string {
 	return ""
 }
 
-// Asks an LLM to grade the assistant’s answer.
+// Asks an LLM to grade the assistant's answer.
 type Assertion_LLMJudge struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Prompt        string                 `protobuf:"bytes,1,opt,name=prompt,proto3" json:"prompt,omitempty"`
@@ -568,7 +644,7 @@ type Assertion_LLMJudge struct {
 
 func (x *Assertion_LLMJudge) Reset() {
 	*x = Assertion_LLMJudge{}
-	mi := &file_cassie_eval_proto_msgTypes[6]
+	mi := &file_cassie_eval_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -580,7 +656,7 @@ func (x *Assertion_LLMJudge) String() string {
 func (*Assertion_LLMJudge) ProtoMessage() {}
 
 func (x *Assertion_LLMJudge) ProtoReflect() protoreflect.Message {
-	mi := &file_cassie_eval_proto_msgTypes[6]
+	mi := &file_cassie_eval_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -613,7 +689,7 @@ type Assertion_CodeblockRegex struct {
 
 func (x *Assertion_CodeblockRegex) Reset() {
 	*x = Assertion_CodeblockRegex{}
-	mi := &file_cassie_eval_proto_msgTypes[7]
+	mi := &file_cassie_eval_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -625,7 +701,7 @@ func (x *Assertion_CodeblockRegex) String() string {
 func (*Assertion_CodeblockRegex) ProtoMessage() {}
 
 func (x *Assertion_CodeblockRegex) ProtoReflect() protoreflect.Message {
-	mi := &file_cassie_eval_proto_msgTypes[7]
+	mi := &file_cassie_eval_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -698,7 +774,14 @@ const file_cassie_eval_proto_rawDesc = "" +
 	".AssertionR\n" +
 	"assertions\"4\n" +
 	"\vEvalDataset\x12%\n" +
-	"\asamples\x18\x01 \x03(\v2\v.EvalSampleR\asamplesB4Z2github.com/jlewi/cloud-assistant/protos/gen/cassieb\x06proto3"
+	"\asamples\x18\x01 \x03(\v2\v.EvalSampleR\asamples\"\xc2\x01\n" +
+	"\rExperimentRun\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12!\n" +
+	"\fdataset_path\x18\x02 \x01(\tR\vdatasetPath\x12,\n" +
+	"\x12cassie_auth_cookie\x18\x03 \x01(\tR\x10cassieAuthCookie\x12\x1d\n" +
+	"\n" +
+	"output_dir\x18\x04 \x01(\tR\toutputDir\x12-\n" +
+	"\x12inference_endpoint\x18\x05 \x01(\tR\x11inferenceEndpointB4Z2github.com/jlewi/cloud-assistant/protos/gen/cassieb\x06proto3"
 
 var (
 	file_cassie_eval_proto_rawDescOnce sync.Once
@@ -713,34 +796,35 @@ func file_cassie_eval_proto_rawDescGZIP() []byte {
 }
 
 var file_cassie_eval_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_cassie_eval_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
+var file_cassie_eval_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
 var file_cassie_eval_proto_goTypes = []any{
 	(Assertion_Type)(0),                 // 0: Assertion.Type
 	(Assertion_Result)(0),               // 1: Assertion.Result
 	(*Assertion)(nil),                   // 2: Assertion
 	(*EvalSample)(nil),                  // 3: EvalSample
 	(*EvalDataset)(nil),                 // 4: EvalDataset
-	(*Assertion_ShellRequiredFlag)(nil), // 5: Assertion.ShellRequiredFlag
-	(*Assertion_ToolInvocation)(nil),    // 6: Assertion.ToolInvocation
-	(*Assertion_FileRetrieval)(nil),     // 7: Assertion.FileRetrieval
-	(*Assertion_LLMJudge)(nil),          // 8: Assertion.LLMJudge
-	(*Assertion_CodeblockRegex)(nil),    // 9: Assertion.CodeblockRegex
+	(*ExperimentRun)(nil),               // 5: ExperimentRun
+	(*Assertion_ShellRequiredFlag)(nil), // 6: Assertion.ShellRequiredFlag
+	(*Assertion_ToolInvocation)(nil),    // 7: Assertion.ToolInvocation
+	(*Assertion_FileRetrieval)(nil),     // 8: Assertion.FileRetrieval
+	(*Assertion_LLMJudge)(nil),          // 9: Assertion.LLMJudge
+	(*Assertion_CodeblockRegex)(nil),    // 10: Assertion.CodeblockRegex
 }
 var file_cassie_eval_proto_depIdxs = []int32{
-	0, // 0: Assertion.type:type_name -> Assertion.Type
-	1, // 1: Assertion.result:type_name -> Assertion.Result
-	5, // 2: Assertion.shell_required_flag:type_name -> Assertion.ShellRequiredFlag
-	6, // 3: Assertion.tool_invocation:type_name -> Assertion.ToolInvocation
-	7, // 4: Assertion.file_retrieval:type_name -> Assertion.FileRetrieval
-	8, // 5: Assertion.llm_judge:type_name -> Assertion.LLMJudge
-	9, // 6: Assertion.codeblock_regex:type_name -> Assertion.CodeblockRegex
-	2, // 7: EvalSample.assertions:type_name -> Assertion
-	3, // 8: EvalDataset.samples:type_name -> EvalSample
-	9, // [9:9] is the sub-list for method output_type
-	9, // [9:9] is the sub-list for method input_type
-	9, // [9:9] is the sub-list for extension type_name
-	9, // [9:9] is the sub-list for extension extendee
-	0, // [0:9] is the sub-list for field type_name
+	0,  // 0: Assertion.type:type_name -> Assertion.Type
+	1,  // 1: Assertion.result:type_name -> Assertion.Result
+	6,  // 2: Assertion.shell_required_flag:type_name -> Assertion.ShellRequiredFlag
+	7,  // 3: Assertion.tool_invocation:type_name -> Assertion.ToolInvocation
+	8,  // 4: Assertion.file_retrieval:type_name -> Assertion.FileRetrieval
+	9,  // 5: Assertion.llm_judge:type_name -> Assertion.LLMJudge
+	10, // 6: Assertion.codeblock_regex:type_name -> Assertion.CodeblockRegex
+	2,  // 7: EvalSample.assertions:type_name -> Assertion
+	3,  // 8: EvalDataset.samples:type_name -> EvalSample
+	9,  // [9:9] is the sub-list for method output_type
+	9,  // [9:9] is the sub-list for method input_type
+	9,  // [9:9] is the sub-list for extension type_name
+	9,  // [9:9] is the sub-list for extension extendee
+	0,  // [0:9] is the sub-list for field type_name
 }
 
 func init() { file_cassie_eval_proto_init() }
@@ -761,7 +845,7 @@ func file_cassie_eval_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_cassie_eval_proto_rawDesc), len(file_cassie_eval_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   8,
+			NumMessages:   9,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
