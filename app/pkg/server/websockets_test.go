@@ -4,10 +4,12 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/jlewi/cloud-assistant/app/pkg/iam"
 	"github.com/jlewi/cloud-assistant/protos/gen/cassie"
+	"github.com/oklog/ulid/v2"
 	v2 "github.com/runmedev/runme/v3/api/gen/proto/go/runme/runner/v2"
 	"google.golang.org/protobuf/encoding/protojson"
 )
@@ -62,15 +64,16 @@ func TestRunmeHandler_Roundtrip(t *testing.T) {
 		}
 	}()
 
+	// todo(sebastian): reuses Runme after moving it out under internal
+	runID := ulid.MustNew(ulid.Timestamp(time.Now()), ulid.DefaultEntropy())
+
 	req, err := protojson.Marshal(&cassie.SocketRequest{
+		RunId: runID.String(),
 		Payload: &cassie.SocketRequest_ExecuteRequest{
 			ExecuteRequest: &v2.ExecuteRequest{
 				Config: &v2.ProgramConfig{
-					ProgramName:   "/bin/zsh",
-					Arguments:     make([]string, 0),
-					LanguageId:    "sh",
-					Background:    false,
-					FileExtension: "",
+					ProgramName: "/bin/zsh",
+					LanguageId:  "sh",
 					Source: &v2.ProgramConfig_Commands{
 						Commands: &v2.ProgramConfig_CommandList{
 							Items: []string{"echo", "hi"},

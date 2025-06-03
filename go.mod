@@ -16,6 +16,7 @@ require (
 	github.com/hashicorp/go-retryablehttp v0.7.7
 	github.com/hashicorp/golang-lru/v2 v2.0.7
 	github.com/jlewi/monogo v0.0.0-20241216141120-2e83e825aa81
+	github.com/oklog/ulid/v2 v2.1.0
 	github.com/openai/openai-go v1.0.0
 	github.com/pkg/errors v0.9.1
 	github.com/rs/cors v1.11.1
@@ -90,7 +91,6 @@ require (
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/moby/docker-image-spec v1.3.1 // indirect
 	github.com/moby/sys/sequential v0.6.0 // indirect
-	github.com/oklog/ulid/v2 v2.1.0 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.1.1 // indirect
 	github.com/pelletier/go-toml/v2 v2.2.4 // indirect

@@ -230,6 +230,7 @@ class Stream {
     const sender = merged.pipe(
       withLatestFrom(ws),
       map(([req, socket]) => {
+        req.runId = this.runID
         const token = getTokenValue()
         // Add bearer token, if available
         if (token && req) {
