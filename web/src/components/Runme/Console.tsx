@@ -212,7 +212,17 @@ class RunmeStream {
       bufferWhen(() => socketIsOpen),
       filter((buffer) => buffer.length > 0), // Only emit if there are buffered messages
       // Flatten the array of buffered messages into individual emissions
-      map((buffer) => buffer)
+      map((buffer) =>
+        // Sort to send commands first
+        buffer.sort((a, b) => {
+          const getItems = (req: SocketRequest) =>
+            req.payload.value?.config?.source?.case === 'commands'
+              ? req.payload.value?.config?.source?.value?.items.length
+              : 0
+          // Use descending order
+          return getItems(b) - getItems(a)
+        })
+      )
       // We'll flatten this array in the merge below
     )
 
