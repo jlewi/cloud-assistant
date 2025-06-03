@@ -275,7 +275,7 @@ class RunmeStream {
 
   public close() {
     this.queue.complete()
-    // this is the main sub to the websocket, it will close the websocket
+    // unsubscribing from the main sub will close the websocket and associated subjects
     this.connected.unsubscribe()
   }
 }
