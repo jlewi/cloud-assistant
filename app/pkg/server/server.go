@@ -32,6 +32,7 @@ import (
 	"syscall"
 	"time"
 
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.uber.org/zap"
 )
 
@@ -265,7 +266,7 @@ func (s *Server) registerServices() error {
 	if s.runner != nil {
 		sHandler := NewWebSocketHandler(s.runner, oidc, s.checker, api.RunnerUserRole)
 		// Unprotected WebSockets handler since socket protection is done on the app-level (messages)
-		mux.Handle("/ws", http.HandlerFunc(sHandler.Handler))
+		mux.Handle("/ws", otelhttp.NewHandler(http.HandlerFunc(sHandler.Handler), "/ws"))
 		log.Info("Setting up runner service", "path", "/ws")
 	}
 
