@@ -317,7 +317,7 @@ function Console({
   useEffect(() => {
     return () => {
       // this will close previous stream, if still open
-      stream.close()
+      stream?.close()
     }
   }, [stream])
 
