@@ -213,14 +213,10 @@ class RunmeStream {
       filter((buffer) => buffer.length > 0), // Only emit if there are buffered messages
       // Flatten the array of buffered messages into individual emissions
       map((buffer) =>
-        // Sort to send commands first
+        // Sort to send requests with config first
         buffer.sort((a, b) => {
-          const getItems = (req: SocketRequest) =>
-            req.payload.value?.config?.source?.case === 'commands'
-              ? req.payload.value?.config?.source?.value?.items.length
-              : 0
-          // Use descending order
-          return getItems(b) - getItems(a)
+          const hasConfig = (req: SocketRequest) => !!req.payload.value?.config
+          return hasConfig(b) ? 1 : hasConfig(a) ? -1 : 0
         })
       )
       // We'll flatten this array in the merge below
