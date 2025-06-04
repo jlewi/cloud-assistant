@@ -14,7 +14,6 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/go-logr/zapr"
-	"github.com/jlewi/cloud-assistant/app/pkg/config"
 	"github.com/jlewi/cloud-assistant/app/pkg/logs"
 	"github.com/jlewi/cloud-assistant/protos/gen/cassie"
 	"github.com/jlewi/cloud-assistant/protos/gen/cassie/cassieconnect"
@@ -22,7 +21,6 @@ import (
 	"go.uber.org/zap"
 	"golang.org/x/net/http2"
 	"google.golang.org/protobuf/encoding/protojson"
-	"google.golang.org/protobuf/proto"
 	"gopkg.in/yaml.v3"
 )
 
@@ -131,31 +129,7 @@ var registry = map[cassie.Assertion_Type]Asserter{
 	cassie.Assertion_TYPE_CODEBLOCK_REGEX:     codeblockRegex{},
 }
 
-func EvalFromProto(protoFile string, cfg *config.CloudAssistantConfig) (map[string]*cassie.Block, error) {
-	data, err := os.ReadFile(protoFile)
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to read proto file %q", protoFile)
-	}
-	var dataset cassie.EvalDataset
-	if err := proto.Unmarshal(data, &dataset); err != nil {
-		return nil, errors.Wrapf(err, "failed to unmarshal proto file %q", protoFile)
-	}
-	blocks, err := runInference(dataset.Samples[0].InputText, cfg)
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to run inference")
-	}
-	for _, sample := range dataset.Samples {
-		for _, assertion := range sample.Assertions {
-			err := registry[assertion.Type].Assert(context.TODO(), assertion, blocks)
-			if err != nil {
-				return nil, errors.Wrapf(err, "failed to assert %q", assertion.Name)
-			}
-		}
-	}
-	return blocks, nil
-}
-
-func runInference(input string, cfg *config.CloudAssistantConfig) (map[string]*cassie.Block, error) {
+func runInference(input string, cassieCookie string, inferenceEndpoint string) (map[string]*cassie.Block, error) {
 	log := zapr.NewLoggerWithOptions(zap.L(), zapr.AllowZapFields(true))
 
 	blocks := make(map[string]*cassie.Block)
@@ -167,7 +141,7 @@ func runInference(input string, cfg *config.CloudAssistantConfig) (map[string]*c
 
 	log.Info("Block", logs.ZapProto("block", &Block))
 
-	baseURL := cfg.TargetURL
+	baseURL := inferenceEndpoint
 	if baseURL == "" {
 		return blocks, errors.New("TargetURL is not set in config")
 	}
@@ -229,8 +203,8 @@ func runInference(input string, cfg *config.CloudAssistantConfig) (map[string]*c
 	req := connect.NewRequest(genReq)
 	cookie := &http.Cookie{
 		Name:  "cassie-session",
-		Value: cfg.CassieCookie, // supply the real value here, temporary solution
-		Path:  "/",              // adjust if needed
+		Value: cassieCookie, // supply the real value here, temporary solution
+		Path:  "/",          // adjust if needed
 	}
 	req.Header().Add("Cookie", cookie.String())
 	stream, err := client.Generate(ctx, req)
@@ -267,28 +241,34 @@ func runInference(input string, cfg *config.CloudAssistantConfig) (map[string]*c
 	return blocks, nil
 }
 
-// EvalFromYAML reads a YAML file, converts it to JSON, and unmarshals it into cassie.EvalDataset using protojson.
-func EvalFromYAML(yamlFile string, cfg *config.CloudAssistantConfig) (map[string]*cassie.Block, error) {
-	data, err := os.ReadFile(yamlFile)
+// EvalFromExperimentRun runs an experiment based on the ExperimentRun config.
+func EvalFromExperimentRun(exp *cassie.ExperimentRun) (map[string]*cassie.Block, error) {
+	// Read the experiment YAML file
+	data, err := os.ReadFile(exp.GetDatasetPath())
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to read yaml file %q", yamlFile)
+		return nil, errors.Wrapf(err, "failed to read experiment dataset yaml file %q", exp.GetDatasetPath())
 	}
 	// Unmarshal YAML to generic map
 	var yamlObj interface{}
 	if err := yaml.Unmarshal(data, &yamlObj); err != nil {
-		return nil, errors.Wrapf(err, "failed to unmarshal yaml file %q", yamlFile)
+		return nil, errors.Wrapf(err, "failed to unmarshal experiment dataset yaml file %q", exp.GetDatasetPath())
 	}
 	// Convert YAML to JSON
 	jsonData, err := json.Marshal(yamlObj)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to marshal yaml to json for file %q", yamlFile)
+		return nil, errors.Wrapf(err, "failed to marshal experiment dataset yaml to json for file %q", exp.GetDatasetPath())
 	}
 	var dataset cassie.EvalDataset
 	if err := protojson.Unmarshal(jsonData, &dataset); err != nil {
-		return nil, errors.Wrapf(err, "failed to unmarshal json to proto for file %q", yamlFile)
+		return nil, errors.Wrapf(err, "failed to unmarshal json to proto for experiment dataset file %q", exp.GetDatasetPath())
 	}
+
+	// Prepare config from ExperimentRun fields
+	cassieCookie := exp.GetCassieAuthCookie()
+	inferenceEndpoint := exp.GetInferenceEndpoint()
+
 	for _, sample := range dataset.Samples {
-		blocks, err := runInference(sample.InputText, cfg)
+		blocks, err := runInference(sample.InputText, cassieCookie, inferenceEndpoint)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to run inference")
 		}
