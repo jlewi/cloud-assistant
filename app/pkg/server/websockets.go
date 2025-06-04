@@ -21,6 +21,12 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+// Add error variables at the top of the file
+var (
+	ErrPrincipalExtraction = errors.New("could not extract principal from token")
+	ErrRoleDenied          = errors.New("user does not have the required role")
+)
+
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
@@ -31,7 +37,8 @@ var upgrader = websocket.Upgrader{
 	},
 }
 
-// WebSocketHandler is a handler for websockets.
+// WebSocketHandler is a handler for websockets. A single instance is registered with the http server
+// to connect websocket requests to RunmeHandlers.
 type WebSocketHandler struct {
 	runner *Runner
 
@@ -151,46 +158,18 @@ func (h *RunmeHandler) receive() {
 			return
 		}
 
-		req := &cassie.SocketRequest{}
-
-		switch messageType {
-		case websocket.TextMessage:
-			// Parse the message
-			if err := protojson.Unmarshal(message, req); err != nil {
-				log.Error(err, "Could not unmarshal message as SocketRequest")
-				continue
-			}
-			log.Info("Received message", "message", req)
-		case websocket.BinaryMessage:
-			// Parse the message
-			if err := proto.Unmarshal(message, req); err != nil {
-				log.Error(err, "Could not unmarshal message as SocketRequest")
-				continue
-			}
-			log.Info("Received message", "message", req)
-		default:
-			log.Error(nil, "Unsupported message type", "messageType", messageType)
+		req, err := h.unmarshalSocketRequest(messageType, message)
+		if err != nil {
+			// todo(sebastian): should we send an error to the client instead?
+			log.Error(err, "Could not parse SocketRequest")
 			continue
 		}
 
-		// Nil token is not fatal until authz check
-		idToken, err := h.oidc.verifyBearerToken(req.GetAuthorization())
+		// Make sure the request is authorized
+		err = h.authorizeRequest(req)
 		if err != nil {
-			log.Info("Unauthenticated: ", "error", err)
-		}
-
-		principal, err := h.checker.GetPrincipal(idToken)
-		if err != nil {
-			log.Error(err, "Could not extract principal from token")
-			h.sendError(code.Code_PERMISSION_DENIED, "Could not extract principal from token")
+			h.sendError(code.Code_PERMISSION_DENIED, err.Error())
 			return
-		}
-		if h.checker != nil {
-			if ok := h.checker.Check(principal, h.role); !ok {
-				log.Info("User does not have the required role", "principal", principal)
-				h.sendError(code.Code_PERMISSION_DENIED, "User does not have the required role")
-				return
-			}
 		}
 
 		if req.GetExecuteRequest() == nil {
@@ -215,6 +194,54 @@ func (h *RunmeHandler) receive() {
 		// Access the local variable to ensure its always set at this point and avoid race conditions.
 		p.ExecuteRequests <- req.GetExecuteRequest()
 	}
+}
+
+// unmarshalSocketRequest unmarshals the Connect message into a SocketRequest
+func (h *RunmeHandler) unmarshalSocketRequest(messageType int, message []byte) (*cassie.SocketRequest, error) {
+	log := logs.FromContextWithTrace(h.Ctx)
+
+	req := &cassie.SocketRequest{}
+
+	switch messageType {
+	case websocket.TextMessage:
+		// Parse the message
+		if err := protojson.Unmarshal(message, req); err != nil {
+			return nil, errors.Wrap(err, "Could not unmarshal message as SocketRequest (TextMessage)")
+		}
+		log.Info("Received message", "message", req)
+	case websocket.BinaryMessage:
+		// Parse the message
+		if err := proto.Unmarshal(message, req); err != nil {
+			return nil, errors.Wrap(err, "Could not unmarshal message as SocketRequest (BinaryMessage)")
+		}
+		log.Info("Received message", "message", req)
+	default:
+		return nil, errors.Errorf("Unsupported message type: %d", messageType)
+	}
+	return req, nil
+}
+
+func (h *RunmeHandler) authorizeRequest(req *cassie.SocketRequest) error {
+	log := logs.FromContextWithTrace(h.Ctx)
+
+	// Nil token is not fatal until authz denies access
+	idToken, err := h.oidc.verifyBearerToken(req.GetAuthorization())
+	if err != nil {
+		log.Info("Unauthenticated: ", "error", err)
+	}
+
+	principal, err := h.checker.GetPrincipal(idToken)
+	if err != nil {
+		log.Error(err, "Could not extract principal from token")
+		return ErrPrincipalExtraction
+	}
+	if h.checker != nil {
+		if ok := h.checker.Check(principal, h.role); !ok {
+			log.Info("User does not have the required role", "principal", principal)
+			return ErrRoleDenied
+		}
+	}
+	return nil
 }
 
 func (h *RunmeHandler) getInflight() *SocketMessageProcessor {
