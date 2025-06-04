@@ -74,6 +74,8 @@ func NewEvalCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVar(&cookieFile, "cookie-file", "", "Path to the cookie file (required)")
-	cmd.MarkFlagRequired("cookie-file")
+	if err := cmd.MarkFlagRequired("cookie-file"); err != nil {
+		panic(err)
+	}
 	return &cmd
 }
