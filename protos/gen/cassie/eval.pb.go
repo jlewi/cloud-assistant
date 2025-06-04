@@ -407,7 +407,7 @@ func (x *EvalDataset) GetSamples() []*EvalSample {
 	return nil
 }
 
-type ExperimentRun struct {
+type Experiment struct {
 	state             protoimpl.MessageState `protogen:"open.v1"`
 	Name              string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`                                                    // Name of the experiment, e.g. "aks_flag_eval"
 	DatasetPath       string                 `protobuf:"bytes,2,opt,name=dataset_path,json=datasetPath,proto3" json:"dataset_path,omitempty"`                   // Path to the YAML dataset to evaluate
@@ -418,20 +418,20 @@ type ExperimentRun struct {
 	sizeCache         protoimpl.SizeCache
 }
 
-func (x *ExperimentRun) Reset() {
-	*x = ExperimentRun{}
+func (x *Experiment) Reset() {
+	*x = Experiment{}
 	mi := &file_cassie_eval_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *ExperimentRun) String() string {
+func (x *Experiment) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*ExperimentRun) ProtoMessage() {}
+func (*Experiment) ProtoMessage() {}
 
-func (x *ExperimentRun) ProtoReflect() protoreflect.Message {
+func (x *Experiment) ProtoReflect() protoreflect.Message {
 	mi := &file_cassie_eval_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -443,40 +443,40 @@ func (x *ExperimentRun) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use ExperimentRun.ProtoReflect.Descriptor instead.
-func (*ExperimentRun) Descriptor() ([]byte, []int) {
+// Deprecated: Use Experiment.ProtoReflect.Descriptor instead.
+func (*Experiment) Descriptor() ([]byte, []int) {
 	return file_cassie_eval_proto_rawDescGZIP(), []int{3}
 }
 
-func (x *ExperimentRun) GetName() string {
+func (x *Experiment) GetName() string {
 	if x != nil {
 		return x.Name
 	}
 	return ""
 }
 
-func (x *ExperimentRun) GetDatasetPath() string {
+func (x *Experiment) GetDatasetPath() string {
 	if x != nil {
 		return x.DatasetPath
 	}
 	return ""
 }
 
-func (x *ExperimentRun) GetCassieAuthCookie() string {
+func (x *Experiment) GetCassieAuthCookie() string {
 	if x != nil {
 		return x.CassieAuthCookie
 	}
 	return ""
 }
 
-func (x *ExperimentRun) GetOutputDir() string {
+func (x *Experiment) GetOutputDir() string {
 	if x != nil {
 		return x.OutputDir
 	}
 	return ""
 }
 
-func (x *ExperimentRun) GetInferenceEndpoint() string {
+func (x *Experiment) GetInferenceEndpoint() string {
 	if x != nil {
 		return x.InferenceEndpoint
 	}
@@ -774,8 +774,9 @@ const file_cassie_eval_proto_rawDesc = "" +
 	".AssertionR\n" +
 	"assertions\"4\n" +
 	"\vEvalDataset\x12%\n" +
-	"\asamples\x18\x01 \x03(\v2\v.EvalSampleR\asamples\"\xc2\x01\n" +
-	"\rExperimentRun\x12\x12\n" +
+	"\asamples\x18\x01 \x03(\v2\v.EvalSampleR\asamples\"\xbf\x01\n" +
+	"\n" +
+	"Experiment\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12!\n" +
 	"\fdataset_path\x18\x02 \x01(\tR\vdatasetPath\x12,\n" +
 	"\x12cassie_auth_cookie\x18\x03 \x01(\tR\x10cassieAuthCookie\x12\x1d\n" +
@@ -803,7 +804,7 @@ var file_cassie_eval_proto_goTypes = []any{
 	(*Assertion)(nil),                   // 2: Assertion
 	(*EvalSample)(nil),                  // 3: EvalSample
 	(*EvalDataset)(nil),                 // 4: EvalDataset
-	(*ExperimentRun)(nil),               // 5: ExperimentRun
+	(*Experiment)(nil),                  // 5: Experiment
 	(*Assertion_ShellRequiredFlag)(nil), // 6: Assertion.ShellRequiredFlag
 	(*Assertion_ToolInvocation)(nil),    // 7: Assertion.ToolInvocation
 	(*Assertion_FileRetrieval)(nil),     // 8: Assertion.FileRetrieval
