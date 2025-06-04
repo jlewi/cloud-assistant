@@ -310,7 +310,7 @@ func (r *markdownReport) Render() string {
 		lines = append(lines, "\n</details>\n")
 	}
 	lines = append(lines, "")
-	lines = append(lines, fmt.Sprintf("_Run metadata: commit `%s`, version `%s`, model `%s`, runner `%s`, Go %s_", r.Commit, r.Version, r.Model, r.Runner, r.GoVersion))
+	lines = append(lines, fmt.Sprintf("_Run metadata: commit `%s`, version `%s`, model `%s`, runner `%s`, %s_", r.Commit, r.Version, r.Model, r.Runner, r.GoVersion))
 	return strings.Join(lines, "\n")
 }
 
@@ -402,7 +402,9 @@ func EvalFromExperiment(exp *cassie.Experiment, cookie map[string]string) (map[s
 	if outputDir == "" {
 		outputDir = "."
 	}
-	reportPath := outputDir + "/eval_report.md"
+	loc, _ = time.LoadLocation("America/Los_Angeles")
+	timestamp := time.Now().In(loc).Format("20060102_150405")
+	reportPath := fmt.Sprintf("%s/eval_report_%s.md", outputDir, timestamp)
 	if err := os.WriteFile(reportPath, []byte(report.Render()), 0644); err != nil {
 		return nil, errors.Wrapf(err, "failed to write markdown report to %s", reportPath)
 	}
