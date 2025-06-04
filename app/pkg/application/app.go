@@ -41,9 +41,6 @@ func (a *App) LoadConfig(cmd *cobra.Command) error {
 		return err
 	}
 	cfg := config.GetConfig()
-	if cfg.CloudAssistant == nil {
-		return fmt.Errorf("CloudAssistant config is nil")
-	}
 	if problems := cfg.IsValid(); len(problems) > 0 {
 		_, _ = fmt.Fprintf(os.Stdout, "Invalid configuration; %s\n", strings.Join(problems, "\n"))
 		return fmt.Errorf("invalid configuration; fix the problems and then try again")
