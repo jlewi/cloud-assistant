@@ -77,10 +77,14 @@ This document explains **Level 1 evaluations** for the AI SRE project—simple, 
    Point the experiment at the dataset and your Cassie backend.
 
    ```yaml
-   name: "experiment_test"
-   dataset_path: "./dataset/dataset_test.yaml"   # path to the dataset file above
-   output_dir: "./experiments/out"             # where reports will be written
-   inference_endpoint: "http://localhost:8080" # Cassie inference service
+   apiVersion: cloudassistant.io/v1alpha1
+   kind: Experiment
+   metadata:
+      name: experiment-test 
+   spec:
+      datasetPath: "./dataset/dataset_test.yaml"  # path to the dataset file above
+      outputDir:   "./experiments/out" # where reports will be written
+      inferenceEndpoint: "http://localhost:8080" # Cassie inference service
    ```
 
 5. **Run the evaluation**
