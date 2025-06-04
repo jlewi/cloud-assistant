@@ -246,21 +246,21 @@ func EvalFromExperimentRun(exp *cassie.ExperimentRun) (map[string]*cassie.Block,
 	// Read the experiment YAML file
 	data, err := os.ReadFile(exp.GetDatasetPath())
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to read experiment dataset yaml file %q", exp.GetDatasetPath())
+		return nil, errors.Wrapf(err, "failed to read dataset yaml file %q", exp.GetDatasetPath())
 	}
 	// Unmarshal YAML to generic map
 	var yamlObj interface{}
 	if err := yaml.Unmarshal(data, &yamlObj); err != nil {
-		return nil, errors.Wrapf(err, "failed to unmarshal experiment dataset yaml file %q", exp.GetDatasetPath())
+		return nil, errors.Wrapf(err, "failed to unmarshal dataset yaml file %q", exp.GetDatasetPath())
 	}
 	// Convert YAML to JSON
 	jsonData, err := json.Marshal(yamlObj)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to marshal experiment dataset yaml to json for file %q", exp.GetDatasetPath())
+		return nil, errors.Wrapf(err, "failed to marshal dataset yaml to json for file %q", exp.GetDatasetPath())
 	}
 	var dataset cassie.EvalDataset
 	if err := protojson.Unmarshal(jsonData, &dataset); err != nil {
-		return nil, errors.Wrapf(err, "failed to unmarshal json to proto for experiment dataset file %q", exp.GetDatasetPath())
+		return nil, errors.Wrapf(err, "failed to unmarshal json to proto for dataset file %q", exp.GetDatasetPath())
 	}
 
 	// Prepare config from ExperimentRun fields
