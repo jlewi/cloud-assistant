@@ -2,7 +2,9 @@ package cmd
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
+	"strings"
 
 	"github.com/jlewi/cloud-assistant/app/pkg/ai"
 	"github.com/jlewi/cloud-assistant/app/pkg/application"
@@ -13,11 +15,15 @@ import (
 )
 
 func NewEvalCmd() *cobra.Command {
+	var cookieFile string
 	cmd := cobra.Command{
 		Use:   "eval <yaml-file>",
 		Short: "Run evaluation using a single experiment YAML file",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if cookieFile == "" {
+				return fmt.Errorf("--cookie-file flag is required")
+			}
 			app := application.NewApp()
 			if err := app.LoadConfig(cmd); err != nil {
 				return err
@@ -40,7 +46,26 @@ func NewEvalCmd() *cobra.Command {
 			if err := protojson.Unmarshal(jsonBytes, &experiment); err != nil {
 				return err
 			}
-			_, err = ai.EvalFromExperiment(&experiment)
+
+			// Read the cookie file (.env-style)
+			cookieData, err := os.ReadFile(cookieFile)
+			if err != nil {
+				return fmt.Errorf("failed to read cookie file: %w", err)
+			}
+			cookies := make(map[string]string)
+			lines := strings.Split(string(cookieData), "\n")
+			for _, line := range lines {
+				line = strings.TrimSpace(line)
+				if line == "" || strings.HasPrefix(line, "#") {
+					continue
+				}
+				parts := strings.SplitN(line, "=", 2)
+				if len(parts) == 2 {
+					cookies[parts[0]] = parts[1]
+				}
+			}
+
+			_, err = ai.EvalFromExperiment(&experiment, cookies)
 			if err != nil {
 				return err
 			}
@@ -48,5 +73,7 @@ func NewEvalCmd() *cobra.Command {
 			return nil
 		},
 	}
+	cmd.Flags().StringVar(&cookieFile, "cookie-file", "", "Path to the cookie file (required)")
+	cmd.MarkFlagRequired("cookie-file")
 	return &cmd
 }

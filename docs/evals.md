@@ -63,21 +63,29 @@ This document explains **Level 1 evaluations** for the AI SRE project—simple, 
                - --resource-group
    ```
 
-3. **Create an Experiment YAML**
+3. **Create a Cookie File**
 
-   Point the experiment at the dataset and your Cassie backend:
+   The cookie file should be in .env format (one key=value per line). For example:
+
+   ```env
+   cassie-session=your-cassie-session-cookie
+   another-cookie=another-value
+   ```
+
+4. **Create an Experiment YAML**
+
+   Point the experiment at the dataset and your Cassie backend.
 
    ```yaml
    name: "experiment_test"
    dataset_path: "./dataset/dataset_test.yaml"   # path to the dataset file above
-   cassie_auth_cookie: "<your-cassie-session-cookie>" # copy from your browser
    output_dir: "./experiments/out"             # where reports will be written
    inference_endpoint: "http://localhost:8080" # Cassie inference service
    ```
 
-4. **Run the evaluation**
+5. **Run the evaluation**
 
    ```bash
-   ./.build/cas eval ./dataset/experiment_test.yaml
+   ./.build/cas eval ./dataset/experiment_test.yaml --cookie-file ./path/to/cookies.env
    ```
 

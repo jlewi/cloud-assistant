@@ -411,9 +411,8 @@ type Experiment struct {
 	state             protoimpl.MessageState `protogen:"open.v1"`
 	Name              string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`                                                    // Name of the experiment, e.g. "aks_flag_eval"
 	DatasetPath       string                 `protobuf:"bytes,2,opt,name=dataset_path,json=datasetPath,proto3" json:"dataset_path,omitempty"`                   // Path to the YAML dataset to evaluate
-	CassieAuthCookie  string                 `protobuf:"bytes,3,opt,name=cassie_auth_cookie,json=cassieAuthCookie,proto3" json:"cassie_auth_cookie,omitempty"`  // Authorization cookie for backend eval server
-	OutputDir         string                 `protobuf:"bytes,4,opt,name=output_dir,json=outputDir,proto3" json:"output_dir,omitempty"`                         // Directory to write experiment reports
-	InferenceEndpoint string                 `protobuf:"bytes,5,opt,name=inference_endpoint,json=inferenceEndpoint,proto3" json:"inference_endpoint,omitempty"` // URL of the backend inference service
+	OutputDir         string                 `protobuf:"bytes,3,opt,name=output_dir,json=outputDir,proto3" json:"output_dir,omitempty"`                         // Directory to write experiment reports
+	InferenceEndpoint string                 `protobuf:"bytes,4,opt,name=inference_endpoint,json=inferenceEndpoint,proto3" json:"inference_endpoint,omitempty"` // URL of the backend inference service
 	unknownFields     protoimpl.UnknownFields
 	sizeCache         protoimpl.SizeCache
 }
@@ -458,13 +457,6 @@ func (x *Experiment) GetName() string {
 func (x *Experiment) GetDatasetPath() string {
 	if x != nil {
 		return x.DatasetPath
-	}
-	return ""
-}
-
-func (x *Experiment) GetCassieAuthCookie() string {
-	if x != nil {
-		return x.CassieAuthCookie
 	}
 	return ""
 }
@@ -774,15 +766,14 @@ const file_cassie_eval_proto_rawDesc = "" +
 	".AssertionR\n" +
 	"assertions\"4\n" +
 	"\vEvalDataset\x12%\n" +
-	"\asamples\x18\x01 \x03(\v2\v.EvalSampleR\asamples\"\xbf\x01\n" +
+	"\asamples\x18\x01 \x03(\v2\v.EvalSampleR\asamples\"\x91\x01\n" +
 	"\n" +
 	"Experiment\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12!\n" +
-	"\fdataset_path\x18\x02 \x01(\tR\vdatasetPath\x12,\n" +
-	"\x12cassie_auth_cookie\x18\x03 \x01(\tR\x10cassieAuthCookie\x12\x1d\n" +
+	"\fdataset_path\x18\x02 \x01(\tR\vdatasetPath\x12\x1d\n" +
 	"\n" +
-	"output_dir\x18\x04 \x01(\tR\toutputDir\x12-\n" +
-	"\x12inference_endpoint\x18\x05 \x01(\tR\x11inferenceEndpointB4Z2github.com/jlewi/cloud-assistant/protos/gen/cassieb\x06proto3"
+	"output_dir\x18\x03 \x01(\tR\toutputDir\x12-\n" +
+	"\x12inference_endpoint\x18\x04 \x01(\tR\x11inferenceEndpointB4Z2github.com/jlewi/cloud-assistant/protos/gen/cassieb\x06proto3"
 
 var (
 	file_cassie_eval_proto_rawDescOnce sync.Once

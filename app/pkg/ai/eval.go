@@ -242,7 +242,7 @@ func runInference(input string, cassieCookie string, inferenceEndpoint string) (
 }
 
 // EvalFromExperiment runs an experiment based on the Experiment config.
-func EvalFromExperiment(exp *cassie.Experiment) (map[string]*cassie.Block, error) {
+func EvalFromExperiment(exp *cassie.Experiment, cookie map[string]string) (map[string]*cassie.Block, error) {
 	// Read the experiment YAML file
 	data, err := os.ReadFile(exp.GetDatasetPath())
 	if err != nil {
@@ -263,8 +263,7 @@ func EvalFromExperiment(exp *cassie.Experiment) (map[string]*cassie.Block, error
 		return nil, errors.Wrapf(err, "failed to unmarshal json to proto for dataset file %q", exp.GetDatasetPath())
 	}
 
-	// Prepare config from Experiment fields
-	cassieCookie := exp.GetCassieAuthCookie()
+	cassieCookie := cookie["cassie-session"]
 	inferenceEndpoint := exp.GetInferenceEndpoint()
 
 	for _, sample := range dataset.Samples {
