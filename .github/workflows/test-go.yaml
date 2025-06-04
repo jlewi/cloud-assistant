@@ -1,6 +1,6 @@
 # A basic workflow for Go
 name: test-go
-on: [push, pull_request_target]
+on: [push]
 defaults:
   run:
     shell: bash -ieo pipefail {0}
