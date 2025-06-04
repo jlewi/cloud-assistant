@@ -36,11 +36,11 @@ func NewEvalCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			var experiment cassie.ExperimentRun
+			var experiment cassie.Experiment
 			if err := protojson.Unmarshal(jsonBytes, &experiment); err != nil {
 				return err
 			}
-			_, err = ai.EvalFromExperimentRun(&experiment)
+			_, err = ai.EvalFromExperiment(&experiment)
 			if err != nil {
 				return err
 			}
