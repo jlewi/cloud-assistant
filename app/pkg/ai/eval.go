@@ -402,7 +402,6 @@ func EvalFromExperiment(exp *cassie.Experiment, cookie map[string]string) (map[s
 	if outputDir == "" {
 		outputDir = "."
 	}
-	loc, _ = time.LoadLocation("America/Los_Angeles")
 	timestamp := time.Now().In(loc).Format("20060102_150405")
 	reportPath := fmt.Sprintf("%s/eval_report_%s.md", outputDir, timestamp)
 	if err := os.WriteFile(reportPath, []byte(report.Render()), 0644); err != nil {
