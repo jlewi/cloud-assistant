@@ -143,7 +143,7 @@ func runInference(input string, cassieCookie string, inferenceEndpoint string) (
 
 	baseURL := inferenceEndpoint
 	if baseURL == "" {
-		return blocks, errors.New("TargetURL is not set in config")
+		return blocks, errors.New("inferenceEndpoint is not set in config")
 	}
 
 	u, err := url.Parse(baseURL)
