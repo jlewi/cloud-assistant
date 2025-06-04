@@ -62,7 +62,18 @@ func (s shellRequiredFlag) Assert(ctx context.Context, as *cassie.Assertion, blo
 type toolInvocation struct{}
 
 func (t toolInvocation) Assert(ctx context.Context, as *cassie.Assertion, blocks map[string]*cassie.Block) error {
-	// TODO: implement
+	targetTool := as.GetToolInvocation().GetToolName()
+	as.Result = cassie.Assertion_RESULT_FALSE // Default to false unless the tool is invoked
+	for _, block := range blocks {
+		// N.B. For now, every tool-call response is treated as code execution in blocks.go.
+		// TODO: When we add additional tools, handle tool-call responses separately.
+		if targetTool == "shell" {
+			if block.Kind == cassie.BlockKind_CODE {
+				as.Result = cassie.Assertion_RESULT_TRUE
+				break
+			}
+		}
+	}
 	fmt.Println("toolInvocation", as.Name, as.Result)
 	return nil
 }
