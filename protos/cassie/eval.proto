@@ -58,7 +58,7 @@ message Assertion {
     string file_name = 2;                         // Optional human-readable name
   }
 
-  // Asks an LLM to grade the assistant’s answer.
+  // Asks an LLM to grade the assistant's answer.
   message LLMJudge {
     string    prompt = 1;
   }
