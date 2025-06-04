@@ -244,27 +244,27 @@ func runInference(input string, cassieCookie string, inferenceEndpoint string) (
 // EvalFromExperiment runs an experiment based on the Experiment config.
 func EvalFromExperiment(exp *cassie.Experiment, cookie map[string]string) (map[string]*cassie.Block, error) {
 	// Read the experiment YAML file
-	data, err := os.ReadFile(exp.GetDatasetPath())
+	data, err := os.ReadFile(exp.Spec.GetDatasetPath())
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to read dataset yaml file %q", exp.GetDatasetPath())
+		return nil, errors.Wrapf(err, "failed to read dataset yaml file %q", exp.Spec.GetDatasetPath())
 	}
 	// Unmarshal YAML to generic map
 	var yamlObj interface{}
 	if err := yaml.Unmarshal(data, &yamlObj); err != nil {
-		return nil, errors.Wrapf(err, "failed to unmarshal dataset yaml file %q", exp.GetDatasetPath())
+		return nil, errors.Wrapf(err, "failed to unmarshal dataset yaml file %q", exp.Spec.GetDatasetPath())
 	}
 	// Convert YAML to JSON
 	jsonData, err := json.Marshal(yamlObj)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to marshal dataset yaml to json for file %q", exp.GetDatasetPath())
+		return nil, errors.Wrapf(err, "failed to marshal dataset yaml to json for file %q", exp.Spec.GetDatasetPath())
 	}
 	var dataset cassie.EvalDataset
 	if err := protojson.Unmarshal(jsonData, &dataset); err != nil {
-		return nil, errors.Wrapf(err, "failed to unmarshal json to proto for dataset file %q", exp.GetDatasetPath())
+		return nil, errors.Wrapf(err, "failed to unmarshal json to proto for dataset file %q", exp.Spec.GetDatasetPath())
 	}
 
 	cassieCookie := cookie["cassie-session"]
-	inferenceEndpoint := exp.GetInferenceEndpoint()
+	inferenceEndpoint := exp.Spec.GetInferenceEndpoint()
 
 	for _, sample := range dataset.Samples {
 		blocks, err := runInference(sample.InputText, cassieCookie, inferenceEndpoint)

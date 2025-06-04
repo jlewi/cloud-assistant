@@ -88,9 +88,32 @@ message EvalDataset{
 // Experiment – Configuration for running an evaluation experiment
 // -------------------------------------------------------------------------
 
+message ObjectMeta {
+  // Name of the resource, e.g. "experiment-test".
+  string name = 1;
+}
+
+message ExperimentSpec {
+  // Path to the YAML dataset to evaluate.
+  string dataset_path       = 1 [json_name = "datasetPath"];
+
+  // Directory where experiment reports will be written.
+  string output_dir         = 2 [json_name = "outputDir"];
+
+  // URL of the backend inference service to call during evaluation.
+  string inference_endpoint = 3 [json_name = "inferenceEndpoint"];
+}
+
 message Experiment {
-  string name = 1;                    // Name of the experiment, e.g. "aks_flag_eval"
-  string dataset_path = 2;            // Path to the YAML dataset to evaluate
-  string output_dir = 3;              // Directory to write experiment reports
-  string inference_endpoint = 4;      // URL of the backend inference service
+  // API version of the resource, e.g. "cloudassistant.io/v1alpha1".
+  string     api_version = 1 [json_name = "apiVersion"];
+
+  // Kind of the resource. Always "Experiment" for this CRD.
+  string     kind        = 2;
+
+  // Standard Kubernetes object metadata (name, labels, annotations, etc.).
+  ObjectMeta metadata    = 3;
+
+  // User-defined configuration for the experiment.
+  ExperimentSpec spec    = 4;
 }

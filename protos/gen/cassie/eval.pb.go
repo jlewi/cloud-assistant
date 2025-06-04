@@ -407,19 +407,131 @@ func (x *EvalDataset) GetSamples() []*EvalSample {
 	return nil
 }
 
-type Experiment struct {
-	state             protoimpl.MessageState `protogen:"open.v1"`
-	Name              string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`                                                    // Name of the experiment, e.g. "aks_flag_eval"
-	DatasetPath       string                 `protobuf:"bytes,2,opt,name=dataset_path,json=datasetPath,proto3" json:"dataset_path,omitempty"`                   // Path to the YAML dataset to evaluate
-	OutputDir         string                 `protobuf:"bytes,3,opt,name=output_dir,json=outputDir,proto3" json:"output_dir,omitempty"`                         // Directory to write experiment reports
-	InferenceEndpoint string                 `protobuf:"bytes,4,opt,name=inference_endpoint,json=inferenceEndpoint,proto3" json:"inference_endpoint,omitempty"` // URL of the backend inference service
+type ObjectMeta struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Name of the resource, e.g. "experiment-test".
+	Name          string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ObjectMeta) Reset() {
+	*x = ObjectMeta{}
+	mi := &file_cassie_eval_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ObjectMeta) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ObjectMeta) ProtoMessage() {}
+
+func (x *ObjectMeta) ProtoReflect() protoreflect.Message {
+	mi := &file_cassie_eval_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ObjectMeta.ProtoReflect.Descriptor instead.
+func (*ObjectMeta) Descriptor() ([]byte, []int) {
+	return file_cassie_eval_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *ObjectMeta) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+type ExperimentSpec struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Path to the YAML dataset to evaluate.
+	DatasetPath string `protobuf:"bytes,1,opt,name=dataset_path,json=datasetPath,proto3" json:"dataset_path,omitempty"`
+	// Directory where experiment reports will be written.
+	OutputDir string `protobuf:"bytes,2,opt,name=output_dir,json=outputDir,proto3" json:"output_dir,omitempty"`
+	// URL of the backend inference service to call during evaluation.
+	InferenceEndpoint string `protobuf:"bytes,3,opt,name=inference_endpoint,json=inferenceEndpoint,proto3" json:"inference_endpoint,omitempty"`
 	unknownFields     protoimpl.UnknownFields
 	sizeCache         protoimpl.SizeCache
 }
 
+func (x *ExperimentSpec) Reset() {
+	*x = ExperimentSpec{}
+	mi := &file_cassie_eval_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ExperimentSpec) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ExperimentSpec) ProtoMessage() {}
+
+func (x *ExperimentSpec) ProtoReflect() protoreflect.Message {
+	mi := &file_cassie_eval_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ExperimentSpec.ProtoReflect.Descriptor instead.
+func (*ExperimentSpec) Descriptor() ([]byte, []int) {
+	return file_cassie_eval_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *ExperimentSpec) GetDatasetPath() string {
+	if x != nil {
+		return x.DatasetPath
+	}
+	return ""
+}
+
+func (x *ExperimentSpec) GetOutputDir() string {
+	if x != nil {
+		return x.OutputDir
+	}
+	return ""
+}
+
+func (x *ExperimentSpec) GetInferenceEndpoint() string {
+	if x != nil {
+		return x.InferenceEndpoint
+	}
+	return ""
+}
+
+type Experiment struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// API version of the resource, e.g. "cloudassistant.io/v1alpha1".
+	ApiVersion string `protobuf:"bytes,1,opt,name=api_version,json=apiVersion,proto3" json:"api_version,omitempty"`
+	// Kind of the resource. Always "Experiment" for this CRD.
+	Kind string `protobuf:"bytes,2,opt,name=kind,proto3" json:"kind,omitempty"`
+	// Standard Kubernetes object metadata (name, labels, annotations, etc.).
+	Metadata *ObjectMeta `protobuf:"bytes,3,opt,name=metadata,proto3" json:"metadata,omitempty"`
+	// User-defined configuration for the experiment.
+	Spec          *ExperimentSpec `protobuf:"bytes,4,opt,name=spec,proto3" json:"spec,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
 func (x *Experiment) Reset() {
 	*x = Experiment{}
-	mi := &file_cassie_eval_proto_msgTypes[3]
+	mi := &file_cassie_eval_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -431,7 +543,7 @@ func (x *Experiment) String() string {
 func (*Experiment) ProtoMessage() {}
 
 func (x *Experiment) ProtoReflect() protoreflect.Message {
-	mi := &file_cassie_eval_proto_msgTypes[3]
+	mi := &file_cassie_eval_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -444,35 +556,35 @@ func (x *Experiment) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Experiment.ProtoReflect.Descriptor instead.
 func (*Experiment) Descriptor() ([]byte, []int) {
-	return file_cassie_eval_proto_rawDescGZIP(), []int{3}
+	return file_cassie_eval_proto_rawDescGZIP(), []int{5}
 }
 
-func (x *Experiment) GetName() string {
+func (x *Experiment) GetApiVersion() string {
 	if x != nil {
-		return x.Name
+		return x.ApiVersion
 	}
 	return ""
 }
 
-func (x *Experiment) GetDatasetPath() string {
+func (x *Experiment) GetKind() string {
 	if x != nil {
-		return x.DatasetPath
+		return x.Kind
 	}
 	return ""
 }
 
-func (x *Experiment) GetOutputDir() string {
+func (x *Experiment) GetMetadata() *ObjectMeta {
 	if x != nil {
-		return x.OutputDir
+		return x.Metadata
 	}
-	return ""
+	return nil
 }
 
-func (x *Experiment) GetInferenceEndpoint() string {
+func (x *Experiment) GetSpec() *ExperimentSpec {
 	if x != nil {
-		return x.InferenceEndpoint
+		return x.Spec
 	}
-	return ""
+	return nil
 }
 
 // Verifies that a shell command includes specific flags.
@@ -486,7 +598,7 @@ type Assertion_ShellRequiredFlag struct {
 
 func (x *Assertion_ShellRequiredFlag) Reset() {
 	*x = Assertion_ShellRequiredFlag{}
-	mi := &file_cassie_eval_proto_msgTypes[4]
+	mi := &file_cassie_eval_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -498,7 +610,7 @@ func (x *Assertion_ShellRequiredFlag) String() string {
 func (*Assertion_ShellRequiredFlag) ProtoMessage() {}
 
 func (x *Assertion_ShellRequiredFlag) ProtoReflect() protoreflect.Message {
-	mi := &file_cassie_eval_proto_msgTypes[4]
+	mi := &file_cassie_eval_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -538,7 +650,7 @@ type Assertion_ToolInvocation struct {
 
 func (x *Assertion_ToolInvocation) Reset() {
 	*x = Assertion_ToolInvocation{}
-	mi := &file_cassie_eval_proto_msgTypes[5]
+	mi := &file_cassie_eval_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -550,7 +662,7 @@ func (x *Assertion_ToolInvocation) String() string {
 func (*Assertion_ToolInvocation) ProtoMessage() {}
 
 func (x *Assertion_ToolInvocation) ProtoReflect() protoreflect.Message {
-	mi := &file_cassie_eval_proto_msgTypes[5]
+	mi := &file_cassie_eval_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -584,7 +696,7 @@ type Assertion_FileRetrieval struct {
 
 func (x *Assertion_FileRetrieval) Reset() {
 	*x = Assertion_FileRetrieval{}
-	mi := &file_cassie_eval_proto_msgTypes[6]
+	mi := &file_cassie_eval_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -596,7 +708,7 @@ func (x *Assertion_FileRetrieval) String() string {
 func (*Assertion_FileRetrieval) ProtoMessage() {}
 
 func (x *Assertion_FileRetrieval) ProtoReflect() protoreflect.Message {
-	mi := &file_cassie_eval_proto_msgTypes[6]
+	mi := &file_cassie_eval_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -636,7 +748,7 @@ type Assertion_LLMJudge struct {
 
 func (x *Assertion_LLMJudge) Reset() {
 	*x = Assertion_LLMJudge{}
-	mi := &file_cassie_eval_proto_msgTypes[7]
+	mi := &file_cassie_eval_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -648,7 +760,7 @@ func (x *Assertion_LLMJudge) String() string {
 func (*Assertion_LLMJudge) ProtoMessage() {}
 
 func (x *Assertion_LLMJudge) ProtoReflect() protoreflect.Message {
-	mi := &file_cassie_eval_proto_msgTypes[7]
+	mi := &file_cassie_eval_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -681,7 +793,7 @@ type Assertion_CodeblockRegex struct {
 
 func (x *Assertion_CodeblockRegex) Reset() {
 	*x = Assertion_CodeblockRegex{}
-	mi := &file_cassie_eval_proto_msgTypes[8]
+	mi := &file_cassie_eval_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -693,7 +805,7 @@ func (x *Assertion_CodeblockRegex) String() string {
 func (*Assertion_CodeblockRegex) ProtoMessage() {}
 
 func (x *Assertion_CodeblockRegex) ProtoReflect() protoreflect.Message {
-	mi := &file_cassie_eval_proto_msgTypes[8]
+	mi := &file_cassie_eval_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -766,14 +878,22 @@ const file_cassie_eval_proto_rawDesc = "" +
 	".AssertionR\n" +
 	"assertions\"4\n" +
 	"\vEvalDataset\x12%\n" +
-	"\asamples\x18\x01 \x03(\v2\v.EvalSampleR\asamples\"\x91\x01\n" +
+	"\asamples\x18\x01 \x03(\v2\v.EvalSampleR\asamples\" \n" +
 	"\n" +
-	"Experiment\x12\x12\n" +
-	"\x04name\x18\x01 \x01(\tR\x04name\x12!\n" +
-	"\fdataset_path\x18\x02 \x01(\tR\vdatasetPath\x12\x1d\n" +
+	"ObjectMeta\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\"\x81\x01\n" +
+	"\x0eExperimentSpec\x12!\n" +
+	"\fdataset_path\x18\x01 \x01(\tR\vdatasetPath\x12\x1d\n" +
 	"\n" +
-	"output_dir\x18\x03 \x01(\tR\toutputDir\x12-\n" +
-	"\x12inference_endpoint\x18\x04 \x01(\tR\x11inferenceEndpointB4Z2github.com/jlewi/cloud-assistant/protos/gen/cassieb\x06proto3"
+	"output_dir\x18\x02 \x01(\tR\toutputDir\x12-\n" +
+	"\x12inference_endpoint\x18\x03 \x01(\tR\x11inferenceEndpoint\"\x8f\x01\n" +
+	"\n" +
+	"Experiment\x12\x1f\n" +
+	"\vapi_version\x18\x01 \x01(\tR\n" +
+	"apiVersion\x12\x12\n" +
+	"\x04kind\x18\x02 \x01(\tR\x04kind\x12'\n" +
+	"\bmetadata\x18\x03 \x01(\v2\v.ObjectMetaR\bmetadata\x12#\n" +
+	"\x04spec\x18\x04 \x01(\v2\x0f.ExperimentSpecR\x04specB4Z2github.com/jlewi/cloud-assistant/protos/gen/cassieb\x06proto3"
 
 var (
 	file_cassie_eval_proto_rawDescOnce sync.Once
@@ -788,35 +908,39 @@ func file_cassie_eval_proto_rawDescGZIP() []byte {
 }
 
 var file_cassie_eval_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_cassie_eval_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
+var file_cassie_eval_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
 var file_cassie_eval_proto_goTypes = []any{
 	(Assertion_Type)(0),                 // 0: Assertion.Type
 	(Assertion_Result)(0),               // 1: Assertion.Result
 	(*Assertion)(nil),                   // 2: Assertion
 	(*EvalSample)(nil),                  // 3: EvalSample
 	(*EvalDataset)(nil),                 // 4: EvalDataset
-	(*Experiment)(nil),                  // 5: Experiment
-	(*Assertion_ShellRequiredFlag)(nil), // 6: Assertion.ShellRequiredFlag
-	(*Assertion_ToolInvocation)(nil),    // 7: Assertion.ToolInvocation
-	(*Assertion_FileRetrieval)(nil),     // 8: Assertion.FileRetrieval
-	(*Assertion_LLMJudge)(nil),          // 9: Assertion.LLMJudge
-	(*Assertion_CodeblockRegex)(nil),    // 10: Assertion.CodeblockRegex
+	(*ObjectMeta)(nil),                  // 5: ObjectMeta
+	(*ExperimentSpec)(nil),              // 6: ExperimentSpec
+	(*Experiment)(nil),                  // 7: Experiment
+	(*Assertion_ShellRequiredFlag)(nil), // 8: Assertion.ShellRequiredFlag
+	(*Assertion_ToolInvocation)(nil),    // 9: Assertion.ToolInvocation
+	(*Assertion_FileRetrieval)(nil),     // 10: Assertion.FileRetrieval
+	(*Assertion_LLMJudge)(nil),          // 11: Assertion.LLMJudge
+	(*Assertion_CodeblockRegex)(nil),    // 12: Assertion.CodeblockRegex
 }
 var file_cassie_eval_proto_depIdxs = []int32{
 	0,  // 0: Assertion.type:type_name -> Assertion.Type
 	1,  // 1: Assertion.result:type_name -> Assertion.Result
-	6,  // 2: Assertion.shell_required_flag:type_name -> Assertion.ShellRequiredFlag
-	7,  // 3: Assertion.tool_invocation:type_name -> Assertion.ToolInvocation
-	8,  // 4: Assertion.file_retrieval:type_name -> Assertion.FileRetrieval
-	9,  // 5: Assertion.llm_judge:type_name -> Assertion.LLMJudge
-	10, // 6: Assertion.codeblock_regex:type_name -> Assertion.CodeblockRegex
+	8,  // 2: Assertion.shell_required_flag:type_name -> Assertion.ShellRequiredFlag
+	9,  // 3: Assertion.tool_invocation:type_name -> Assertion.ToolInvocation
+	10, // 4: Assertion.file_retrieval:type_name -> Assertion.FileRetrieval
+	11, // 5: Assertion.llm_judge:type_name -> Assertion.LLMJudge
+	12, // 6: Assertion.codeblock_regex:type_name -> Assertion.CodeblockRegex
 	2,  // 7: EvalSample.assertions:type_name -> Assertion
 	3,  // 8: EvalDataset.samples:type_name -> EvalSample
-	9,  // [9:9] is the sub-list for method output_type
-	9,  // [9:9] is the sub-list for method input_type
-	9,  // [9:9] is the sub-list for extension type_name
-	9,  // [9:9] is the sub-list for extension extendee
-	0,  // [0:9] is the sub-list for field type_name
+	5,  // 9: Experiment.metadata:type_name -> ObjectMeta
+	6,  // 10: Experiment.spec:type_name -> ExperimentSpec
+	11, // [11:11] is the sub-list for method output_type
+	11, // [11:11] is the sub-list for method input_type
+	11, // [11:11] is the sub-list for extension type_name
+	11, // [11:11] is the sub-list for extension extendee
+	0,  // [0:11] is the sub-list for field type_name
 }
 
 func init() { file_cassie_eval_proto_init() }
@@ -837,7 +961,7 @@ func file_cassie_eval_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_cassie_eval_proto_rawDesc), len(file_cassie_eval_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   9,
+			NumMessages:   11,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
