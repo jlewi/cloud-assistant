@@ -38,16 +38,46 @@ This document explains **Level 1 evaluations** for the AI SRE project—simple, 
 
 ## 3 — Quick Start
 
-### Build the CLI
-`make build`
+1. **Build the CLI**
 
-### Edit `config.yaml` to set your Cassie session cookie
-```
-cloudAssistant:
-  vectorStores:
-    - vs_xxxxx
-  cassieCookie: <your-cassie-session-cookie>
-```
+   ```bash
+   make build
+   ```
 
-### Run the eval against a local Cassie endpoint
-`./.build/cas eval dataset.pb http://localhost:8080`
+2. **Create a Dataset YAML**
+
+   Define the questions and assertions you want to test.  A minimal example is shown below:
+
+   ```yaml
+   samples:
+     - name: test_AKS_required_flags
+       description: Checks that every az aks command carries the --subscription and --resource-group flags.
+       inputText: What region is cluster unified-60 in?
+       assertions:
+         - name: az_aks_has_required_flag
+           type: TYPE_SHELL_REQUIRED_FLAG
+           shellRequiredFlag:
+             command: az aks
+             flags:
+               - --subscription
+               - --resource-group
+   ```
+
+3. **Create an Experiment YAML**
+
+   Point the experiment at the dataset and your Cassie backend:
+
+   ```yaml
+   name: "experiment_test"
+   dataset_path: "./dataset/dataset_test.yaml"   # path to the dataset file above
+   cassie_auth_cookie: "<your-cassie-session-cookie>" # copy from your browser
+   output_dir: "./experiments/out"             # where reports will be written
+   inference_endpoint: "http://localhost:8080" # Cassie inference service
+   ```
+
+4. **Run the evaluation**
+
+   ```bash
+   ./.build/cas eval ./dataset/experiment_test.yaml
+   ```
+
