@@ -10,11 +10,15 @@ import (
 	"net/url"
 	"os"
 	"regexp"
+	"runtime"
+	"sort"
 	"strings"
+	"time"
 
 	"connectrpc.com/connect"
 	"github.com/go-logr/zapr"
 	"github.com/jlewi/cloud-assistant/app/pkg/logs"
+	"github.com/jlewi/cloud-assistant/app/pkg/version"
 	"github.com/jlewi/cloud-assistant/protos/gen/cassie"
 	"github.com/jlewi/cloud-assistant/protos/gen/cassie/cassieconnect"
 	"github.com/pkg/errors"
@@ -241,6 +245,75 @@ func runInference(input string, cassieCookie string, inferenceEndpoint string) (
 	return blocks, nil
 }
 
+// markdownReport holds the data needed to render the evaluation markdown report
+type markdownReport struct {
+	ExperimentName     string
+	DatasetName        string
+	NumSamples         int
+	NumAssertions      int
+	NumPassed          int
+	NumFailed          int
+	NumSkipped         int
+	AssertionTypeStats map[string]struct{ Passed, Failed, Skipped int }
+	FailedAssertions   []struct {
+		Sample    string
+		Assertion string
+		Reason    string
+	}
+	Commit    string
+	Version   string
+	Model     string
+	Runner    string
+	GoVersion string
+	Date      string
+}
+
+func (r *markdownReport) Render() string {
+	passRate := 0.0
+	if r.NumAssertions > 0 {
+		passRate = float64(r.NumPassed) / float64(r.NumPassed+r.NumFailed) * 100
+	}
+	lines := []string{}
+	lines = append(lines, fmt.Sprintf("# AI-SRE Level-1 Evaluation — %s", r.Date))
+	lines = append(lines, "")
+	lines = append(lines, "| Metric | Value |\n|--------|------:|")
+	lines = append(lines, fmt.Sprintf("| Datasets              | `%s` |", r.DatasetName))
+	lines = append(lines, fmt.Sprintf("| Samples               | %d |", r.NumSamples))
+	lines = append(lines, fmt.Sprintf("| Assertions  | %d |", r.NumAssertions))
+	lines = append(lines, fmt.Sprintf("| **Pass rate**         | **%.0f %%** (%d / %d) |", passRate, r.NumPassed, r.NumPassed+r.NumFailed))
+	lines = append(lines, "")
+	lines = append(lines, "## Pass / fail by assertion type")
+	lines = append(lines, "| Assertion | ✅ Passed | ❌ Failed | ⏭️ Skipped | Pass % |")
+	lines = append(lines, "|-----------|----------:|---------:|----------:|-------:|")
+	// Sort assertion types for stable output
+	var types []string
+	for typ := range r.AssertionTypeStats {
+		types = append(types, typ)
+	}
+	sort.Strings(types)
+	for _, typ := range types {
+		stat := r.AssertionTypeStats[typ]
+		total := stat.Passed + stat.Failed
+		passPct := 0.0
+		if total > 0 {
+			passPct = float64(stat.Passed) / float64(total) * 100
+		}
+		lines = append(lines, fmt.Sprintf("| `%s` | %d | %d | %d | %.0f %% |", typ, stat.Passed, stat.Failed, stat.Skipped, passPct))
+	}
+	lines = append(lines, "")
+	if len(r.FailedAssertions) > 0 {
+		lines = append(lines, fmt.Sprintf("<details>\n<summary>❌ %d failed assertions (click to expand)</summary>\n", len(r.FailedAssertions)))
+		lines = append(lines, "\n| Sample | Assertion | Reason |\n|--------|-----------|--------|")
+		for _, fail := range r.FailedAssertions {
+			lines = append(lines, fmt.Sprintf("| `%s` | `%s` | %s |", fail.Sample, fail.Assertion, fail.Reason))
+		}
+		lines = append(lines, "\n</details>\n")
+	}
+	lines = append(lines, "")
+	lines = append(lines, fmt.Sprintf("_Run metadata: commit `%s`, version `%s`, model `%s`, runner `%s`, Go %s_", r.Commit, r.Version, r.Model, r.Runner, r.GoVersion))
+	return strings.Join(lines, "\n")
+}
+
 // EvalFromExperiment runs an experiment based on the Experiment config.
 func EvalFromExperiment(exp *cassie.Experiment, cookie map[string]string) (map[string]*cassie.Block, error) {
 	// Read the experiment YAML file
@@ -266,6 +339,26 @@ func EvalFromExperiment(exp *cassie.Experiment, cookie map[string]string) (map[s
 	cassieCookie := cookie["cassie-session"]
 	inferenceEndpoint := exp.Spec.GetInferenceEndpoint()
 
+	loc, _ := time.LoadLocation("America/Los_Angeles")
+	report := &markdownReport{
+		ExperimentName:     exp.Metadata.GetName(),
+		DatasetName:        exp.Spec.GetDatasetPath(),
+		NumSamples:         len(dataset.Samples),
+		AssertionTypeStats: map[string]struct{ Passed, Failed, Skipped int }{},
+		Commit:             version.Commit,
+		Version:            version.Version,
+		Model:              "gpt-4o-mini", // TODO: fetch dynamically if possible
+		Runner:             "linux-amd64", // TODO: fetch dynamically if possible
+		GoVersion:          runtime.Version(),
+		Date:               time.Now().In(loc).Format("2006-01-02 15:04 MST"),
+	}
+
+	totalAssertions := 0
+	numPassed := 0
+	numFailed := 0
+	numSkipped := 0
+	failedAssertions := []struct{ Sample, Assertion, Reason string }{}
+
 	for _, sample := range dataset.Samples {
 		blocks, err := runInference(sample.InputText, cassieCookie, inferenceEndpoint)
 		if err != nil {
@@ -276,14 +369,43 @@ func EvalFromExperiment(exp *cassie.Experiment, cookie map[string]string) (map[s
 			if err != nil {
 				return nil, errors.Wrapf(err, "failed to assert %q", assertion.Name)
 			}
+			totalAssertions++
+			typeName := assertion.Type.String()
+			stat := report.AssertionTypeStats[typeName]
+			switch assertion.Result {
+			case cassie.Assertion_RESULT_TRUE:
+				numPassed++
+				stat.Passed++
+			case cassie.Assertion_RESULT_FALSE:
+				numFailed++
+				stat.Failed++
+				failedAssertions = append(failedAssertions, struct{ Sample, Assertion, Reason string }{
+					Sample:    sample.Name,
+					Assertion: assertion.Name,
+					Reason:    "failed", // TODO: add more detailed reason if available
+				})
+			case cassie.Assertion_RESULT_SKIPPED:
+				numSkipped++
+				stat.Skipped++
+			}
+			report.AssertionTypeStats[typeName] = stat
 		}
-		fmt.Println("\nBlocks received:")
-		for _, block := range blocks {
-			fmt.Printf("block id: %s contents: %s\n", block.Id, block.Contents)
-		}
-		fmt.Println("\nBlocks:")
-		fmt.Println(blocks)
-		fmt.Println("\n--------------------------------")
 	}
+	report.NumAssertions = totalAssertions
+	report.NumPassed = numPassed
+	report.NumFailed = numFailed
+	report.NumSkipped = numSkipped
+	report.FailedAssertions = failedAssertions
+
+	// Write markdown report to outputDir
+	outputDir := exp.Spec.GetOutputDir()
+	if outputDir == "" {
+		outputDir = "."
+	}
+	reportPath := outputDir + "/eval_report.md"
+	if err := os.WriteFile(reportPath, []byte(report.Render()), 0644); err != nil {
+		return nil, errors.Wrapf(err, "failed to write markdown report to %s", reportPath)
+	}
+
 	return nil, nil
 }
