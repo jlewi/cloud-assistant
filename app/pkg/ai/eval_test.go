@@ -118,3 +118,55 @@ func TestFileRetrieved_NotFound(t *testing.T) {
 		t.Errorf("expected RESULT_FALSE, got %v", assertion.Result)
 	}
 }
+
+func TestToolInvocation_ShellInvoked(t *testing.T) {
+	asserter := toolInvocation{}
+	assertion := &cassie.Assertion{
+		Name: "shell-invoked",
+		Type: cassie.Assertion_TYPE_TOOL_INVOKED,
+		Payload: &cassie.Assertion_ToolInvocation_{
+			ToolInvocation: &cassie.Assertion_ToolInvocation{
+				ToolName: "shell",
+			},
+		},
+	}
+	blocks := map[string]*cassie.Block{
+		"1": {
+			Kind:     cassie.BlockKind_CODE,
+			Contents: "echo hello world",
+		},
+	}
+	err := asserter.Assert(context.Background(), assertion, blocks)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if assertion.Result != cassie.Assertion_RESULT_TRUE {
+		t.Errorf("expected RESULT_TRUE, got %v", assertion.Result)
+	}
+}
+
+func TestToolInvocation_ShellNotInvoked(t *testing.T) {
+	asserter := toolInvocation{}
+	assertion := &cassie.Assertion{
+		Name: "shell-not-invoked",
+		Type: cassie.Assertion_TYPE_TOOL_INVOKED,
+		Payload: &cassie.Assertion_ToolInvocation_{
+			ToolInvocation: &cassie.Assertion_ToolInvocation{
+				ToolName: "shell",
+			},
+		},
+	}
+	blocks := map[string]*cassie.Block{
+		"1": {
+			Kind:     cassie.BlockKind_MARKUP,
+			Contents: "This is not a code block.",
+		},
+	}
+	err := asserter.Assert(context.Background(), assertion, blocks)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if assertion.Result != cassie.Assertion_RESULT_FALSE {
+		t.Errorf("expected RESULT_FALSE, got %v", assertion.Result)
+	}
+}
