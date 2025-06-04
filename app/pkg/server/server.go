@@ -264,7 +264,11 @@ func (s *Server) registerServices() error {
 	}
 
 	if s.runner != nil {
-		sHandler := NewWebSocketHandler(s.runner, oidc, s.checker, api.RunnerUserRole)
+		sHandler := NewWebSocketHandler(s.runner, &AuthContext{
+			OIDC:    oidc,
+			Checker: s.checker,
+			Role:    api.RunnerUserRole,
+		})
 		// Unprotected WebSockets handler since socket protection is done on the app-level (messages)
 		mux.Handle("/ws", otelhttp.NewHandler(http.HandlerFunc(sHandler.Handler), "/ws"))
 		log.Info("Setting up runner service", "path", "/ws")

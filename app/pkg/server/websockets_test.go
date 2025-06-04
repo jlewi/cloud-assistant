@@ -1,11 +1,16 @@
 package server
 
 import (
+	"context"
+	"log"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/golang/protobuf/ptypes/wrappers"
+	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 	"github.com/jlewi/cloud-assistant/app/pkg/iam"
 	"github.com/jlewi/cloud-assistant/protos/gen/cassie"
@@ -15,13 +20,18 @@ import (
 )
 
 func TestWebSocketHandler_Handler_SwitchingProtocols(t *testing.T) {
-	runner := &Runner{server: &mockRunmeServer{}}
-	h := &WebSocketHandler{runner: runner, checker: &iam.AllowAllChecker{}}
+	h := &WebSocketHandler{
+		runner: &Runner{server: newMockRunmeServer()},
+		auth: &AuthContext{
+			Checker: &iam.AllowAllChecker{},
+		},
+	}
 
 	ts := httptest.NewServer(http.HandlerFunc(h.Handler))
 	defer ts.Close()
 
-	wsURL := "ws" + ts.URL[len("http"):]
+	id := strings.ReplaceAll(uuid.New().String(), "-", "")
+	wsURL := "ws" + ts.URL[len("http"):] + "?id=" + id
 	_, resp, err := websocket.DefaultDialer.Dial(wsURL, nil)
 	if err != nil {
 		t.Fatalf("Unexpected websocket upgrade error: %v", err)
@@ -33,6 +43,18 @@ func TestWebSocketHandler_Handler_SwitchingProtocols(t *testing.T) {
 
 type mockRunmeServer struct {
 	v2.UnimplementedRunnerServiceServer
+	responder        func() error
+	executeResponses chan *v2.ExecuteResponse
+}
+
+func newMockRunmeServer() *mockRunmeServer {
+	return &mockRunmeServer{
+		executeResponses: make(chan *v2.ExecuteResponse, 100),
+	}
+}
+
+func (m *mockRunmeServer) SetResponder(responder func() error) {
+	m.responder = responder
 }
 
 func (m *mockRunmeServer) Execute(p v2.RunnerService_ExecuteServer) error {
@@ -40,47 +62,71 @@ func (m *mockRunmeServer) Execute(p v2.RunnerService_ExecuteServer) error {
 	if err != nil {
 		return err
 	}
-	return p.Send(&v2.ExecuteResponse{
-		StdoutData: []byte("hello from mock runme"),
-	})
+
+	go func() {
+		if err := m.responder(); err != nil {
+			log.Panic(err)
+		}
+		close(m.executeResponses)
+	}()
+
+	for resp := range m.executeResponses {
+		if err := p.Send(resp); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func TestRunmeHandler_Roundtrip(t *testing.T) {
-	runner := &Runner{server: &mockRunmeServer{}}
-	h := &WebSocketHandler{runner: runner, checker: &iam.AllowAllChecker{}}
+	mockRunmeServer := newMockRunmeServer()
+	mockRunmeServer.SetResponder(func() error {
+		mockRunmeServer.executeResponses <- &v2.ExecuteResponse{
+			StdoutData: []byte("hello from mock runme"),
+		}
+		time.Sleep(100 * time.Millisecond)
+		mockRunmeServer.executeResponses <- &v2.ExecuteResponse{
+			StdoutData: []byte("bye bye"),
+		}
+		time.Sleep(200 * time.Millisecond)
+		mockRunmeServer.executeResponses <- &v2.ExecuteResponse{
+			ExitCode: &wrappers.UInt32Value{Value: 0},
+		}
+		return nil
+	})
+
+	h := NewWebSocketHandler(&Runner{server: mockRunmeServer}, &AuthContext{
+		Checker: &iam.AllowAllChecker{},
+	})
 
 	ts := httptest.NewServer(http.HandlerFunc(h.Handler))
 	defer ts.Close()
 
-	wsURL := "ws" + ts.URL[len("http"):]
+	id := strings.ReplaceAll(uuid.New().String(), "-", "")
+	wsURL := "ws" + ts.URL[len("http"):] + "?id=" + id
 	c, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
 	if err != nil {
 		t.Errorf("Failed to dial websocket: %v", err)
+		return
 	}
-	defer func() {
-		err := c.Close()
-		if err != nil {
-			t.Errorf("Expected no error, got %v", err)
-		}
-	}()
 
-	// todo(sebastian): reuses Runme after moving it out under internal
+	// Wrap the websocket.Conn in a SocketConn
+	sc := NewSocketConn(c)
+
+	// todo(sebastian): reuses Runme's after moving it out under internal
 	runID := ulid.MustNew(ulid.Timestamp(time.Now()), ulid.DefaultEntropy())
 
-	req, err := protojson.Marshal(&cassie.SocketRequest{
+	dummyReq, err := protojson.Marshal(&cassie.SocketRequest{
 		RunId: runID.String(),
 		Payload: &cassie.SocketRequest_ExecuteRequest{
 			ExecuteRequest: &v2.ExecuteRequest{
 				Config: &v2.ProgramConfig{
-					ProgramName: "/bin/zsh",
-					LanguageId:  "sh",
 					Source: &v2.ProgramConfig_Commands{
 						Commands: &v2.ProgramConfig_CommandList{
 							Items: []string{"echo", "hi"},
 						},
 					},
-					Interactive: true,
-					Mode:        v2.CommandMode_COMMAND_MODE_INLINE,
 				},
 			},
 		},
@@ -89,21 +135,34 @@ func TestRunmeHandler_Roundtrip(t *testing.T) {
 		t.Errorf("Failed to marshal message: %v", err)
 	}
 
-	err = c.WriteMessage(websocket.TextMessage, req)
+	err = c.WriteMessage(websocket.TextMessage, dummyReq)
 	if err != nil {
 		t.Errorf("Expected no error, got %v", err)
 	}
 
-	_, msg, err := c.ReadMessage()
-	if err != nil {
-		t.Errorf("Expected no error, got %v", err)
-	}
-	resp := &cassie.SocketResponse{}
-	err = protojson.Unmarshal(msg, resp)
-	if err != nil {
-		t.Errorf("Expected no error, got %v", err)
-	}
-	if string(resp.GetExecuteResponse().GetStdoutData()) != "hello from mock runme" {
-		t.Errorf("Expected 'hello', got '%s'", string(resp.GetExecuteResponse().GetStdoutData()))
+	defer func() {
+		err := c.Close()
+		if err != nil {
+			t.Errorf("Expected no error, got %v", err)
+		}
+	}()
+
+	for {
+		dummyResp, err := sc.ReadSocketResponse(context.Background())
+		if err != nil {
+			t.Errorf("Expected no error, got %v", err)
+			return
+		}
+
+		// Cleanly return if we received an exit code
+		if dummyResp.GetExecuteResponse().GetExitCode() != nil {
+			return
+		}
+
+		// Verify stdout data matches expected sequence
+		stdout := string(dummyResp.GetExecuteResponse().GetStdoutData())
+		if stdout != "hello from mock runme" && stdout != "bye bye" {
+			t.Errorf("Unexpected stdout data: '%s'", stdout)
+		}
 	}
 }

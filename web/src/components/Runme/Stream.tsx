@@ -18,6 +18,7 @@ import {
   take,
   withLatestFrom,
 } from 'rxjs'
+import { v4 as uuidv4 } from 'uuid'
 import { VSCodeEvent } from 'vscode-notebook-renderer/events'
 
 import {
@@ -33,6 +34,8 @@ import { ClientMessages } from './renderers/client'
 
 class Stream {
   private callback: VSCodeEvent<any> | undefined
+
+  public readonly streamID: string
 
   private readonly connected: Subscription
   private readonly queue = new Subject<SocketRequest>()
@@ -71,6 +74,9 @@ class Stream {
     private readonly runID: string,
     private readonly runnerEndpoint: string
   ) {
+    // uniquely identify the stream in a URL friendly way
+    this.streamID = uuidv4().replace(/-/g, '')
+
     this._stdoutConnectable.connect()
     this._stderrConnectable.connect()
     this._exitCodeConnectable.connect()
@@ -80,6 +86,7 @@ class Stream {
     const ws = connectable(
       new Observable<WebSocket>((subscriber) => {
         const url = new URL(this.runnerEndpoint)
+        url.searchParams.set('id', this.streamID)
         const socket = new WebSocket(url.toString())
 
         socket.onclose = () => {
