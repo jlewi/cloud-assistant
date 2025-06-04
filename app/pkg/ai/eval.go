@@ -269,8 +269,8 @@ type markdownReport struct {
 }
 
 func (r *markdownReport) Render() string {
-	passRate := 0.0
-	if r.NumAssertions > 0 {
+	passRate := 100.0
+	if r.NumPassed+r.NumFailed > 0 {
 		passRate = float64(r.NumPassed) / float64(r.NumPassed+r.NumFailed) * 100
 	}
 	lines := []string{}
