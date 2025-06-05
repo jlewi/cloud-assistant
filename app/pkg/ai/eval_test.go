@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/jlewi/cloud-assistant/protos/gen/cassie"
 )
 
@@ -14,11 +15,11 @@ func TestAssertions(t *testing.T) {
 	}
 
 	type testCase struct {
-		name           string
-		asserter       asserter
-		assertion      *cassie.Assertion
-		blocks         map[string]*cassie.Block
-		expectedResult cassie.Assertion_Result
+		name              string
+		asserter          asserter
+		assertion         *cassie.Assertion
+		blocks            map[string]*cassie.Block
+		expectedAssertion *cassie.Assertion
 	}
 
 	testCases := []testCase{
@@ -41,7 +42,17 @@ func TestAssertions(t *testing.T) {
 					Contents: "kubectl get pods --context test -n default",
 				},
 			},
-			expectedResult: cassie.Assertion_RESULT_TRUE,
+			expectedAssertion: &cassie.Assertion{
+				Name: "test-pass",
+				Type: cassie.Assertion_TYPE_SHELL_REQUIRED_FLAG,
+				Payload: &cassie.Assertion_ShellRequiredFlag_{
+					ShellRequiredFlag: &cassie.Assertion_ShellRequiredFlag{
+						Command: "kubectl",
+						Flags:   []string{"--context", "-n"},
+					},
+				},
+				Result: cassie.Assertion_RESULT_TRUE,
+			},
 		},
 		{
 			name:     "kubectl-required-flag-missing",
@@ -62,7 +73,17 @@ func TestAssertions(t *testing.T) {
 					Contents: "kubectl get pods --context test",
 				},
 			},
-			expectedResult: cassie.Assertion_RESULT_FALSE,
+			expectedAssertion: &cassie.Assertion{
+				Name: "test-fail",
+				Type: cassie.Assertion_TYPE_SHELL_REQUIRED_FLAG,
+				Payload: &cassie.Assertion_ShellRequiredFlag_{
+					ShellRequiredFlag: &cassie.Assertion_ShellRequiredFlag{
+						Command: "kubectl",
+						Flags:   []string{"--context", "-n"},
+					},
+				},
+				Result: cassie.Assertion_RESULT_FALSE,
+			},
 		},
 		{
 			name:     "file-search-file-found",
@@ -85,7 +106,17 @@ func TestAssertions(t *testing.T) {
 					},
 				},
 			},
-			expectedResult: cassie.Assertion_RESULT_TRUE,
+			expectedAssertion: &cassie.Assertion{
+				Name: "file-found",
+				Type: cassie.Assertion_TYPE_FILE_RETRIEVED,
+				Payload: &cassie.Assertion_FileRetrieval_{
+					FileRetrieval: &cassie.Assertion_FileRetrieval{
+						FileId:   "file-123",
+						FileName: "test.txt",
+					},
+				},
+				Result: cassie.Assertion_RESULT_TRUE,
+			},
 		},
 		{
 			name:     "file-search-file-not-found",
@@ -108,7 +139,17 @@ func TestAssertions(t *testing.T) {
 					},
 				},
 			},
-			expectedResult: cassie.Assertion_RESULT_FALSE,
+			expectedAssertion: &cassie.Assertion{
+				Name: "file-not-found",
+				Type: cassie.Assertion_TYPE_FILE_RETRIEVED,
+				Payload: &cassie.Assertion_FileRetrieval_{
+					FileRetrieval: &cassie.Assertion_FileRetrieval{
+						FileId:   "file-999",
+						FileName: "notfound.txt",
+					},
+				},
+				Result: cassie.Assertion_RESULT_FALSE,
+			},
 		},
 		{
 			name:     "tool-invocation-shell-command",
@@ -128,7 +169,16 @@ func TestAssertions(t *testing.T) {
 					Contents: "echo hello world",
 				},
 			},
-			expectedResult: cassie.Assertion_RESULT_TRUE,
+			expectedAssertion: &cassie.Assertion{
+				Name: "shell-invoked",
+				Type: cassie.Assertion_TYPE_TOOL_INVOKED,
+				Payload: &cassie.Assertion_ToolInvocation_{
+					ToolInvocation: &cassie.Assertion_ToolInvocation{
+						ToolName: "shell",
+					},
+				},
+				Result: cassie.Assertion_RESULT_TRUE,
+			},
 		},
 		{
 			name:     "tool-invocation-no-shell-command",
@@ -148,9 +198,25 @@ func TestAssertions(t *testing.T) {
 					Contents: "This is not a code block.",
 				},
 			},
-			expectedResult: cassie.Assertion_RESULT_FALSE,
+			expectedAssertion: &cassie.Assertion{
+				Name: "shell-not-invoked",
+				Type: cassie.Assertion_TYPE_TOOL_INVOKED,
+				Payload: &cassie.Assertion_ToolInvocation_{
+					ToolInvocation: &cassie.Assertion_ToolInvocation{
+						ToolName: "shell",
+					},
+				},
+				Result: cassie.Assertion_RESULT_FALSE,
+			},
 		},
 	}
+	opts := cmpopts.IgnoreUnexported(
+		cassie.Assertion{},
+		cassie.Assertion_ShellRequiredFlag{},
+		cassie.Assertion_ToolInvocation{},
+		cassie.Assertion_FileRetrieval{},
+		cassie.Assertion_CodeblockRegex{},
+		cassie.Assertion_LLMJudge{})
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -158,8 +224,8 @@ func TestAssertions(t *testing.T) {
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
-			if d := cmp.Diff(tc.expectedResult, tc.assertion.Result); d != "" {
-				t.Fatalf("unexpected diff in assertion result (-want +got):\n%s", d)
+			if d := cmp.Diff(tc.expectedAssertion, tc.assertion, opts); d != "" {
+				t.Fatalf("unexpected diff in assertion (-want +got):\n%s", d)
 			}
 		})
 	}
