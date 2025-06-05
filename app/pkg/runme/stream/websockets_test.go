@@ -1,4 +1,4 @@
-package server
+package stream
 
 import (
 	"context"
@@ -13,6 +13,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 	"github.com/jlewi/cloud-assistant/app/pkg/iam"
+	"github.com/jlewi/cloud-assistant/app/pkg/runme"
 	"github.com/jlewi/cloud-assistant/protos/gen/cassie"
 	"github.com/oklog/ulid/v2"
 	v2 "github.com/runmedev/runme/v3/api/gen/proto/go/runme/runner/v2"
@@ -21,8 +22,8 @@ import (
 
 func TestWebSocketHandler_Handler_SwitchingProtocols(t *testing.T) {
 	h := &WebSocketHandler{
-		runner: &Runner{server: newMockRunmeServer()},
-		auth: &AuthContext{
+		runner: &runme.Runner{Server: newMockRunmeServer()},
+		auth: &iam.AuthContext{
 			Checker: &iam.AllowAllChecker{},
 		},
 	}
@@ -96,7 +97,7 @@ func TestRunmeHandler_Roundtrip(t *testing.T) {
 		return nil
 	})
 
-	h := NewWebSocketHandler(&Runner{server: mockRunmeServer}, &AuthContext{
+	h := NewWebSocketHandler(&runme.Runner{Server: mockRunmeServer}, &iam.AuthContext{
 		Checker: &iam.AllowAllChecker{},
 	})
 

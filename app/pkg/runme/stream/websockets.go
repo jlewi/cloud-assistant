@@ -1,4 +1,4 @@
-package server
+package stream
 
 import (
 	"context"
@@ -13,6 +13,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/jlewi/cloud-assistant/app/pkg/iam"
 	"github.com/jlewi/cloud-assistant/app/pkg/logs"
+	"github.com/jlewi/cloud-assistant/app/pkg/runme"
 	"github.com/jlewi/cloud-assistant/protos/gen/cassie"
 	"github.com/pkg/errors"
 	v2 "github.com/runmedev/runme/v3/api/gen/proto/go/runme/runner/v2"
@@ -20,12 +21,6 @@ import (
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
-)
-
-// Add error variables at the top of the file
-var (
-	ErrPrincipalExtraction = errors.New("could not extract principal from token")
-	ErrRoleDenied          = errors.New("user does not have the required role")
 )
 
 var upgrader = websocket.Upgrader{
@@ -38,49 +33,18 @@ var upgrader = websocket.Upgrader{
 	},
 }
 
-// todo(sebastian): use everywhere?
-// AuthContext encapsulates the Auth/IAM context for handlers.
-type AuthContext struct {
-	OIDC    *OIDC
-	Checker iam.Checker
-	Role    string
-}
-
-func (a *AuthContext) authorizeRequest(ctx context.Context, req *cassie.SocketRequest) error {
-	log := logs.FromContextWithTrace(ctx)
-
-	// Nil token is not fatal until authz denies access
-	idToken, err := a.OIDC.verifyBearerToken(req.GetAuthorization())
-	if err != nil {
-		log.Info("Unauthenticated: ", "error", err)
-	}
-
-	principal, err := a.Checker.GetPrincipal(idToken)
-	if err != nil {
-		log.Error(err, "Could not extract principal from token")
-		return ErrPrincipalExtraction
-	}
-	if a.Checker != nil {
-		if ok := a.Checker.Check(principal, a.Role); !ok {
-			log.Info("User does not have the required role", "principal", principal)
-			return ErrRoleDenied
-		}
-	}
-	return nil
-}
-
 // WebSocketHandler is a handler for websockets. A single instance is registered with the http server
 // to connect websocket requests to RunmeHandlers.
 type WebSocketHandler struct {
-	auth *AuthContext
+	auth *iam.AuthContext
 
-	runner *Runner
+	runner *runme.Runner
 
 	mu   sync.Mutex
 	runs map[string]*RunmeMultiplexer
 }
 
-func NewWebSocketHandler(runner *Runner, auth *AuthContext) *WebSocketHandler {
+func NewWebSocketHandler(runner *runme.Runner, auth *iam.AuthContext) *WebSocketHandler {
 	return &WebSocketHandler{
 		auth:   auth,
 		runner: runner,
@@ -94,7 +58,7 @@ func (h *WebSocketHandler) Handler(w http.ResponseWriter, r *http.Request) {
 	ctx = logr.NewContext(ctx, log)
 	log.Info("WebsocketHandler.Handler")
 
-	if h.runner.server == nil {
+	if h.runner.Server == nil {
 		log.Error(errors.New("Runner server is nil"), "Runner server is nil")
 		http.Error(w, "Runner server is nil; server is not properly configured", http.StatusInternalServerError)
 		return
@@ -163,7 +127,7 @@ func (h *WebSocketHandler) handleConnection(ctx context.Context, streamID string
 
 type SocketStreams struct {
 	ctx  context.Context
-	auth *AuthContext
+	auth *iam.AuthContext
 
 	mu    sync.RWMutex
 	conns map[string]*SocketConn
@@ -171,7 +135,7 @@ type SocketStreams struct {
 	authedSocketRequests chan *cassie.SocketRequest
 }
 
-func NewSocketStreams(ctx context.Context, auth *AuthContext, socketRequests chan *cassie.SocketRequest) *SocketStreams {
+func NewSocketStreams(ctx context.Context, auth *iam.AuthContext, socketRequests chan *cassie.SocketRequest) *SocketStreams {
 	return &SocketStreams{
 		ctx:                  ctx,
 		auth:                 auth,
@@ -216,7 +180,7 @@ func (s *SocketStreams) createStream(streamID string, sc *SocketConn, initialSoc
 	}
 
 	// Return early to reject the connection if the initial socket request is not authorized.
-	if err := s.auth.authorizeRequest(s.ctx, initialSocketRequest); err != nil {
+	if err := s.auth.AuthorizeRequest(s.ctx, initialSocketRequest); err != nil {
 		log.Error(err, "Could not authorize request", "streamID", streamID, "runID", initialSocketRequest.GetRunId())
 		s.sendError(sc, code.Code_PERMISSION_DENIED, err.Error())
 		return err
@@ -271,7 +235,7 @@ func (s *SocketStreams) receive(streamID string, sc *SocketConn) error {
 		}
 
 		log.Info("Received socket request", "streamID", streamID, "runID", req.GetRunId())
-		if err := s.auth.authorizeRequest(s.ctx, req); err != nil {
+		if err := s.auth.AuthorizeRequest(s.ctx, req); err != nil {
 			log.Error(err, "Could not authorize request", "streamID", streamID, "runID", req.GetRunId())
 			return err
 		}
@@ -313,9 +277,9 @@ func (s *SocketStreams) broadcast(responseData []byte) error {
 // has finished.
 type RunmeMultiplexer struct {
 	Ctx  context.Context
-	auth *AuthContext
+	auth *iam.AuthContext
 
-	runner  *Runner
+	runner  *runme.Runner
 	streams *SocketStreams
 
 	authedSocketRequests chan *cassie.SocketRequest
@@ -325,7 +289,7 @@ type RunmeMultiplexer struct {
 	p *RunmeMessageProcessor
 }
 
-func NewRunmeMultiplexer(ctx context.Context, auth *AuthContext, runner *Runner) *RunmeMultiplexer {
+func NewRunmeMultiplexer(ctx context.Context, auth *iam.AuthContext, runner *runme.Runner) *RunmeMultiplexer {
 	m := &RunmeMultiplexer{
 		Ctx:    ctx,
 		auth:   auth,
@@ -442,7 +406,7 @@ func (m *RunmeMultiplexer) execute(p *RunmeMessageProcessor) {
 	defer close(m.authedSocketRequests)
 	log := logs.FromContextWithTrace(ctx)
 	// Send the request to the runner
-	if err := m.runner.server.Execute(p); err != nil {
+	if err := m.runner.Server.Execute(p); err != nil {
 		log.Error(err, "Failed to execute request")
 		return
 	}
@@ -485,7 +449,7 @@ type RunmeMessageProcessor struct {
 	// StopReading is used to signal to the readMessages goroutine that it should stop reading messages
 	StopReading chan bool
 
-	Runner *Runner
+	Runner *runme.Runner
 }
 
 func (p *RunmeMessageProcessor) SendMsg(m any) error {

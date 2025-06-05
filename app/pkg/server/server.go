@@ -6,6 +6,8 @@ import (
 	"github.com/jlewi/cloud-assistant/app/api"
 	"github.com/jlewi/cloud-assistant/app/pkg/ai"
 	"github.com/jlewi/cloud-assistant/app/pkg/iam"
+	"github.com/jlewi/cloud-assistant/app/pkg/runme"
+	"github.com/jlewi/cloud-assistant/app/pkg/runme/stream"
 	"github.com/jlewi/cloud-assistant/protos/gen/cassie/cassieconnect"
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
@@ -24,7 +26,6 @@ import (
 
 	runnerv2 "github.com/runmedev/runme/v3/api/gen/proto/go/runme/runner/v2"
 
-	//"github.com/runmedev/runme/v3/api/gen/proto/go/runme/runner/v2/runnerv2connect"
 	"net"
 	"net/http"
 	"os"
@@ -44,7 +45,7 @@ type Server struct {
 	hServer          *http.Server
 	engine           http.Handler
 	shutdownComplete chan bool
-	runner           *Runner
+	runner           *runme.Runner
 	agent            *ai.Agent
 	checker          iam.Checker
 }
@@ -66,16 +67,16 @@ func NewServer(opts Options, agent *ai.Agent) (*Server, error) {
 		log.Info("Agent is nil; continuing without AI service")
 	}
 
-	var runner *Runner
+	var runner *runme.Runner
 
 	if opts.Server.RunnerService {
 		var err error
-		runner, err = NewRunner(zap.L())
+		runner, err = runme.NewRunner(zap.L())
 		if err != nil {
 			return nil, err
 		}
 		ctx := context.Background()
-		session, err := runner.server.CreateSession(ctx, &runnerv2.CreateSessionRequest{
+		session, err := runner.Server.CreateSession(ctx, &runnerv2.CreateSessionRequest{
 			Project: &runnerv2.Project{
 				Root:         ".",
 				EnvLoadOrder: []string{".env", ".env.local", ".env.development", ".env.dev"},
@@ -214,10 +215,10 @@ func (s *Server) registerServices() error {
 	log := zapr.NewLogger(zap.L())
 
 	// Create OIDC instance if configured
-	var oidc *OIDC
+	var oidc *iam.OIDC
 	var err error
 	if s.serverConfig.OIDC != nil {
-		oidc, err = newOIDC(s.serverConfig.OIDC)
+		oidc, err = iam.NewOIDC(s.serverConfig.OIDC)
 		if err != nil {
 			return errors.Wrapf(err, "Failed to create OIDC instance")
 		}
@@ -264,7 +265,7 @@ func (s *Server) registerServices() error {
 	}
 
 	if s.runner != nil {
-		sHandler := NewWebSocketHandler(s.runner, &AuthContext{
+		sHandler := stream.NewWebSocketHandler(s.runner, &iam.AuthContext{
 			OIDC:    oidc,
 			Checker: s.checker,
 			Role:    api.RunnerUserRole,
