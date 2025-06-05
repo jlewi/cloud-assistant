@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	"github.com/go-logr/logr"
 	"github.com/go-logr/zapr"
 	"github.com/jlewi/cloud-assistant/app/pkg/logs"
 	"github.com/jlewi/cloud-assistant/app/pkg/version"
@@ -55,6 +56,8 @@ func (s shellRequiredFlag) Assert(ctx context.Context, as *cassie.Assertion, blo
 			}
 		}
 	}
+	logger, _ := logr.FromContext(ctx)
+	logger.Info("shellRequiredFlag", "assertion", as.Name, "result", as.Result)
 	fmt.Println("shellRequiredFlag", as.Name, as.Result)
 	return nil
 }
@@ -74,6 +77,8 @@ func (t toolInvocation) Assert(ctx context.Context, as *cassie.Assertion, blocks
 			}
 		}
 	}
+	logger, _ := logr.FromContext(ctx)
+	logger.Info("toolInvocation", "assertion", as.Name, "result", as.Result)
 	fmt.Println("toolInvocation", as.Name, as.Result)
 	return nil
 }
@@ -93,6 +98,8 @@ func (f fileRetrieved) Assert(ctx context.Context, as *cassie.Assertion, blocks 
 			}
 		}
 	}
+	logger, _ := logr.FromContext(ctx)
+	logger.Info("fileRetrieved", "assertion", as.Name, "result", as.Result)
 	fmt.Println("fileRetrieved", as.Name, as.Result)
 	return nil
 }
@@ -101,6 +108,8 @@ type llmJudge struct{}
 
 func (l llmJudge) Assert(ctx context.Context, as *cassie.Assertion, blocks map[string]*cassie.Block) error {
 	// TODO: implement
+	logger, _ := logr.FromContext(ctx)
+	logger.Info("llmJudge", "assertion", as.Name, "result", as.Result)
 	fmt.Println("llmJudge", as.Name, as.Result)
 	return nil
 }
@@ -132,6 +141,8 @@ func (c codeblockRegex) Assert(ctx context.Context, as *cassie.Assertion, blocks
 	} else {
 		as.Result = cassie.Assertion_RESULT_FALSE
 	}
+	logger, _ := logr.FromContext(ctx)
+	logger.Info("codeblockRegex", "assertion", as.Name, "result", as.Result)
 	fmt.Println("codeblockRegex", as.Name, as.Result)
 	return nil
 }
@@ -326,7 +337,7 @@ func (r *markdownReport) Render() string {
 }
 
 // EvalFromExperiment runs an experiment based on the Experiment config.
-func EvalFromExperiment(exp *cassie.Experiment, cookie map[string]string) (map[string]*cassie.Block, error) {
+func EvalFromExperiment(exp *cassie.Experiment, cookie map[string]string, log logr.Logger) (map[string]*cassie.Block, error) {
 	// Read the experiment YAML file
 	data, err := os.ReadFile(exp.Spec.GetDatasetPath())
 	if err != nil {
@@ -349,6 +360,8 @@ func EvalFromExperiment(exp *cassie.Experiment, cookie map[string]string) (map[s
 
 	cassieCookie := cookie["cassie-session"]
 	inferenceEndpoint := exp.Spec.GetInferenceEndpoint()
+
+	ctx := logr.NewContext(context.Background(), log)
 
 	loc, _ := time.LoadLocation("America/Los_Angeles")
 	report := &markdownReport{
@@ -376,7 +389,7 @@ func EvalFromExperiment(exp *cassie.Experiment, cookie map[string]string) (map[s
 			return nil, errors.Wrapf(err, "failed to run inference")
 		}
 		for _, assertion := range sample.Assertions {
-			err := registry[assertion.Type].Assert(context.TODO(), assertion, blocks)
+			err := registry[assertion.Type].Assert(ctx, assertion, blocks)
 			if err != nil {
 				return nil, errors.Wrapf(err, "failed to assert %q", assertion.Name)
 			}
