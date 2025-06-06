@@ -235,7 +235,7 @@ func TestAssertions(t *testing.T) {
 				},
 			},
 			expectedAssertion: &cassie.Assertion{
-				Name: "basic_llm_juge",
+				Name: "basic_llm_judge",
 				Type: cassie.Assertion_TYPE_LLM_JUDGE,
 				Payload: &cassie.Assertion_LlmJudge{
 					LlmJudge: &cassie.Assertion_LLMJudge{
