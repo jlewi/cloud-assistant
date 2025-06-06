@@ -87,6 +87,7 @@ class Stream {
       new Observable<WebSocket>((subscriber) => {
         const url = new URL(this.runnerEndpoint)
         url.searchParams.set('id', this.streamID)
+        url.searchParams.set('runID', this.runID)
         const socket = new WebSocket(url.toString())
 
         socket.onclose = () => {
