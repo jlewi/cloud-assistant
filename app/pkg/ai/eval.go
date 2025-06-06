@@ -22,6 +22,10 @@ import (
 	"github.com/jlewi/cloud-assistant/app/pkg/version"
 	"github.com/jlewi/cloud-assistant/protos/gen/cassie"
 	"github.com/jlewi/cloud-assistant/protos/gen/cassie/cassieconnect"
+	"github.com/openai/openai-go"
+	"github.com/openai/openai-go/option"
+	"github.com/openai/openai-go/packages/param"
+	"github.com/openai/openai-go/responses"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 	"golang.org/x/net/http2"
@@ -29,13 +33,22 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+const (
+	llmJudgeInstructions = `
+	You are a LLM judge, you will be given a list of rubrics and a conversation between a user and an assistant. 
+	You will judge the conversation based on the rubrics and return a score.
+
+	Rubrics:
+	`
+)
+
 type Asserter interface {
-	Assert(ctx context.Context, as *cassie.Assertion, blocks map[string]*cassie.Block) error
+	Assert(ctx context.Context, as *cassie.Assertion, inputText string, blocks map[string]*cassie.Block) error
 }
 
 type shellRequiredFlag struct{}
 
-func (s shellRequiredFlag) Assert(ctx context.Context, as *cassie.Assertion, blocks map[string]*cassie.Block) error {
+func (s shellRequiredFlag) Assert(ctx context.Context, as *cassie.Assertion, inputText string, blocks map[string]*cassie.Block) error {
 	shellFlag := as.GetShellRequiredFlag()
 	command := shellFlag.Command
 	flags := shellFlag.Flags
@@ -64,7 +77,7 @@ func (s shellRequiredFlag) Assert(ctx context.Context, as *cassie.Assertion, blo
 
 type toolInvocation struct{}
 
-func (t toolInvocation) Assert(ctx context.Context, as *cassie.Assertion, blocks map[string]*cassie.Block) error {
+func (t toolInvocation) Assert(ctx context.Context, as *cassie.Assertion, inputText string, blocks map[string]*cassie.Block) error {
 	targetTool := as.GetToolInvocation().GetToolName()
 	as.Result = cassie.Assertion_RESULT_FALSE // Default to false unless the tool is invoked
 	for _, block := range blocks {
@@ -85,7 +98,7 @@ func (t toolInvocation) Assert(ctx context.Context, as *cassie.Assertion, blocks
 
 type fileRetrieved struct{}
 
-func (f fileRetrieved) Assert(ctx context.Context, as *cassie.Assertion, blocks map[string]*cassie.Block) error {
+func (f fileRetrieved) Assert(ctx context.Context, as *cassie.Assertion, inputText string, blocks map[string]*cassie.Block) error {
 	targetFileId := as.GetFileRetrieval().FileId
 	as.Result = cassie.Assertion_RESULT_FALSE // Default to false unless the file is found
 	for _, block := range blocks {
@@ -106,9 +119,78 @@ func (f fileRetrieved) Assert(ctx context.Context, as *cassie.Assertion, blocks 
 
 type llmJudge struct{}
 
-func (l llmJudge) Assert(ctx context.Context, as *cassie.Assertion, blocks map[string]*cassie.Block) error {
-	// TODO: implement
+func (l llmJudge) Assert(ctx context.Context, as *cassie.Assertion, inputText string, blocks map[string]*cassie.Block) error {
 	logger, _ := logr.FromContext(ctx)
+	var context_builder strings.Builder
+	context_builder.WriteString("User: " + inputText + "\n")
+	for _, block := range blocks {
+		if block.Role == cassie.BlockRole_BLOCK_ROLE_ASSISTANT {
+			context_builder.WriteString("Assistant: " + block.Contents + "\n")
+		} else if block.Role == cassie.BlockRole_BLOCK_ROLE_USER {
+			context_builder.WriteString("User: " + block.Contents + "\n")
+		} else if block.Role == cassie.BlockRole_BLOCK_ROLE_UNKNOWN {
+			context_builder.WriteString("Unknown: " + block.Contents + "\n")
+			logger.Info("Unknown block role", "block", block)
+		}
+	}
+	logger.Info("llm_judge_debug_input", "input", context_builder.String())
+	logger.Info("llm_judge_debug_output", "output", llmJudgeInstructions+as.GetLlmJudge().GetPrompt())
+	createResponse := responses.ResponseNewParams{
+		Input:        responses.ResponseNewParamsInputUnion{OfString: openai.Opt(context_builder.String())},
+		Instructions: openai.Opt(llmJudgeInstructions + as.GetLlmJudge().GetPrompt()),
+		Model:        openai.ChatModelO3,
+		Text: responses.ResponseTextConfigParam{
+			Format: responses.ResponseFormatTextConfigUnionParam{
+				OfJSONSchema: &responses.ResponseFormatTextJSONSchemaConfigParam{
+					Name: "llm_judge_response",
+					Schema: map[string]any{
+						"type": "object",
+						"properties": map[string]any{
+							"passed": map[string]any{
+								"type":        "boolean",
+								"description": "Whether the assertion passed.",
+							},
+							"score": map[string]any{
+								"type":        "integer",
+								"minimum":     0,
+								"maximum":     10,
+								"description": "A score from 0 (worst) to 10 (best).",
+							},
+							"reasoning": map[string]any{
+								"type":        "string",
+								"description": "Detailed reasoning for the judgement.",
+							},
+						},
+						"required":             []string{"passed", "score", "reasoning"},
+						"additionalProperties": false,
+					},
+					Strict:      param.Opt[bool]{Value: true},
+					Description: param.Opt[string]{Value: "Schema for LLM-judge responses"},
+				},
+			},
+		},
+	}
+	apiKey, ok := APIKeyFromContext(ctx)
+	if !ok {
+		return errors.New("OpenAI API key not found in context")
+	}
+	client := openai.NewClient(option.WithAPIKey(apiKey))
+	response, err := client.Responses.New(context.Background(), createResponse)
+	if err != nil {
+		return errors.Wrapf(err, "failed to create response")
+	}
+	var respMap map[string]any
+	err = json.Unmarshal([]byte(response.OutputText()), &respMap)
+	if err != nil {
+		return errors.Wrapf(err, "failed to unmarshal LLM-judge response JSON")
+	}
+	if passed, ok := respMap["passed"].(bool); ok && passed {
+		as.Result = cassie.Assertion_RESULT_TRUE
+	} else {
+		as.Result = cassie.Assertion_RESULT_FALSE
+	}
+
+	logger.Info("llmJudge", "response", response.OutputText())
 	logger.Info("llmJudge", "assertion", as.Name, "result", as.Result)
 	fmt.Println("llmJudge", as.Name, as.Result)
 	return nil
@@ -116,7 +198,7 @@ func (l llmJudge) Assert(ctx context.Context, as *cassie.Assertion, blocks map[s
 
 type codeblockRegex struct{}
 
-func (c codeblockRegex) Assert(ctx context.Context, as *cassie.Assertion, blocks map[string]*cassie.Block) error {
+func (c codeblockRegex) Assert(ctx context.Context, as *cassie.Assertion, inputText string, blocks map[string]*cassie.Block) error {
 	regexPattern := as.GetCodeblockRegex().Regex
 	if regexPattern == "" {
 		as.Result = cassie.Assertion_RESULT_SKIPPED
@@ -336,8 +418,20 @@ func (r *markdownReport) Render() string {
 	return strings.Join(lines, "\n")
 }
 
+type contextKeyAPIKey struct{}
+
+func ContextWithAPIKey(ctx context.Context, apiKey string) context.Context {
+	return context.WithValue(ctx, contextKeyAPIKey{}, apiKey)
+}
+
+func APIKeyFromContext(ctx context.Context) (string, bool) {
+	v := ctx.Value(contextKeyAPIKey{})
+	key, ok := v.(string)
+	return key, ok
+}
+
 // EvalFromExperiment runs an experiment based on the Experiment config.
-func EvalFromExperiment(exp *cassie.Experiment, cookie map[string]string, log logr.Logger) (map[string]*cassie.Block, error) {
+func EvalFromExperiment(exp *cassie.Experiment, cookie map[string]string, api_key string, log logr.Logger) (map[string]*cassie.Block, error) {
 	// Read the experiment YAML file
 	data, err := os.ReadFile(exp.Spec.GetDatasetPath())
 	if err != nil {
@@ -362,6 +456,7 @@ func EvalFromExperiment(exp *cassie.Experiment, cookie map[string]string, log lo
 	inferenceEndpoint := exp.Spec.GetInferenceEndpoint()
 
 	ctx := logr.NewContext(context.Background(), log)
+	ctx = ContextWithAPIKey(ctx, api_key)
 
 	loc, _ := time.LoadLocation("America/Los_Angeles")
 	report := &markdownReport{
@@ -389,7 +484,7 @@ func EvalFromExperiment(exp *cassie.Experiment, cookie map[string]string, log lo
 			return nil, errors.Wrapf(err, "failed to run inference")
 		}
 		for _, assertion := range sample.Assertions {
-			err := registry[assertion.Type].Assert(ctx, assertion, blocks)
+			err := registry[assertion.Type].Assert(ctx, assertion, sample.InputText, blocks)
 			if err != nil {
 				return nil, errors.Wrapf(err, "failed to assert %q", assertion.Name)
 			}

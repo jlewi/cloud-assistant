@@ -2,16 +2,22 @@ package ai
 
 import (
 	"context"
+	"os"
+	"strings"
 	"testing"
 
+	"github.com/go-logr/logr"
+	"github.com/go-logr/zapr"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+	"github.com/jlewi/cloud-assistant/app/pkg/application"
 	"github.com/jlewi/cloud-assistant/protos/gen/cassie"
+	"go.uber.org/zap"
 )
 
 func TestAssertions(t *testing.T) {
 	type asserter interface {
-		Assert(ctx context.Context, assertion *cassie.Assertion, blocks map[string]*cassie.Block) error
+		Assert(ctx context.Context, assertion *cassie.Assertion, inputText string, blocks map[string]*cassie.Block) error
 	}
 
 	type testCase struct {
@@ -20,6 +26,7 @@ func TestAssertions(t *testing.T) {
 		assertion         *cassie.Assertion
 		blocks            map[string]*cassie.Block
 		expectedAssertion *cassie.Assertion
+		inputText         string
 	}
 
 	testCases := []testCase{
@@ -209,7 +216,63 @@ func TestAssertions(t *testing.T) {
 				Result: cassie.Assertion_RESULT_FALSE,
 			},
 		},
+		{
+			name:     "llm-judge-basic",
+			asserter: llmJudge{},
+			assertion: &cassie.Assertion{
+				Name: "basic_llm_juge",
+				Type: cassie.Assertion_TYPE_LLM_JUDGE,
+				Payload: &cassie.Assertion_LlmJudge{
+					LlmJudge: &cassie.Assertion_LLMJudge{
+						Prompt: "Do you think the LLM's command is mostly correct?",
+					},
+				},
+			},
+			blocks: map[string]*cassie.Block{
+				"1": {
+					Kind:     cassie.BlockKind_CODE,
+					Contents: "az aks list --query \"[?name=='unified-60'].{Name:name, Location:location}\" --output table",
+				},
+			},
+			expectedAssertion: &cassie.Assertion{
+				Name: "basic_llm_juge",
+				Type: cassie.Assertion_TYPE_LLM_JUDGE,
+				Payload: &cassie.Assertion_LlmJudge{
+					LlmJudge: &cassie.Assertion_LLMJudge{
+						Prompt: "Do you think the LLM's command is mostly correct?",
+					},
+				},
+				Result: cassie.Assertion_RESULT_TRUE,
+			},
+			inputText: "What region is cluster unified-60 in?",
+		},
 	}
+	isGHA := os.Getenv("GITHUB_ACTIONS") == "true"
+	app := application.NewApp()
+	if err := app.LoadConfig(nil); err != nil {
+		t.Fatal(err)
+	}
+	cfg := app.GetConfig()
+	var apiKey string
+	if !isGHA {
+		// When running locally create the OpenAI client using the config
+		apiKeyFile := cfg.OpenAI.APIKeyFile
+		apiKeyBytes, err := os.ReadFile(apiKeyFile)
+		if err != nil {
+			t.Fatalf("Failed to read API key file; %v", err)
+		}
+		apiKey = string(apiKeyBytes)
+	} else {
+		// In GHA we get the API key from the environment variable
+		apiKey = os.Getenv("OPENAI_API_KEY")
+		if apiKey == "" {
+			t.Fatal("OPENAI_API_KEY environment variable is not set")
+		}
+	}
+	apiKey = strings.TrimSpace(apiKey)
+	log := zapr.NewLogger(zap.L())
+	ctx := logr.NewContext(context.Background(), log)
+	ctx = ContextWithAPIKey(ctx, apiKey)
 	opts := cmpopts.IgnoreUnexported(
 		cassie.Assertion{},
 		cassie.Assertion_ShellRequiredFlag{},
@@ -220,7 +283,7 @@ func TestAssertions(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			err := tc.asserter.Assert(context.TODO(), tc.assertion, tc.blocks)
+			err := tc.asserter.Assert(ctx, tc.assertion, tc.inputText, tc.blocks)
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
