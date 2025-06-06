@@ -70,13 +70,13 @@ message Assertion {
 }
 
 // -------------------------------------------------------------------------
-// Test sample – a full input plus its assertions
+// EvalSample – Represents a single evaluation input and its expected assertions
 // -------------------------------------------------------------------------
 message EvalSample {
-  string            name        = 1;              // e.g. "aks_required_flags"
-  string            description = 2;              // Optional human description
-  string            input_text  = 3;              // The assistant input to test
-  repeated Assertion assertions = 4;              // Checks to run against that input
+  string kind = 1;                // Resource kind, always "EvalSample"
+  ObjectMeta metadata = 2;        // Standard metadata (name, labels, etc.)
+  string input_text = 3;          // The input text to be evaluated
+  repeated Assertion assertions = 4; // List of assertions to check for this input
 }
 
 message EvalDataset{

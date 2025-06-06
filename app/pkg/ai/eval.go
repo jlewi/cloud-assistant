@@ -500,7 +500,7 @@ func EvalFromExperiment(exp *cassie.Experiment, cookie map[string]string, api_ke
 				numFailed++
 				stat.Failed++
 				failedAssertions = append(failedAssertions, struct{ Sample, Assertion, Reason string }{
-					Sample:    sample.Name,
+					Sample:    sample.Metadata.GetName(),
 					Assertion: assertion.Name,
 					Reason:    "failed", // TODO: add more detailed reason if available
 				})

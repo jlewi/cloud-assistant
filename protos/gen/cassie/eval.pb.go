@@ -293,14 +293,14 @@ func (*Assertion_LlmJudge) isAssertion_Payload() {}
 func (*Assertion_CodeblockRegex_) isAssertion_Payload() {}
 
 // -------------------------------------------------------------------------
-// Test sample – a full input plus its assertions
+// EvalSample – Represents a single evaluation input and its expected assertions
 // -------------------------------------------------------------------------
 type EvalSample struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`                            // e.g. "aks_required_flags"
-	Description   string                 `protobuf:"bytes,2,opt,name=description,proto3" json:"description,omitempty"`              // Optional human description
-	InputText     string                 `protobuf:"bytes,3,opt,name=input_text,json=inputText,proto3" json:"input_text,omitempty"` // The assistant input to test
-	Assertions    []*Assertion           `protobuf:"bytes,4,rep,name=assertions,proto3" json:"assertions,omitempty"`                // Checks to run against that input
+	Kind          string                 `protobuf:"bytes,1,opt,name=kind,proto3" json:"kind,omitempty"`                            // Resource kind, always "EvalSample"
+	Metadata      *ObjectMeta            `protobuf:"bytes,2,opt,name=metadata,proto3" json:"metadata,omitempty"`                    // Standard metadata (name, labels, etc.)
+	InputText     string                 `protobuf:"bytes,3,opt,name=input_text,json=inputText,proto3" json:"input_text,omitempty"` // The input text to be evaluated
+	Assertions    []*Assertion           `protobuf:"bytes,4,rep,name=assertions,proto3" json:"assertions,omitempty"`                // List of assertions to check for this input
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -335,18 +335,18 @@ func (*EvalSample) Descriptor() ([]byte, []int) {
 	return file_cassie_eval_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *EvalSample) GetName() string {
+func (x *EvalSample) GetKind() string {
 	if x != nil {
-		return x.Name
+		return x.Kind
 	}
 	return ""
 }
 
-func (x *EvalSample) GetDescription() string {
+func (x *EvalSample) GetMetadata() *ObjectMeta {
 	if x != nil {
-		return x.Description
+		return x.Metadata
 	}
-	return ""
+	return nil
 }
 
 func (x *EvalSample) GetInputText() string {
@@ -866,11 +866,11 @@ const file_cassie_eval_proto_rawDesc = "" +
 	"\vRESULT_TRUE\x10\x01\x12\x10\n" +
 	"\fRESULT_FALSE\x10\x02\x12\x12\n" +
 	"\x0eRESULT_SKIPPED\x10\x03B\t\n" +
-	"\apayload\"\x8d\x01\n" +
+	"\apayload\"\x94\x01\n" +
 	"\n" +
 	"EvalSample\x12\x12\n" +
-	"\x04name\x18\x01 \x01(\tR\x04name\x12 \n" +
-	"\vdescription\x18\x02 \x01(\tR\vdescription\x12\x1d\n" +
+	"\x04kind\x18\x01 \x01(\tR\x04kind\x12'\n" +
+	"\bmetadata\x18\x02 \x01(\v2\v.ObjectMetaR\bmetadata\x12\x1d\n" +
 	"\n" +
 	"input_text\x18\x03 \x01(\tR\tinputText\x12*\n" +
 	"\n" +
@@ -932,15 +932,16 @@ var file_cassie_eval_proto_depIdxs = []int32{
 	10, // 4: Assertion.file_retrieval:type_name -> Assertion.FileRetrieval
 	11, // 5: Assertion.llm_judge:type_name -> Assertion.LLMJudge
 	12, // 6: Assertion.codeblock_regex:type_name -> Assertion.CodeblockRegex
-	2,  // 7: EvalSample.assertions:type_name -> Assertion
-	3,  // 8: EvalDataset.samples:type_name -> EvalSample
-	5,  // 9: Experiment.metadata:type_name -> ObjectMeta
-	6,  // 10: Experiment.spec:type_name -> ExperimentSpec
-	11, // [11:11] is the sub-list for method output_type
-	11, // [11:11] is the sub-list for method input_type
-	11, // [11:11] is the sub-list for extension type_name
-	11, // [11:11] is the sub-list for extension extendee
-	0,  // [0:11] is the sub-list for field type_name
+	5,  // 7: EvalSample.metadata:type_name -> ObjectMeta
+	2,  // 8: EvalSample.assertions:type_name -> Assertion
+	3,  // 9: EvalDataset.samples:type_name -> EvalSample
+	5,  // 10: Experiment.metadata:type_name -> ObjectMeta
+	6,  // 11: Experiment.spec:type_name -> ExperimentSpec
+	12, // [12:12] is the sub-list for method output_type
+	12, // [12:12] is the sub-list for method input_type
+	12, // [12:12] is the sub-list for extension type_name
+	12, // [12:12] is the sub-list for extension extendee
+	0,  // [0:12] is the sub-list for field type_name
 }
 
 func init() { file_cassie_eval_proto_init() }
