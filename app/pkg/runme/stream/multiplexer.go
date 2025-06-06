@@ -92,6 +92,13 @@ func (m *Multiplexer) process() {
 	defer span.End()
 	log := logs.FromContextWithTrace(ctx)
 
+	// Return early if we already have an inflight request.
+	p := m.getInflight()
+	if p != nil {
+		log.Info("Multiplexer.process: returning early because execution already inflight", "runID", p.RunID)
+		return
+	}
+
 	// When the authedSocketRequests channel closes Runme finished executing the command.
 	defer m.close()
 

@@ -76,7 +76,7 @@ func (h *WebSocketHandler) Handler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// This will keep reading messages and streaming the outputs until the runme message processor is done.
+	// This will keep reading messages (even with 0 clients) and multiplexing them to clients until the processor is done.
 	multiplex.process()
 	log.Info("Websocket request finished", "streamID", streamID)
 }
