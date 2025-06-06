@@ -87,8 +87,8 @@ func (m *Multiplexer) close() {
 
 // process reads messages from the websocket connection and puts them on the ExecuteRequests channel.
 func (m *Multiplexer) process() {
-	tracer := otel.Tracer("github.com/jlewi/cloud-assistant/app/pkg/server/websockets")
-	ctx, span := tracer.Start(m.Ctx, "RunmeMultiplexer.process")
+	tracer := otel.Tracer("github.com/jlewi/cloud-assistant/app/pkg/runme/stream")
+	ctx, span := tracer.Start(m.Ctx, "Multiplexer.process")
 	defer span.End()
 	log := logs.FromContextWithTrace(ctx)
 
@@ -142,8 +142,8 @@ func (m *Multiplexer) setInflight(p *Processor) {
 // execute invokes the Runme runner to execute the request.
 // It returns when the request has been processed by Runme.
 func (m *Multiplexer) execute(p *Processor) {
-	tracer := otel.Tracer("github.com/jlewi/cloud-assistant/app/pkg/server/websockets")
-	ctx, span := tracer.Start(m.Ctx, "RunmeHandler.execute")
+	tracer := otel.Tracer("github.com/jlewi/cloud-assistant/app/pkg/runme/stream")
+	ctx, span := tracer.Start(m.Ctx, "Multiplexer.execute")
 	defer span.End()
 
 	// On exit we close the authedSocketRequests channel because Runme execution is finished.
