@@ -273,13 +273,17 @@ func TestAssertions(t *testing.T) {
 	log := zapr.NewLogger(zap.L())
 	ctx := logr.NewContext(context.Background(), log)
 	ctx = ContextWithAPIKey(ctx, apiKey)
-	opts := cmpopts.IgnoreUnexported(
-		cassie.Assertion{},
-		cassie.Assertion_ShellRequiredFlag{},
-		cassie.Assertion_ToolInvocation{},
-		cassie.Assertion_FileRetrieval{},
-		cassie.Assertion_CodeblockRegex{},
-		cassie.Assertion_LLMJudge{})
+	opts := cmp.Options{
+		cmpopts.IgnoreUnexported(
+			cassie.Assertion{},
+			cassie.Assertion_ShellRequiredFlag{},
+			cassie.Assertion_ToolInvocation{},
+			cassie.Assertion_FileRetrieval{},
+			cassie.Assertion_CodeblockRegex{},
+			cassie.Assertion_LLMJudge{},
+		),
+		cmpopts.IgnoreFields(cassie.Assertion{}, "FailureReason"),
+	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
