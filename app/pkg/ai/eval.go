@@ -63,12 +63,17 @@ func (s shellRequiredFlag) Assert(ctx context.Context, as *cassie.Assertion, inp
 				}
 				for _, flag := range flags { // If the command is present, check for all required flags
 					if !strings.Contains(block.Contents, flag) {
+						as.FailureReason += fmt.Sprintf("Flag %s is missing\n", flag)
 						as.Result = cassie.Assertion_RESULT_FALSE // Set to FAILED if any required flag is missing
 					}
 				}
 			}
 		}
 	}
+	if as.Result == cassie.Assertion_RESULT_FALSE {
+		as.FailureReason = "Command " + command + " is present, but required flags are missing" + as.FailureReason
+	}
+
 	logger, _ := logr.FromContext(ctx)
 	logger.Info("shellRequiredFlag", "assertion", as.Name, "result", as.Result)
 	fmt.Println("shellRequiredFlag", as.Name, as.Result)
@@ -90,6 +95,9 @@ func (t toolInvocation) Assert(ctx context.Context, as *cassie.Assertion, inputT
 			}
 		}
 	}
+	if as.Result == cassie.Assertion_RESULT_FALSE {
+		as.FailureReason = "Tool " + targetTool + " is not invoked"
+	}
 	logger, _ := logr.FromContext(ctx)
 	logger.Info("toolInvocation", "assertion", as.Name, "result", as.Result)
 	fmt.Println("toolInvocation", as.Name, as.Result)
@@ -110,6 +118,9 @@ func (f fileRetrieved) Assert(ctx context.Context, as *cassie.Assertion, inputTe
 				}
 			}
 		}
+	}
+	if as.Result == cassie.Assertion_RESULT_FALSE {
+		as.FailureReason = "File " + targetFileId + " is not retrieved"
 	}
 	logger, _ := logr.FromContext(ctx)
 	logger.Info("fileRetrieved", "assertion", as.Name, "result", as.Result)
@@ -188,6 +199,7 @@ func (l llmJudge) Assert(ctx context.Context, as *cassie.Assertion, inputText st
 	if passed, ok := respMap["passed"].(bool); ok && passed {
 		as.Result = cassie.Assertion_RESULT_TRUE
 	} else {
+		as.FailureReason = respMap["reasoning"].(string)
 		as.Result = cassie.Assertion_RESULT_FALSE
 	}
 
@@ -222,6 +234,7 @@ func (c codeblockRegex) Assert(ctx context.Context, as *cassie.Assertion, inputT
 	if matched {
 		as.Result = cassie.Assertion_RESULT_TRUE
 	} else {
+		as.FailureReason = "No codeblock matches regex: " + regexPattern
 		as.Result = cassie.Assertion_RESULT_FALSE
 	}
 	logger, _ := logr.FromContext(ctx)
@@ -502,7 +515,7 @@ func EvalFromExperiment(exp *cassie.Experiment, cookie map[string]string, api_ke
 				failedAssertions = append(failedAssertions, struct{ Sample, Assertion, Reason string }{
 					Sample:    sample.Metadata.GetName(),
 					Assertion: assertion.Name,
-					Reason:    "failed", // TODO: add more detailed reason if available
+					Reason:    assertion.GetFailureReason(),
 				})
 			case cassie.Assertion_RESULT_SKIPPED:
 				numSkipped++
