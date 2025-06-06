@@ -1,4 +1,4 @@
-package server
+package runme
 
 import (
 	"github.com/pkg/errors"
@@ -10,7 +10,7 @@ import (
 
 // Runner lets you run commands using Runme.
 type Runner struct {
-	server runnerv2.RunnerServiceServer
+	Server runnerv2.RunnerServiceServer
 }
 
 func NewRunner(logger *zap.Logger) (*Runner, error) {
@@ -21,6 +21,6 @@ func NewRunner(logger *zap.Logger) (*Runner, error) {
 		return nil, errors.Wrapf(err, "Failed to create Runme runner service")
 	}
 	return &Runner{
-		server: server,
+		Server: server,
 	}, nil
 }

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { memo, useEffect, useRef, useState } from 'react'
 import Markdown from 'react-markdown'
 
 import { MagnifyingGlassIcon } from '@radix-ui/react-icons'
@@ -69,77 +69,93 @@ const AssistantMessage = ({ block }: { block: Block }) => {
   )
 }
 
-const CodeMessage = ({
-  block,
-  onClick,
-  isLastCodeBlock,
-}: {
-  block: Block
-  onClick?: () => void
-  isLastCodeBlock?: boolean
-}) => {
-  const { runCodeBlock } = useBlock()
-  const firstLine = block.contents.split(/&&|;|\n|\\n/)[0]
+const CodeMessage = memo(
+  ({
+    block,
+    isLastCodeBlock,
+    onClick,
+  }: {
+    block: Block
+    isLastCodeBlock?: boolean
+    onClick?: () => void
+  }) => {
+    const { runCodeBlock } = useBlock()
+    const firstLine = block.contents.split(/&&|;|\n|\\n/)[0]
 
-  const handleClick = () => {
-    if (onClick) {
-      onClick()
-    } else {
-      runCodeBlock(block)
+    const handleClick = () => {
+      if (onClick) {
+        onClick()
+      } else {
+        runCodeBlock(block)
+      }
     }
-  }
 
-  return (
-    <div className="self-start flex flex-row items-center gap-1">
-      <div
-        className="flex items-center gap-2 m-1 p-2 bg-[#1e1e1e] rounded-md max-w-[80%] cursor-pointer"
-        onClick={handleClick}
-      >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          width="16"
-          height="16"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="#d4d4d4"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
+    return (
+      <div className="self-start flex flex-row items-center gap-1">
+        <div
+          className="flex items-center gap-2 m-1 p-2 bg-[#1e1e1e] rounded-md max-w-[80%] cursor-pointer"
+          onClick={handleClick}
         >
-          <polygon points="5 3 19 12 5 21 5 3"></polygon>
-        </svg>
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          width="16"
-          height="16"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="#d4d4d4"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          className="ml-1"
-        >
-          <polyline points="4 17 10 11 4 5"></polyline>
-          <line x1="12" y1="19" x2="20" y2="19"></line>
-        </svg>
-        <span className="text-sm text-[#d4d4d4] italic truncate max-w-2/3">
-          {firstLine}
-        </span>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="#d4d4d4"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <polygon points="5 3 19 12 5 21 5 3"></polygon>
+          </svg>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="#d4d4d4"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="ml-1"
+          >
+            <polyline points="4 17 10 11 4 5"></polyline>
+            <line x1="12" y1="19" x2="20" y2="19"></line>
+          </svg>
+          <span className="text-sm text-[#d4d4d4] italic truncate max-w-2/3">
+            {firstLine}
+          </span>
+        </div>
+        {isLastCodeBlock && (
+          <span className="text-xs text-gray-400">Press CTRL+ENTER to run</span>
+        )}
       </div>
-      {isLastCodeBlock && (
-        <span className="text-xs text-gray-400">Press CTRL+ENTER to run</span>
-      )}
-    </div>
-  )
-}
+    )
+  },
+  (prevProps, nextProps) => {
+    return (
+      prevProps.block.id === nextProps.block.id &&
+      JSON.stringify(prevProps.block.contents) ===
+        JSON.stringify(nextProps.block.contents) &&
+      prevProps.isLastCodeBlock === nextProps.isLastCodeBlock
+    )
+  }
+)
 
 const Message = ({
   block,
   isLastCodeBlock,
 }: MessageProps & { isLastCodeBlock?: boolean }) => {
   if (block.kind === BlockKind.CODE) {
-    return <CodeMessage block={block} isLastCodeBlock={isLastCodeBlock} />
+    return (
+      <CodeMessage
+        key={block.id}
+        block={block}
+        isLastCodeBlock={isLastCodeBlock}
+      />
+    )
   }
 
   switch (block.role) {

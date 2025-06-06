@@ -78,6 +78,13 @@ export declare type SocketRequest = Message<"SocketRequest"> & {
    * @generated from field: string authorization = 200;
    */
   authorization: string;
+
+  /**
+   * Optional Run ID to track and resume execution.
+   *
+   * @generated from field: string run_id = 210;
+   */
+  runId: string;
 };
 
 /**
@@ -100,6 +107,13 @@ export declare type SocketRequestJson = {
    * @generated from field: string authorization = 200;
    */
   authorization?: string;
+
+  /**
+   * Optional Run ID to track and resume execution.
+   *
+   * @generated from field: string run_id = 210;
+   */
+  runId?: string;
 };
 
 /**
@@ -134,6 +148,13 @@ export declare type SocketResponse = Message<"SocketResponse"> & {
    * @generated from field: SocketStatus status = 200;
    */
   status?: SocketStatus;
+
+  /**
+   * Optional Run ID to track and resume execution.
+   *
+   * @generated from field: string run_id = 210;
+   */
+  runId: string;
 };
 
 /**
@@ -156,6 +177,13 @@ export declare type SocketResponseJson = {
    * @generated from field: SocketStatus status = 200;
    */
   status?: SocketStatusJson;
+
+  /**
+   * Optional Run ID to track and resume execution.
+   *
+   * @generated from field: string run_id = 210;
+   */
+  runId?: string;
 };
 
 /**

@@ -1,102 +1,27 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useEffect } from 'react'
+import { useEffect, useMemo } from 'react'
 
+import { CommandMode } from '@buf/stateful_runme.bufbuild_es/runme/runner/v2/config_pb'
 import {
-  ExecuteResponse,
-  SessionStrategy,
-} from '@buf/stateful_runme.bufbuild_es/runme/runner/v2/runner_pb'
-import {
-  ExecuteRequest,
   ExecuteRequestSchema,
+  SessionStrategy,
+  WinsizeSchema,
 } from '@buf/stateful_runme.bufbuild_es/runme/runner/v2/runner_pb'
-import { fromJson, toJson } from '@bufbuild/protobuf'
 import { create } from '@bufbuild/protobuf'
-import { ulid } from 'ulid'
 import { RendererContext } from 'vscode-notebook-renderer'
 import { VSCodeEvent } from 'vscode-notebook-renderer/events'
 
 import { useSettings } from '../../contexts/SettingsContext'
-import {
-  SocketRequest,
-  SocketRequestSchema,
-  SocketResponse,
-  SocketResponseSchema,
-} from '../../gen/es/cassie/sockets_pb'
-import { Code } from '../../gen/es/google/rpc/code_pb'
-import { getTokenValue } from '../../token'
+import Stream from './Stream'
+// anything below is required for the webcomponents to work
 import './renderers/client'
 // @ts-expect-error because the webcomponents are not typed
 import { ClientMessages, setContext } from './renderers/client'
 import './runme-vscode.css'
 
-let socket: WebSocket
-
-// A queue for socket requests.
-// We enqueue messages to deal with the case where the socket isn't open yet.
-const sendQueue: SocketRequest[] = []
-
-function sendExecuteRequest(socket: WebSocket, execReq: ExecuteRequest) {
-  console.log('Sending ExecuteRequest:', execReq)
-  const request = create(SocketRequestSchema, {
-    payload: {
-      value: execReq,
-      case: 'executeRequest',
-    },
-  })
-
-  const token = getTokenValue()
-
-  sendQueue.push(request)
-  if (socket.readyState === WebSocket.OPEN) {
-    console.log('Socket is open, sending ExecuteRequest')
-    // Send all the messages in the queue
-    while (sendQueue.length > 0) {
-      const req = sendQueue.shift()
-      if (token && req) {
-        req.authorization = `Bearer ${token}`
-      }
-      socket.send(JSON.stringify(toJson(SocketRequestSchema, req!)))
-    }
-  }
-}
-
-function buildExecuteRequest(): ExecuteRequest {
-  const blockID = ulid()
-  return create(ExecuteRequestSchema, {
-    sessionStrategy: SessionStrategy.MOST_RECENT, // without this every exec gets its own session
-    storeStdoutInEnv: true,
-    config: {
-      programName: '/bin/zsh', // unset uses system shell
-      // arguments: [],
-      // directory:
-      //     "/Users/sourishkrout/Projects/stateful/oss/vscode-runme/examples",
-      languageId: 'sh',
-      background: false,
-      fileExtension: '',
-      env: [`RUNME_ID=${blockID}`, 'RUNME_RUNNER=v2', 'TERM=xterm-256color'],
-      source: {
-        case: 'commands',
-        value: {
-          items: [
-            // 'for i in {1..10}; do',
-            // '  echo "Value: $i"',
-            // '  sleep 1',
-            // 'done',
-            // 'runme',
-            'ls -la',
-          ],
-        },
-      },
-      interactive: true,
-      mode: 1,
-      knownId: blockID,
-      // knownName: "for-i",
-    },
-    winsize: { rows: 34, cols: 100, x: 0, y: 0 },
-  })
-}
-
 function Console({
+  blockID,
+  runID,
   commands,
   rows = 20,
   className,
@@ -109,6 +34,8 @@ function Console({
   onPid,
   onMimeType,
 }: {
+  blockID: string
+  runID: string
   commands: string[]
   rows?: number
   className?: string
@@ -121,28 +48,71 @@ function Console({
   onPid?: (pid: number) => void
   onMimeType?: (mimeType: string) => void
 }) {
-  const { settings, checkRunnerAuth } = useSettings()
-  const execReq = buildExecuteRequest()
-  const defaults = {
-    output: {
-      'runme.dev/id': execReq.config?.knownId,
-      fontFamily: fontFamily || 'monospace',
-      fontSize: fontSize || 12,
-      cursorStyle: 'block',
-      cursorBlink: true,
-      cursorWidth: 1,
-      takeFocus,
-      // smoothScrollDuration: 100,
-      scrollback: 1000,
-      initialRows: rows,
-      content: '',
-      isAutoSaveEnabled: false,
-      isPlatformAuthEnabled: false,
-    },
-  }
+  const { settings } = useSettings()
+  const stream = useMemo(() => {
+    return new Stream(blockID, runID, settings.runnerEndpoint)
+  }, [blockID, runID, settings.runnerEndpoint])
+
+  useEffect(() => {
+    return () => {
+      // this will close previous stream, if still open
+      stream?.close()
+    }
+  }, [stream])
+
+  let winsize = create(WinsizeSchema, {
+    rows: 34,
+    cols: 100,
+    x: 0,
+    y: 0,
+  })
+
+  const executeRequest = useMemo(() => {
+    return create(ExecuteRequestSchema, {
+      sessionStrategy: SessionStrategy.MOST_RECENT, // without this every exec gets its own session
+      storeStdoutInEnv: true,
+      config: {
+        languageId: 'sh',
+        background: false,
+        fileExtension: '',
+        env: [`RUNME_ID=${blockID}`, 'RUNME_RUNNER=v2', 'TERM=xterm-256color'],
+        source: {
+          case: 'commands',
+          value: {
+            items: commands,
+          },
+        },
+        interactive: true,
+        mode: CommandMode.INLINE,
+        knownId: blockID,
+        // knownName: "the-block-name",
+      },
+      winsize,
+    })
+  }, [blockID, commands, winsize])
+
+  const webComponentDefaults = useMemo(
+    () => ({
+      output: {
+        'runme.dev/id': executeRequest.config?.knownId,
+        fontFamily: fontFamily || 'monospace',
+        fontSize: fontSize || 12,
+        cursorStyle: 'block',
+        cursorBlink: true,
+        cursorWidth: 1,
+        takeFocus,
+        smoothScrollDuration: 0,
+        scrollback: 1000,
+        initialRows: rows,
+        content: '',
+        isAutoSaveEnabled: false,
+        isPlatformAuthEnabled: false,
+      },
+    }),
+    [fontFamily, fontSize, takeFocus, rows, executeRequest.config?.knownId]
+  )
 
   const encoder = new TextEncoder()
-  let callback: VSCodeEvent<any> | undefined
 
   setContext({
     postMessage: (message: unknown) => {
@@ -150,148 +120,85 @@ function Console({
         (message as any).type === ClientMessages.terminalOpen ||
         (message as any).type === ClientMessages.terminalResize
       ) {
-        const columns = Number(
-          (message as any).output.terminalDimensions.columns
-        )
+        const cols = Number((message as any).output.terminalDimensions.columns)
         const rows = Number((message as any).output.terminalDimensions.rows)
-        if (Number.isFinite(columns) && Number.isFinite(rows)) {
-          execReq.winsize!.cols = columns
-          execReq.winsize!.rows = rows
+        if (Number.isFinite(cols) && Number.isFinite(rows)) {
+          // If the dimensions are the same, return early
+          if (winsize.cols === cols && winsize.rows === rows) {
+            return
+          }
+          winsize = create(WinsizeSchema, {
+            cols,
+            rows,
+            x: 0,
+            y: 0,
+          })
+          const req = create(ExecuteRequestSchema, {
+            winsize,
+          })
+          stream.sendExecuteRequest(req)
         }
-      }
-
-      if ((message as any).type === ClientMessages.terminalResize) {
-        const req = create(ExecuteRequestSchema, {
-          winsize: execReq.winsize,
-        })
-        sendExecuteRequest(socket, req)
       }
 
       if ((message as any).type === ClientMessages.terminalStdin) {
         const inputData = encoder.encode((message as any).output.input)
         const req = create(ExecuteRequestSchema, { inputData })
-        const reqJson = toJson(ExecuteRequestSchema, req)
-        console.log('terminalStdin', reqJson)
-        sendExecuteRequest(socket, req)
+        // const reqJson = toJson(ExecuteRequestSchema, req)
+        // console.log('terminalStdin', reqJson)
+        stream.sendExecuteRequest(req)
       }
     },
     onDidReceiveMessage: (listener: VSCodeEvent<any>) => {
-      callback = listener
+      stream.setCallback(listener)
     },
   } as Partial<RendererContext<void>>)
 
   useEffect(() => {
-    socket = createWebSocket(settings.runnerEndpoint)
-
-    socket.onclose = (e: CloseEvent) => {
-      if (e.code <= 1000) {
-        return
-      }
-
-      console.error('WebSocket closed with code:', e.code)
-      // checkRunnerAuth()
-    }
-
-    socket.onmessage = (event) => {
-      if (typeof event.data !== 'string') {
-        console.warn('Unexpected WebSocket message type:', typeof event.data)
-        return
-      }
-      let message: SocketResponse
-      try {
-        // Parse the string into an object
-        const parsed = JSON.parse(event.data)
-
-        // Parse the payload into a Protobuf message
-        message = fromJson(SocketResponseSchema, parsed)
-
-        // Use the message
-        console.log('Received SocketResponse:', message)
-      } catch (err) {
-        console.error('Failed to parse SocketResponse:', err)
-      }
-
-      const status = message!.status
-      if (status && status.code !== Code.OK) {
-        console.error(`Runner error ${Code[status.code]}: ${status.message}`)
-        socket.close()
-        return
-      }
-
-      const response = message!.payload.value as ExecuteResponse
-      if (response.stdoutData) {
-        callback?.({
-          type: ClientMessages.terminalStdout,
-          output: {
-            'runme.dev/id': execReq.config!.knownId,
-            data: response.stdoutData,
-          },
-        } as any)
-
-        if (onStdout) {
-          onStdout(response.stdoutData)
-        }
-      }
-
-      if (response.stderrData) {
-        callback?.({
-          type: ClientMessages.terminalStderr,
-          output: {
-            'runme.dev/id': execReq.config!.knownId,
-            data: response.stderrData,
-          },
-        } as any)
-
-        if (onStderr) {
-          onStderr(response.stderrData)
-        }
-      }
-
-      if (response.exitCode !== undefined) {
-        if (onExitCode) {
-          onExitCode(response.exitCode)
-        }
-      }
-
-      if (response.pid !== undefined) {
-        if (onPid) {
-          onPid(response.pid)
-        }
-      }
-
-      if (response.mimeType) {
-        const parts = response.mimeType.split(';')
-        const mimeType = parts[0]
-        if (onMimeType) {
-          onMimeType(mimeType)
-        }
-      }
-    }
-
-    return () => {
-      console.log(new Date(), 'Disconnected from WebSocket server')
-      socket.close()
-    }
-  }, [
-    callback,
-    execReq.config,
-    onExitCode,
-    onPid,
-    onStderr,
-    onStdout,
-    onMimeType,
-    settings.runnerEndpoint,
-    checkRunnerAuth,
-  ])
+    const stdoutSub = stream.stdout.subscribe((data: Uint8Array) => {
+      onStdout?.(data)
+    })
+    return () => stdoutSub.unsubscribe()
+  }, [stream, onStdout])
 
   useEffect(() => {
-    console.log('useEffect invoked - Commands changed:', commands)
-    if (execReq.config?.source?.case === 'commands') {
-      execReq.config!.source!.value!.items = commands
-    }
+    const stderrSub = stream.stderr.subscribe((data: Uint8Array) => {
+      onStderr?.(data)
+    })
+    return () => stderrSub.unsubscribe()
+  }, [stream, onStderr])
 
-    sendExecuteRequest(socket, execReq)
-  }, [commands, execReq])
+  useEffect(() => {
+    const exitCodeSub = stream.exitCode.subscribe((code: number) => {
+      onExitCode?.(code)
+    })
+    return () => exitCodeSub.unsubscribe()
+  }, [stream, onExitCode])
+
+  useEffect(() => {
+    const pidSub = stream.pid.subscribe((pid: number) => {
+      onPid?.(pid)
+    })
+    return () => pidSub.unsubscribe()
+  }, [stream, onPid])
+
+  useEffect(() => {
+    const mimeTypeSub = stream.mimeType.subscribe((mimeType: string) => {
+      onMimeType?.(mimeType)
+    })
+    return () => mimeTypeSub.unsubscribe()
+  }, [stream, onMimeType])
+
+  useEffect(() => {
+    if (!stream || !executeRequest) {
+      return
+    }
+    console.log(
+      'useEffect invoked - Commands changed:',
+      JSON.stringify(executeRequest.config!.source!.value)
+    )
+    stream.sendExecuteRequest(executeRequest)
+  }, [executeRequest, stream])
+
   return (
     <div
       className={className}
@@ -302,71 +209,86 @@ function Console({
         const terminalElem = document.createElement('terminal-view')
         terminalElem.setAttribute('buttons', 'false')
 
-        terminalElem.setAttribute('id', defaults.output['runme.dev/id']!)
-        terminalElem.setAttribute('fontFamily', defaults.output.fontFamily)
-        if (typeof defaults.output.fontSize === 'number') {
+        terminalElem.setAttribute(
+          'id',
+          webComponentDefaults.output['runme.dev/id']!
+        )
+        terminalElem.setAttribute(
+          'fontFamily',
+          webComponentDefaults.output.fontFamily
+        )
+        if (typeof webComponentDefaults.output.fontSize === 'number') {
           terminalElem.setAttribute(
             'fontSize',
-            defaults.output.fontSize.toString()
+            webComponentDefaults.output.fontSize.toString()
           )
         }
-        if (defaults.output.cursorStyle) {
-          terminalElem.setAttribute('cursorStyle', defaults.output.cursorStyle)
+        if (webComponentDefaults.output.cursorStyle) {
+          terminalElem.setAttribute(
+            'cursorStyle',
+            webComponentDefaults.output.cursorStyle
+          )
         }
-        if (typeof defaults.output.cursorBlink === 'boolean') {
+        if (typeof webComponentDefaults.output.cursorBlink === 'boolean') {
           terminalElem.setAttribute(
             'cursorBlink',
-            defaults.output.cursorBlink ? 'true' : 'false'
+            webComponentDefaults.output.cursorBlink ? 'true' : 'false'
           )
         }
-        if (typeof defaults.output.cursorWidth === 'number') {
+        if (typeof webComponentDefaults.output.cursorWidth === 'number') {
           terminalElem.setAttribute(
             'cursorWidth',
-            defaults.output.cursorWidth.toString()
+            webComponentDefaults.output.cursorWidth.toString()
           )
         }
 
-        if (typeof defaults.output.takeFocus === 'boolean') {
+        if (typeof webComponentDefaults.output.takeFocus === 'boolean') {
           terminalElem.setAttribute(
             'takeFocus',
-            defaults.output.takeFocus ? 'true' : 'false'
+            webComponentDefaults.output.takeFocus ? 'true' : 'false'
           )
         }
 
-        // if (typeof defaults.output.smoothScrollDuration === 'number') {
-        //   terminalElem.setAttribute(
-        //     'smoothScrollDuration',
-        //     defaults.output.smoothScrollDuration.toString(),
-        //   )
-        // }
-        if (typeof defaults.output.scrollback === 'number') {
+        if (
+          typeof webComponentDefaults.output.smoothScrollDuration === 'number'
+        ) {
+          terminalElem.setAttribute(
+            'smoothScrollDuration',
+            webComponentDefaults.output.smoothScrollDuration.toString()
+          )
+        }
+
+        if (typeof webComponentDefaults.output.scrollback === 'number') {
           terminalElem.setAttribute(
             'scrollback',
-            defaults.output.scrollback.toString()
+            webComponentDefaults.output.scrollback.toString()
           )
         }
-        if (defaults.output.initialRows !== undefined) {
+        if (webComponentDefaults.output.initialRows !== undefined) {
           terminalElem.setAttribute(
             'initialRows',
-            defaults.output.initialRows.toString()
+            webComponentDefaults.output.initialRows.toString()
           )
         }
 
-        if (defaults.output.content !== undefined) {
-          terminalElem.setAttribute('initialContent', defaults.output.content)
+        if (webComponentDefaults.output.content !== undefined) {
+          terminalElem.setAttribute(
+            'initialContent',
+            webComponentDefaults.output.content
+          )
         }
 
-        if (defaults.output.isAutoSaveEnabled) {
+        if (webComponentDefaults.output.isAutoSaveEnabled) {
           terminalElem.setAttribute(
             'isAutoSaveEnabled',
-            defaults.output.isAutoSaveEnabled.toString()
+            webComponentDefaults.output.isAutoSaveEnabled.toString()
           )
         }
 
-        if (defaults.output.isPlatformAuthEnabled) {
+        if (webComponentDefaults.output.isPlatformAuthEnabled) {
           terminalElem.setAttribute(
             'isPlatformAuthEnabled',
-            defaults.output.isPlatformAuthEnabled.toString()
+            webComponentDefaults.output.isPlatformAuthEnabled.toString()
           )
         }
 
@@ -394,45 +316,6 @@ function isInViewport(element: Element) {
       (window.innerHeight || document.documentElement.clientHeight) &&
     rect.right <= (window.innerWidth || document.documentElement.clientWidth)
   )
-}
-
-function createWebSocket(runnerEndpoint: string): WebSocket {
-  const url = new URL(runnerEndpoint)
-  const ws = new WebSocket(url.toString())
-
-  ws.onerror = (event) => {
-    console.error('WebSocket error:', event)
-  }
-
-  ws.onclose = (event) => {
-    console.error('WebSocket closed:', event)
-  }
-
-  ws.onopen = () => {
-    console.log(
-      new Date(),
-      '✅ Connected to Runme WebSocket server at',
-      runnerEndpoint
-    )
-
-    if (sendQueue.length > 0) {
-      console.log('Sending queued messages')
-    }
-
-    const token = getTokenValue()
-    // Send all the messages in the queue
-    // These will be messages that were enqueued before the socket was open.
-    // If we try to send a message before the socket is open it will fail and
-    // close the connection so we need to enqueue htem.
-    while (sendQueue.length > 0) {
-      const req = sendQueue.shift()!
-      if (token && req) {
-        req.authorization = `Bearer ${token}`
-      }
-      ws.send(JSON.stringify(toJson(SocketRequestSchema, req)))
-    }
-  }
-  return ws
 }
 
 export default Console

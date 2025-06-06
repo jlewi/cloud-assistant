@@ -16,7 +16,10 @@ import (
 	"github.com/spf13/cobra"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
+	"go.opentelemetry.io/otel/sdk/resource"
 	"go.opentelemetry.io/otel/sdk/trace"
+	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
@@ -71,10 +74,21 @@ func (a *App) SetupOTEL() error {
 		return errors.New("config shouldn't be nil; did you forget to call LoadConfig?")
 	}
 
-	log.Info("Using default tracer provider")
-	// We need to configure a tracer provider so that traces and spans get set even though we aren't actually
-	// sending them anywhere.
-	tracerProvider := trace.NewTracerProvider()
+	// Set up OTLP HTTP exporter
+	log.Info("Setting up OTLP HTTP exporter")
+	exp, err := otlptracehttp.New(context.Background(), otlptracehttp.WithEndpoint("localhost:4318"), otlptracehttp.WithInsecure())
+	if err != nil {
+		return errors.Wrap(err, "failed to create OTLP HTTP exporter")
+	}
+
+	// Set up trace provider with the exporter
+	tracerProvider := trace.NewTracerProvider(
+		trace.WithBatcher(exp),
+		trace.WithResource(resource.NewWithAttributes(
+			semconv.SchemaURL,
+			semconv.ServiceNameKey.String("cloud-assistant"),
+		)),
+	)
 	otel.SetTracerProvider(tracerProvider)
 	a.otelShutdownFn = func() {
 		if err := tracerProvider.Shutdown(context.Background()); err != nil {
