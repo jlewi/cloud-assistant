@@ -6,10 +6,12 @@ import (
 	"os"
 	"strings"
 
+	"github.com/go-logr/zapr"
 	"github.com/jlewi/cloud-assistant/app/pkg/ai"
 	"github.com/jlewi/cloud-assistant/app/pkg/application"
 	"github.com/jlewi/cloud-assistant/protos/gen/cassie"
 	"github.com/spf13/cobra"
+	"go.uber.org/zap"
 	"google.golang.org/protobuf/encoding/protojson"
 	"gopkg.in/yaml.v3"
 )
@@ -26,6 +28,9 @@ func NewEvalCmd() *cobra.Command {
 			}
 			app := application.NewApp()
 			if err := app.LoadConfig(cmd); err != nil {
+				return err
+			}
+			if err := app.SetupServerLogging(); err != nil {
 				return err
 			}
 
@@ -54,6 +59,15 @@ func NewEvalCmd() *cobra.Command {
 			}
 			cookies := make(map[string]string)
 			lines := strings.Split(string(cookieData), "\n")
+			key_file := app.Config.OpenAI.APIKeyFile
+			if key_file == "" {
+				return fmt.Errorf("OpenAI API key file is empty")
+			}
+			b, err := os.ReadFile(key_file)
+			if err != nil {
+				return fmt.Errorf("failed to read OpenAI API key file: %w", err)
+			}
+			api_key := strings.TrimSpace(string(b))
 			for _, line := range lines {
 				line = strings.TrimSpace(line)
 				if line == "" || strings.HasPrefix(line, "#") {
@@ -64,8 +78,8 @@ func NewEvalCmd() *cobra.Command {
 					cookies[parts[0]] = parts[1]
 				}
 			}
-
-			_, err = ai.EvalFromExperiment(&experiment, cookies)
+			log := zapr.NewLogger(zap.L())
+			_, err = ai.EvalFromExperiment(&experiment, cookies, api_key, log)
 			if err != nil {
 				return err
 			}
