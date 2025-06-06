@@ -20,6 +20,18 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
+// dialWebSocket dials a websocket URL with a random id for testing and returns the connection, response, and error.
+func dialWebSocket(ts *httptest.Server) (*Connection, *http.Response, error) {
+	id := strings.ReplaceAll(uuid.New().String(), "-", "")
+	wsURL := "ws" + ts.URL[len("http"):] + "?id=" + id
+	c, r, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return NewConnection(c), r, nil
+}
+
 func TestWebSocketHandler_Handler_SwitchingProtocols(t *testing.T) {
 	h := &WebSocketHandler{
 		runner: &runme.Runner{Server: newMockRunmeServer()},
@@ -31,14 +43,17 @@ func TestWebSocketHandler_Handler_SwitchingProtocols(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(h.Handler))
 	defer ts.Close()
 
-	id := strings.ReplaceAll(uuid.New().String(), "-", "")
-	wsURL := "ws" + ts.URL[len("http"):] + "?id=" + id
-	_, resp, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	sc, resp, err := dialWebSocket(ts)
 	if err != nil {
-		t.Fatalf("Unexpected websocket upgrade error: %v", err)
+		t.Errorf("Failed to dial websocket: %v", err)
 	}
 	if resp.StatusCode != http.StatusSwitchingProtocols {
 		t.Fatalf("Expected 101, got %d", resp.StatusCode)
+	}
+
+	err = sc.Close()
+	if err != nil {
+		t.Errorf("Failed to close websocket: %v", err)
 	}
 }
 
@@ -106,16 +121,11 @@ func TestRunmeHandler_Roundtrip(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(h.Handler))
 	defer ts.Close()
 
-	id := strings.ReplaceAll(uuid.New().String(), "-", "")
-	wsURL := "ws" + ts.URL[len("http"):] + "?id=" + id
-	c, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	sc, _, err := dialWebSocket(ts)
 	if err != nil {
 		t.Errorf("Failed to dial websocket: %v", err)
 		return
 	}
-
-	// Wrap the websocket.Conn in a Connection
-	sc := NewConnection(c)
 
 	// todo(sebastian): reuses Runme's after moving it out under internal
 	runID := ulid.MustNew(ulid.Timestamp(time.Now()), ulid.DefaultEntropy())
@@ -138,13 +148,13 @@ func TestRunmeHandler_Roundtrip(t *testing.T) {
 		t.Errorf("Failed to marshal message: %v", err)
 	}
 
-	err = c.WriteMessage(websocket.TextMessage, dummyReq)
+	err = sc.WriteMessage(websocket.TextMessage, dummyReq)
 	if err != nil {
 		t.Errorf("Expected no error, got %v", err)
 	}
 
 	defer func() {
-		err := c.Close()
+		err := sc.Close()
 		if err != nil {
 			t.Errorf("Expected no error, got %v", err)
 		}
