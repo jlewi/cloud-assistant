@@ -18,7 +18,7 @@ type Streams struct {
 	auth *iam.AuthContext
 
 	mu    sync.RWMutex
-	conns map[string]*StreamConn
+	conns map[string]*Connection
 
 	authedSocketRequests chan *cassie.SocketRequest
 }
@@ -28,14 +28,14 @@ func NewStreams(ctx context.Context, auth *iam.AuthContext, socketRequests chan 
 	return &Streams{
 		ctx:                  ctx,
 		auth:                 auth,
-		conns:                make(map[string]*StreamConn, 1),
+		conns:                make(map[string]*Connection, 1),
 		authedSocketRequests: socketRequests,
 	}
 }
 
 // todo(sebastian): move into StreamConn?
 // sendError sends an error message to the websocket client before closing the connection.
-func (s *Streams) sendError(sc *StreamConn, code code.Code, message string) {
+func (s *Streams) sendError(sc *Connection, code code.Code, message string) {
 	log := logs.FromContextWithTrace(s.ctx)
 
 	response := &cassie.SocketResponse{
@@ -55,7 +55,7 @@ func (s *Streams) sendError(sc *StreamConn, code code.Code, message string) {
 	}
 }
 
-func (s *Streams) createStream(streamID string, sc *StreamConn, initialSocketRequest *cassie.SocketRequest) error {
+func (s *Streams) createStream(streamID string, sc *Connection, initialSocketRequest *cassie.SocketRequest) error {
 	log := logs.FromContextWithTrace(s.ctx)
 
 	if initialSocketRequest == nil {
@@ -113,7 +113,7 @@ func (s *Streams) close() {
 	}
 }
 
-func (s *Streams) receive(streamID string, sc *StreamConn) error {
+func (s *Streams) receive(streamID string, sc *Connection) error {
 	log := logs.FromContextWithTrace(s.ctx)
 
 	for {

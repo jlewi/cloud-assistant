@@ -11,8 +11,8 @@ import (
 	"google.golang.org/grpc/metadata"
 )
 
-// RunmeProcessor handles the execution requests and responses for a run.
-type RunmeProcessor struct {
+// Processor handles the execution requests and responses for a run.
+type Processor struct {
 	Ctx              context.Context
 	RunID            string
 	ExecuteRequests  chan *v2.ExecuteRequest
@@ -23,8 +23,9 @@ type RunmeProcessor struct {
 	Runner *runme.Runner
 }
 
-func NewRunmeProcessor(ctx context.Context, runID string) *RunmeProcessor {
-	p := &RunmeProcessor{
+// NewProcessor creates a new Processor that handles the execution requests and responses for a run.
+func NewProcessor(ctx context.Context, runID string) *Processor {
+	p := &Processor{
 		Ctx:   ctx,
 		RunID: runID,
 		// Create a channel to buffer requests
@@ -36,14 +37,14 @@ func NewRunmeProcessor(ctx context.Context, runID string) *RunmeProcessor {
 	return p
 }
 
-func (p *RunmeProcessor) close() {
+func (p *Processor) close() {
 	// Close the requests channel to signal to the Runme that no more requests are expected
 	close(p.ExecuteRequests)
 	// Close the responses channel to signal to the Runme that no more responses are expected
 	close(p.ExecuteResponses)
 }
 
-func (p *RunmeProcessor) Recv() (*v2.ExecuteRequest, error) {
+func (p *Processor) Recv() (*v2.ExecuteRequest, error) {
 	log := logs.FromContextWithTrace(p.Ctx)
 
 	req, ok := <-p.ExecuteRequests
@@ -59,40 +60,40 @@ func (p *RunmeProcessor) Recv() (*v2.ExecuteRequest, error) {
 // call Send multiple times to send multiple messages to the client.  An
 // error is returned if the stream was terminated unexpectedly, and the
 // handler method should return, as the stream is no longer usable.
-func (p *RunmeProcessor) Send(res *v2.ExecuteResponse) error {
+func (p *Processor) Send(res *v2.ExecuteResponse) error {
 	p.ExecuteResponses <- res
 	return nil
 }
 
-func (p *RunmeProcessor) SetHeader(md metadata.MD) error {
+func (p *Processor) SetHeader(md metadata.MD) error {
 	log := logs.FromContextWithTrace(p.Ctx)
 	log.Info("Set called", "md", md, "runID", p.RunID)
 	return nil
 }
 
-func (p *RunmeProcessor) SendHeader(md metadata.MD) error {
+func (p *Processor) SendHeader(md metadata.MD) error {
 	log := logs.FromContextWithTrace(p.Ctx)
 	log.Info("SendHeader called", "md", md, "runID", p.RunID)
 	return nil
 }
 
-func (p *RunmeProcessor) SetTrailer(md metadata.MD) {
+func (p *Processor) SetTrailer(md metadata.MD) {
 	log := logs.FromContextWithTrace(p.Ctx)
 	log.Info("SetTrailer called", "md", md, "runID", p.RunID)
 }
 
-func (p *RunmeProcessor) Context() context.Context {
+func (p *Processor) Context() context.Context {
 	return p.Ctx
 }
 
-func (p *RunmeProcessor) SendMsg(m any) error {
+func (p *Processor) SendMsg(m any) error {
 	err := errors.New("SendMsg is not implemented")
 	log := logs.FromContextWithTrace(p.Ctx)
 	log.Error(err, "SendMsg is not implemented")
 	return err
 }
 
-func (p *RunmeProcessor) RecvMsg(m any) error {
+func (p *Processor) RecvMsg(m any) error {
 	err := errors.New("RecvMsg is not implemented")
 	log := logs.FromContextWithTrace(p.Ctx)
 	log.Error(err, "RecvMsg is not implemented")

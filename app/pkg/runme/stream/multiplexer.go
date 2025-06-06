@@ -16,9 +16,9 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
-// RunmeMultiplexer is a processor for messages received over a websocket from a single RunmeConsole element
+// Multiplexer is a processor for messages received over a websocket from a single RunmeConsole element
 // in the DOM.
-type RunmeMultiplexer struct {
+type Multiplexer struct {
 	Ctx  context.Context
 	auth *iam.AuthContext
 
@@ -29,11 +29,12 @@ type RunmeMultiplexer struct {
 
 	mu sync.Mutex
 	// p is the processor that is currently processing messages. If p is nil then no processor is currently processing
-	p *RunmeProcessor
+	p *Processor
 }
 
-func NewRunmeMultiplexer(ctx context.Context, auth *iam.AuthContext, runner *runme.Runner) *RunmeMultiplexer {
-	m := &RunmeMultiplexer{
+// NewMultiplexer creates a new Multiplexer that manages the websocket connections for a single RunmeConsole element.
+func NewMultiplexer(ctx context.Context, auth *iam.AuthContext, runner *runme.Runner) *Multiplexer {
+	m := &Multiplexer{
 		Ctx:    ctx,
 		auth:   auth,
 		runner: runner,
@@ -46,7 +47,7 @@ func NewRunmeMultiplexer(ctx context.Context, auth *iam.AuthContext, runner *run
 	return m
 }
 
-func (m *RunmeMultiplexer) acceptConnection(streamID string, sc *StreamConn, initialSocketRequest *cassie.SocketRequest) error {
+func (m *Multiplexer) acceptConnection(streamID string, sc *Connection, initialSocketRequest *cassie.SocketRequest) error {
 	log := logs.FromContextWithTrace(m.Ctx)
 
 	if err := m.streams.createStream(streamID, sc, initialSocketRequest); err != nil {
@@ -72,7 +73,7 @@ func (m *RunmeMultiplexer) acceptConnection(streamID string, sc *StreamConn, ini
 }
 
 // close shuts down the RunmeMultiplexer
-func (m *RunmeMultiplexer) close() {
+func (m *Multiplexer) close() {
 	p := m.getInflight()
 	if p != nil {
 		p.close()
@@ -85,7 +86,7 @@ func (m *RunmeMultiplexer) close() {
 }
 
 // process reads messages from the websocket connection and puts them on the ExecuteRequests channel.
-func (m *RunmeMultiplexer) process() {
+func (m *Multiplexer) process() {
 	tracer := otel.Tracer("github.com/jlewi/cloud-assistant/app/pkg/server/websockets")
 	ctx, span := tracer.Start(m.Ctx, "RunmeMultiplexer.process")
 	defer span.End()
@@ -109,7 +110,7 @@ func (m *RunmeMultiplexer) process() {
 		// todo(sebastian): Still have to decide what to do if a user tries to send a new request before the current's done as below
 		p := m.getInflight()
 		if p == nil {
-			p = NewRunmeProcessor(ctx, req.GetRunId())
+			p = NewProcessor(ctx, req.GetRunId())
 			m.setInflight(p)
 			go m.execute(p)
 
@@ -126,13 +127,13 @@ func (m *RunmeMultiplexer) process() {
 	}
 }
 
-func (m *RunmeMultiplexer) getInflight() *RunmeProcessor {
+func (m *Multiplexer) getInflight() *Processor {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	return m.p
 }
 
-func (m *RunmeMultiplexer) setInflight(p *RunmeProcessor) {
+func (m *Multiplexer) setInflight(p *Processor) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.p = p
@@ -140,7 +141,7 @@ func (m *RunmeMultiplexer) setInflight(p *RunmeProcessor) {
 
 // execute invokes the Runme runner to execute the request.
 // It returns when the request has been processed by Runme.
-func (m *RunmeMultiplexer) execute(p *RunmeProcessor) {
+func (m *Multiplexer) execute(p *Processor) {
 	tracer := otel.Tracer("github.com/jlewi/cloud-assistant/app/pkg/server/websockets")
 	ctx, span := tracer.Start(m.Ctx, "RunmeHandler.execute")
 	defer span.End()
@@ -156,7 +157,7 @@ func (m *RunmeMultiplexer) execute(p *RunmeProcessor) {
 }
 
 // broadcastResponses listens for all the responses and sends them over the websocket connection.
-func (m *RunmeMultiplexer) broadcastResponses(c <-chan *v2.ExecuteResponse) {
+func (m *Multiplexer) broadcastResponses(c <-chan *v2.ExecuteResponse) {
 	log := logs.FromContextWithTrace(m.Ctx)
 	for {
 		res, ok := <-c

@@ -11,33 +11,33 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// StreamConn is a thin wrapper around *websocket.Conn for reading/writing SocketRequest/SocketResponse.
-type StreamConn struct {
+// Connection is a thin wrapper around *websocket.Conn for reading/writing SocketRequest/SocketResponse.
+type Connection struct {
 	conn *websocket.Conn
 }
 
-// NewStreamConn creates a new StreamConn from a websocket connection.
-func NewStreamConn(conn *websocket.Conn) *StreamConn {
-	return &StreamConn{conn: conn}
+// NewConnection creates a new Connection from a websocket connection.
+func NewConnection(conn *websocket.Conn) *Connection {
+	return &Connection{conn: conn}
 }
 
 // Close closes the websocket connection.
-func (sc *StreamConn) Close() error {
+func (sc *Connection) Close() error {
 	return sc.conn.Close()
 }
 
 // ReadSocketRequest reads a SocketRequest from the websocket connection.
-func (sc *StreamConn) ReadSocketRequest(ctx context.Context) (*cassie.SocketRequest, error) {
+func (sc *Connection) ReadSocketRequest(ctx context.Context) (*cassie.SocketRequest, error) {
 	return readSocketMessage(ctx, sc.conn, func() *cassie.SocketRequest { return &cassie.SocketRequest{} })
 }
 
 // ReadSocketResponse reads a SocketResponse from the websocket connection.
-func (sc *StreamConn) ReadSocketResponse(ctx context.Context) (*cassie.SocketResponse, error) {
+func (sc *Connection) ReadSocketResponse(ctx context.Context) (*cassie.SocketResponse, error) {
 	return readSocketMessage(ctx, sc.conn, func() *cassie.SocketResponse { return &cassie.SocketResponse{} })
 }
 
 // WriteSocketResponse writes a SocketResponse to the websocket connection as a TextMessage.
-func (sc *StreamConn) WriteSocketResponse(ctx context.Context, resp *cassie.SocketResponse) error {
+func (sc *Connection) WriteSocketResponse(ctx context.Context, resp *cassie.SocketResponse) error {
 	log := logs.FromContextWithTrace(ctx)
 	data, err := protojson.Marshal(resp)
 	if err != nil {
@@ -52,7 +52,7 @@ func (sc *StreamConn) WriteSocketResponse(ctx context.Context, resp *cassie.Sock
 }
 
 // WriteMessage writes a message to the websocket connection.
-func (sc *StreamConn) WriteMessage(messageType int, data []byte) error {
+func (sc *Connection) WriteMessage(messageType int, data []byte) error {
 	return sc.conn.WriteMessage(messageType, data)
 }
 

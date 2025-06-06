@@ -31,14 +31,14 @@ type WebSocketHandler struct {
 	runner *runme.Runner
 
 	mu   sync.Mutex
-	runs map[string]*RunmeMultiplexer
+	runs map[string]*Multiplexer
 }
 
 func NewWebSocketHandler(runner *runme.Runner, auth *iam.AuthContext) *WebSocketHandler {
 	return &WebSocketHandler{
 		auth:   auth,
 		runner: runner,
-		runs:   make(map[string]*RunmeMultiplexer),
+		runs:   make(map[string]*Multiplexer),
 	}
 }
 
@@ -67,7 +67,7 @@ func (h *WebSocketHandler) Handler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Could not upgrade to websocket", http.StatusInternalServerError)
 		return
 	}
-	sc := NewStreamConn(conn)
+	sc := NewConnection(conn)
 
 	multiplex, err := h.handleConnection(ctx, streamID, sc)
 	if err != nil {
@@ -82,7 +82,7 @@ func (h *WebSocketHandler) Handler(w http.ResponseWriter, r *http.Request) {
 }
 
 // handleConnection handles a websocket connection for a single stream. streamID is a uuidv4 without dashes to identify a stream.
-func (h *WebSocketHandler) handleConnection(ctx context.Context, streamID string, sc *StreamConn) (*RunmeMultiplexer, error) {
+func (h *WebSocketHandler) handleConnection(ctx context.Context, streamID string, sc *Connection) (*Multiplexer, error) {
 	log := logs.FromContextWithTrace(ctx)
 
 	req, err := sc.ReadSocketRequest(ctx)
@@ -104,7 +104,7 @@ func (h *WebSocketHandler) handleConnection(ctx context.Context, streamID string
 		return nil, errors.New("run already exists")
 	}
 
-	multiplex := NewRunmeMultiplexer(ctx, h.auth, h.runner)
+	multiplex := NewMultiplexer(ctx, h.auth, h.runner)
 	if err := multiplex.acceptConnection(streamID, sc, req); err != nil {
 		return nil, errors.Wrap(err, "could not accept connection")
 	}

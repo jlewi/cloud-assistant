@@ -114,8 +114,8 @@ func TestRunmeHandler_Roundtrip(t *testing.T) {
 		return
 	}
 
-	// Wrap the websocket.Conn in a StreamConn
-	sc := NewStreamConn(c)
+	// Wrap the websocket.Conn in a Connection
+	sc := NewConnection(c)
 
 	// todo(sebastian): reuses Runme's after moving it out under internal
 	runID := ulid.MustNew(ulid.Timestamp(time.Now()), ulid.DefaultEntropy())
