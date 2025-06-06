@@ -10,7 +10,6 @@ import (
 	"github.com/jlewi/cloud-assistant/app/pkg/logs"
 	"github.com/jlewi/cloud-assistant/app/pkg/runme"
 	"github.com/jlewi/cloud-assistant/protos/gen/cassie"
-	v2 "github.com/runmedev/runme/v3/api/gen/proto/go/runme/runner/v2"
 	"go.opentelemetry.io/otel"
 	"google.golang.org/genproto/googleapis/rpc/code"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -19,7 +18,9 @@ import (
 // Multiplexer is a processor for messages received over a websocket from a single RunmeConsole element
 // in the DOM.
 type Multiplexer struct {
-	Ctx   context.Context
+	ctx    context.Context
+	cancel context.CancelFunc
+
 	runID string
 
 	auth    *iam.AuthContext
@@ -36,8 +37,11 @@ type Multiplexer struct {
 
 // NewMultiplexer creates a new Multiplexer that manages the websocket connections for a single RunmeConsole element.
 func NewMultiplexer(ctx context.Context, runID string, auth *iam.AuthContext, runner *runme.Runner) *Multiplexer {
+	ctx, cancel := context.WithCancel(ctx)
 	m := &Multiplexer{
-		Ctx:    ctx,
+		ctx:    ctx,
+		cancel: cancel,
+
 		runID:  runID,
 		auth:   auth,
 		runner: runner,
@@ -51,7 +55,7 @@ func NewMultiplexer(ctx context.Context, runID string, auth *iam.AuthContext, ru
 }
 
 func (m *Multiplexer) acceptConnection(streamID string, sc *Connection) error {
-	log := logs.FromContextWithTrace(m.Ctx)
+	log := logs.FromContextWithTrace(m.ctx)
 
 	if err := m.streams.createStream(streamID, sc); err != nil {
 		log.Error(err, "Could not create stream")
@@ -84,14 +88,18 @@ func (m *Multiplexer) close() {
 	m.setInflight(nil)
 	// Wait for 30s to give the client a chance to close the connection.
 	time.Sleep(30 * time.Second)
+	// Delay close because clients might still be connected.
+	close(m.authedSocketRequests)
 	// With Runme's execution finished we can close all websocket connections.
 	m.streams.close()
 }
 
-// process reads messages from the websocket connection and puts them on the ExecuteRequests channel.
-func (m *Multiplexer) process() {
+// process keeps reading messages and multiplexing them to clients (even if all clients disconnect) until the processor is done.
+func (m *Multiplexer) process() (wait bool) {
+	wait = true
+
 	tracer := otel.Tracer("github.com/jlewi/cloud-assistant/app/pkg/runme/stream")
-	ctx, span := tracer.Start(m.Ctx, "Multiplexer.process")
+	ctx, span := tracer.Start(m.ctx, "Multiplexer.process")
 	defer span.End()
 	log := logs.FromContextWithTrace(ctx)
 
@@ -99,6 +107,7 @@ func (m *Multiplexer) process() {
 	p := m.getInflight()
 	if p != nil {
 		log.Info("Already have a run in flight", "runID", m.runID)
+		wait = false
 		return
 	}
 	p = NewProcessor(ctx, m.runID)
@@ -107,7 +116,7 @@ func (m *Multiplexer) process() {
 	// start a goroutine to execute requests against runme server
 	go m.execute(p)
 	// start a separate goroutine to broadcast responses to all clients
-	go m.broadcastResponses(p.ExecuteResponses)
+	go m.broadcastResponses(p)
 
 	// TODO(jlewi): What should we do if a user tries to send a new request before the current one has finished?
 	// How can we detect if its a new request? Should we check if anything other than a "Stop" request is sent
@@ -120,6 +129,14 @@ func (m *Multiplexer) process() {
 	defer m.close()
 
 	for {
+		select {
+		case <-m.ctx.Done():
+			log.Info("Context done, no need to process more requests")
+			return
+		default:
+			// Move on to reading the next request.
+		}
+
 		req, ok := <-m.authedSocketRequests
 		if !ok {
 			log.Info("Closing authedSocketRequests channel")
@@ -151,11 +168,12 @@ func (m *Multiplexer) setInflight(p *Processor) {
 // It returns when the request has been processed by Runme.
 func (m *Multiplexer) execute(p *Processor) {
 	tracer := otel.Tracer("github.com/jlewi/cloud-assistant/app/pkg/runme/stream")
-	ctx, span := tracer.Start(m.Ctx, "Multiplexer.execute")
+	ctx, span := tracer.Start(m.ctx, "Multiplexer.execute")
 	defer span.End()
 
-	// On exit we close the authedSocketRequests channel because Runme execution is finished.
-	defer close(m.authedSocketRequests)
+	// On exit we cancel the context because Runme execution is finished.
+	defer m.cancel()
+
 	log := logs.FromContextWithTrace(ctx)
 	// Send the request to the runner
 	if err := m.runner.Server.Execute(p); err != nil {
@@ -165,13 +183,17 @@ func (m *Multiplexer) execute(p *Processor) {
 }
 
 // broadcastResponses listens for all the responses and sends them over the websocket connection.
-func (m *Multiplexer) broadcastResponses(c <-chan *v2.ExecuteResponse) {
-	log := logs.FromContextWithTrace(m.Ctx)
+func (m *Multiplexer) broadcastResponses(p *Processor) {
+	tracer := otel.Tracer("github.com/jlewi/cloud-assistant/app/pkg/runme/stream")
+	ctx, span := tracer.Start(m.ctx, "Multiplexer.broadcastResponses")
+	log := logs.FromContextWithTrace(ctx)
+	defer span.End()
+
 	for {
-		res, ok := <-c
+		res, ok := <-p.ExecuteResponses
 		if !ok {
-			// The channel is closed
 			log.Info("Channel to SocketProcessor closed")
+			// The channel is closed, no more responses to broadcast.
 			return
 		}
 		response := &cassie.SocketResponse{

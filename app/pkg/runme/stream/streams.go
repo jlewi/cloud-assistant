@@ -9,6 +9,7 @@ import (
 	"github.com/jlewi/cloud-assistant/app/pkg/logs"
 	"github.com/jlewi/cloud-assistant/protos/gen/cassie"
 	"github.com/pkg/errors"
+	"google.golang.org/genproto/googleapis/rpc/code"
 )
 
 // Streams manages multiple websocket connections attached to a muliplexed Runme execution.
@@ -31,28 +32,6 @@ func NewStreams(ctx context.Context, auth *iam.AuthContext, socketRequests chan 
 		authedSocketRequests: socketRequests,
 	}
 }
-
-// todo(sebastian): move into StreamConn?
-// sendError sends an error message to the websocket client before closing the connection.
-// func (s *Streams) sendError(sc *Connection, code code.Code, message string) {
-// 	log := logs.FromContextWithTrace(s.ctx)
-
-// 	response := &cassie.SocketResponse{
-// 		Status: &cassie.SocketStatus{
-// 			Code:    code,
-// 			Message: message,
-// 		},
-// 	}
-
-// 	err := sc.WriteSocketResponse(s.ctx, response)
-// 	if err != nil {
-// 		log.Error(err, "Could not send error message")
-// 	}
-
-// 	if err := sc.Close(); err != nil {
-// 		log.Error(err, "Could not close websocket")
-// 	}
-// }
 
 func (s *Streams) createStream(streamID string, sc *Connection) error {
 	s.mu.Lock()
@@ -113,6 +92,7 @@ func (s *Streams) receive(streamID string, sc *Connection) error {
 		// Return error to reject the connection if the socket request is not authorized.
 		if err := s.auth.AuthorizeRequest(s.ctx, req); err != nil {
 			log.Error(err, "Could not authorize request", "streamID", streamID, "runID", req.GetRunId())
+			sc.ErrorMessage(s.ctx, code.Code_PERMISSION_DENIED, "Unauthorized request")
 			return err
 		}
 

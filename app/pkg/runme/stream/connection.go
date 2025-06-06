@@ -8,6 +8,7 @@ import (
 	"github.com/jlewi/cloud-assistant/app/pkg/logs"
 	"github.com/jlewi/cloud-assistant/protos/gen/cassie"
 	"github.com/pkg/errors"
+	"google.golang.org/genproto/googleapis/rpc/code"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 )
@@ -35,6 +36,27 @@ func (sc *Connection) Error(message string) error {
 		websocket.FormatCloseMessage(websocket.CloseProtocolError, message),
 		time.Now(),
 	)
+}
+
+// ErrorMessage sends an error to the websocket client before closing the connection.
+func (sc *Connection) ErrorMessage(ctx context.Context, code code.Code, message string) {
+	log := logs.FromContextWithTrace(ctx)
+
+	response := &cassie.SocketResponse{
+		Status: &cassie.SocketStatus{
+			Code:    code,
+			Message: message,
+		},
+	}
+
+	err := sc.WriteSocketResponse(ctx, response)
+	if err != nil {
+		log.Error(err, "Could not send error message")
+	}
+
+	if err := sc.Close(); err != nil {
+		log.Error(err, "Could not close websocket")
+	}
 }
 
 // ReadSocketRequest reads a SocketRequest from the websocket connection.

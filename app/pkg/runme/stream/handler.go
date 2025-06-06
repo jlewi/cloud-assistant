@@ -85,9 +85,13 @@ func (h *WebSocketHandler) Handler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Keep reading messages (even with 0 clients) and multiplexing them to clients until the processor is done.
-	multiplex.process()
-	log.Info("Websocket handler finished", "runID", runID, "streamID", streamID)
+	// If the processor was blocking, we remove the run from the handler.
+	wait := multiplex.process()
+	if wait {
+		h.removeRun(ctx, runID)
+	}
+
+	log.Info("Websocket handler finished", "runID", runID, "streamID", streamID, "wait", wait)
 }
 
 // handleConnection handles a websocket connection for a single stream.
@@ -110,4 +114,16 @@ func (h *WebSocketHandler) handleConnection(ctx context.Context, runID string, s
 	}
 
 	return multiplex, nil
+}
+
+// removeRun removes a run from the handler. It is called when the processor is done.
+func (h *WebSocketHandler) removeRun(ctx context.Context, runID string) {
+	log := logs.FromContextWithTrace(ctx)
+	log.Info("WebSocketHandler.removeRun", "runID", runID)
+
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	delete(h.runs, runID)
+	log.Info("WebSocketHandler.removeRun: run deleted", "runID", runID)
 }

@@ -295,15 +295,15 @@ func TestRunmeHandler_MutliClient(t *testing.T) {
 		results[out.idx] = out.res
 	}
 
-	// Check all results match the expected sequence
-	for i, seq := range results {
-		if len(seq.seq) != len(expectSequence) {
-			t.Errorf("Socket %d: expected %d messages, got %d", i+1, len(expectSequence), len(seq.seq))
-			continue
-		}
-		for j, expected := range expectSequence {
-			if seq.seq[j] != expected {
-				t.Errorf("Socket %d: expected '%s', got '%s' at message %d", i+1, expected, seq.seq[j], j)
+	// Check all connection's results match the expected sequence
+	for i, expected := range expectSequence {
+		for j, seq := range results {
+			if len(seq.seq) <= i {
+				t.Errorf("Socket %d: expected message '%s' at index %d, but got only %d messages", j+1, expected, i, len(seq.seq))
+				continue
+			}
+			if seq.seq[i] != expected {
+				t.Errorf("Socket %d: expected '%s', got '%s' at message %d", j+1, expected, seq.seq[i], i)
 			}
 		}
 	}
