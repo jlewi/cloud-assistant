@@ -99,7 +99,7 @@ func (h *WebSocketHandler) handleConnection(ctx context.Context, streamID string
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
-	// todo(sebastian): if we already have a run when should accept the connection
+	// todo(sebastian): if we already have a run when should accept the connection on the existing multiplexer.
 	if _, ok := h.runs[runID]; ok {
 		return nil, errors.New("run already exists")
 	}
@@ -109,7 +109,7 @@ func (h *WebSocketHandler) handleConnection(ctx context.Context, streamID string
 		return nil, errors.Wrap(err, "could not accept connection")
 	}
 
-	// todo(sebastian): This is temporary until we decide when to evict the run
+	// todo(sebastian): Temporarily just add the run until we decide when to evict runs.
 	h.runs[runID] = multiplex
 
 	return multiplex, nil
