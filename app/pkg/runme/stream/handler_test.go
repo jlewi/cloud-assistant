@@ -114,9 +114,10 @@ func TestRunmeHandler_Roundtrip(t *testing.T) {
 		return nil
 	})
 
-	h := NewWebSocketHandler(&runme.Runner{Server: mockRunmeServer}, &iam.AuthContext{
-		Checker: &iam.AllowAllChecker{},
-	})
+	h := NewWebSocketHandler(
+		&runme.Runner{Server: mockRunmeServer},
+		&iam.AuthContext{Checker: &iam.AllowAllChecker{}},
+	)
 
 	ts := httptest.NewServer(http.HandlerFunc(h.Handler))
 	defer ts.Close()
@@ -176,6 +177,132 @@ func TestRunmeHandler_Roundtrip(t *testing.T) {
 		stdout := string(dummyResp.GetExecuteResponse().GetStdoutData())
 		if stdout != "hello from mock runme" && stdout != "bye bye" {
 			t.Errorf("Unexpected stdout data: '%s'", stdout)
+		}
+	}
+}
+
+func TestRunmeHandler_MutliClient(t *testing.T) {
+	expectSequence := []string{"hello from mock runme", "bye bye"}
+
+	mockRunmeServer := newMockRunmeServer()
+	mockRunmeServer.SetResponder(func() error {
+		for i, resp := range expectSequence {
+			mockRunmeServer.executeResponses <- &v2.ExecuteResponse{
+				StdoutData: []byte(resp),
+			}
+			time.Sleep(10 * time.Millisecond * time.Duration(i+1))
+		}
+		mockRunmeServer.executeResponses <- &v2.ExecuteResponse{
+			ExitCode: &wrappers.UInt32Value{Value: 0},
+		}
+		return nil
+	})
+
+	h := NewWebSocketHandler(
+		&runme.Runner{Server: mockRunmeServer},
+		&iam.AuthContext{Checker: &iam.AllowAllChecker{}},
+	)
+
+	ts := httptest.NewServer(http.HandlerFunc(h.Handler))
+	defer ts.Close()
+
+	numSockets := 1
+	connections := make([]*Connection, 0, numSockets)
+
+	for i := range numSockets {
+		sc, _, err := dialWebSocket(ts)
+		if err != nil {
+			t.Errorf("Failed to dial websocket %d: %v", i+1, err)
+			for _, c := range connections {
+				_ = c.Close()
+			}
+			return
+		}
+		connections = append(connections, sc)
+	}
+
+	runID := ulid.MustNew(ulid.Timestamp(time.Now()), ulid.DefaultEntropy())
+	dummyReq, err := protojson.Marshal(&cassie.SocketRequest{
+		RunId: runID.String(),
+		Payload: &cassie.SocketRequest_ExecuteRequest{
+			ExecuteRequest: &v2.ExecuteRequest{
+				Config: &v2.ProgramConfig{
+					Source: &v2.ProgramConfig_Commands{
+						Commands: &v2.ProgramConfig_CommandList{
+							Items: []string{"echo", "hi"},
+						},
+					},
+				},
+			},
+		},
+	})
+	if err != nil {
+		t.Errorf("Failed to marshal message: %v", err)
+	}
+
+	// A single input is enough to start porcessing inside the multiplexer.
+	if err := connections[0].WriteMessage(websocket.TextMessage, dummyReq); err != nil {
+		t.Errorf("Expected no error on sc1, got %v", err)
+	}
+
+	defer func() {
+		for i, sc := range connections {
+			err := sc.Close()
+			if err != nil {
+				t.Errorf("Expected no error closing sc%d, got %v", i+1, err)
+			}
+		}
+	}()
+
+	type result struct {
+		seq []string
+		err error
+	}
+
+	readSequence := func(sc *Connection) result {
+		var seq []string
+		for {
+			dummyResp, err := sc.ReadSocketResponse(context.Background())
+			if err != nil {
+				return result{seq, err}
+			}
+			if dummyResp.GetExecuteResponse().GetExitCode() != nil {
+				return result{seq, nil}
+			}
+			stdout := string(dummyResp.GetExecuteResponse().GetStdoutData())
+			seq = append(seq, stdout)
+		}
+	}
+
+	resCh := make(chan struct {
+		idx int
+		res result
+	}, numSockets)
+
+	for i, sc := range connections {
+		go func(idx int, conn *Connection) {
+			resCh <- struct {
+				idx int
+				res result
+			}{idx, readSequence(conn)}
+		}(i, sc)
+	}
+
+	results := make([]result, numSockets)
+	for range numSockets {
+		out := <-resCh
+		results[out.idx] = out.res
+	}
+
+	for i, seq := range results {
+		if len(seq.seq) != len(expectSequence) {
+			t.Errorf("Socket %d: expected %d messages, got %d", i+1, len(expectSequence), len(seq.seq))
+			continue
+		}
+		for j, expected := range expectSequence {
+			if seq.seq[j] != expected {
+				t.Errorf("Socket %d: expected '%s', got '%s' at message %d", i+1, expected, seq.seq[j], j)
+			}
 		}
 	}
 }
