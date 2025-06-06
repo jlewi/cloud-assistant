@@ -46,6 +46,14 @@ type Asserter interface {
 	Assert(ctx context.Context, as *cassie.Assertion, inputText string, blocks map[string]*cassie.Block) error
 }
 
+func dumpBlocks(blocks map[string]*cassie.Block) string {
+	var context_builder strings.Builder
+	for _, block := range blocks {
+		context_builder.WriteString(fmt.Sprintf("Type: %s, Role: %s, Contents: %s\n", block.Kind, block.Role, block.Contents))
+	}
+	return context_builder.String()
+}
+
 type shellRequiredFlag struct{}
 
 func (s shellRequiredFlag) Assert(ctx context.Context, as *cassie.Assertion, inputText string, blocks map[string]*cassie.Block) error {
@@ -63,7 +71,7 @@ func (s shellRequiredFlag) Assert(ctx context.Context, as *cassie.Assertion, inp
 				}
 				for _, flag := range flags { // If the command is present, check for all required flags
 					if !strings.Contains(block.Contents, flag) {
-						as.FailureReason += fmt.Sprintf("Flag %s is missing\n", flag)
+						as.FailureReason += fmt.Sprintf("Flag %s is missing", flag)
 						as.Result = cassie.Assertion_RESULT_FALSE // Set to FAILED if any required flag is missing
 					}
 				}
@@ -76,7 +84,6 @@ func (s shellRequiredFlag) Assert(ctx context.Context, as *cassie.Assertion, inp
 
 	logger, _ := logr.FromContext(ctx)
 	logger.Info("shellRequiredFlag", "assertion", as.Name, "result", as.Result)
-	fmt.Println("shellRequiredFlag", as.Name, as.Result)
 	return nil
 }
 
@@ -100,7 +107,6 @@ func (t toolInvocation) Assert(ctx context.Context, as *cassie.Assertion, inputT
 	}
 	logger, _ := logr.FromContext(ctx)
 	logger.Info("toolInvocation", "assertion", as.Name, "result", as.Result)
-	fmt.Println("toolInvocation", as.Name, as.Result)
 	return nil
 }
 
@@ -124,7 +130,6 @@ func (f fileRetrieved) Assert(ctx context.Context, as *cassie.Assertion, inputTe
 	}
 	logger, _ := logr.FromContext(ctx)
 	logger.Info("fileRetrieved", "assertion", as.Name, "result", as.Result)
-	fmt.Println("fileRetrieved", as.Name, as.Result)
 	return nil
 }
 
@@ -205,7 +210,6 @@ func (l llmJudge) Assert(ctx context.Context, as *cassie.Assertion, inputText st
 
 	logger.Info("llmJudge", "response", response.OutputText())
 	logger.Info("llmJudge", "assertion", as.Name, "result", as.Result)
-	fmt.Println("llmJudge", as.Name, as.Result)
 	return nil
 }
 
@@ -239,7 +243,6 @@ func (c codeblockRegex) Assert(ctx context.Context, as *cassie.Assertion, inputT
 	}
 	logger, _ := logr.FromContext(ctx)
 	logger.Info("codeblockRegex", "assertion", as.Name, "result", as.Result)
-	fmt.Println("codeblockRegex", as.Name, as.Result)
 	return nil
 }
 
@@ -337,28 +340,15 @@ func runInference(input string, cassieCookie string, inferenceEndpoint string) (
 	// Receive responses
 	for stream.Receive() {
 		response := stream.Msg()
-
 		for _, block := range response.Blocks {
 			blocks[block.Id] = block
-
-			options := protojson.MarshalOptions{
-				Multiline: true,
-				Indent:    "  ", // Two spaces for indentation
-			}
-
-			// Marshal the protobuf message to JSON
-			jsonData, err := options.Marshal(block)
-			if err != nil {
-				log.Error(err, "Failed to marshal block to JSON")
-			} else {
-				log.Info("Block", "block", string(jsonData))
-			}
 		}
-
 	}
-
 	if stream.Err() != nil {
 		return blocks, errors.Wrapf(stream.Err(), "Error receiving response")
+	}
+	for _, block := range blocks {
+		log.Info(fmt.Sprintf("Received %d blocks. Type: %s, Role: %s, Contents: %s", len(blocks), block.Kind, block.Role, block.Contents))
 	}
 	return blocks, nil
 }
@@ -374,9 +364,10 @@ type markdownReport struct {
 	NumSkipped         int
 	AssertionTypeStats map[string]struct{ Passed, Failed, Skipped int }
 	FailedAssertions   []struct {
-		Sample    string
-		Assertion string
-		Reason    string
+		Sample     string
+		Assertion  string
+		Reason     string
+		BlocksDump string
 	}
 	Commit    string
 	Version   string
@@ -421,9 +412,15 @@ func (r *markdownReport) Render() string {
 	lines = append(lines, "")
 	if len(r.FailedAssertions) > 0 {
 		lines = append(lines, fmt.Sprintf("<details>\n<summary>❌ %d failed assertions (click to expand)</summary>\n", len(r.FailedAssertions)))
-		lines = append(lines, "\n| Sample | Assertion | Reason |\n|--------|-----------|--------|")
+		lines = append(lines, "\n| Sample | Assertion | Reason | Blocks Dump |\n|--------|-----------|--------|-------------|")
 		for _, fail := range r.FailedAssertions {
-			lines = append(lines, fmt.Sprintf("| `%s` | `%s` | %s |", fail.Sample, fail.Assertion, fail.Reason))
+			escapedDump := strings.ReplaceAll(fail.BlocksDump, "\n", "<br/>")
+			escapedDump = strings.ReplaceAll(escapedDump, "|", "&#124;")
+			escapedReason := strings.ReplaceAll(fail.Reason, "|", "&#124;")
+			escapedReason = strings.ReplaceAll(escapedReason, "\n", "<br/>")
+			lines = append(lines,
+				fmt.Sprintf("| `%s` | `%s` | %s | <details><summary>🔍 View</summary><pre>%s</pre></details> |",
+					fail.Sample, fail.Assertion, escapedReason, escapedDump))
 		}
 		lines = append(lines, "\n</details>\n")
 	}
@@ -490,7 +487,7 @@ func EvalFromExperiment(exp *cassie.Experiment, cookie map[string]string, api_ke
 	numPassed := 0
 	numFailed := 0
 	numSkipped := 0
-	failedAssertions := []struct{ Sample, Assertion, Reason string }{}
+	failedAssertions := []struct{ Sample, Assertion, Reason, BlocksDump string }{}
 
 	for _, sample := range dataset.Samples {
 		blocks, err := runInference(sample.InputText, cassieCookie, inferenceEndpoint)
@@ -512,10 +509,11 @@ func EvalFromExperiment(exp *cassie.Experiment, cookie map[string]string, api_ke
 			case cassie.Assertion_RESULT_FALSE:
 				numFailed++
 				stat.Failed++
-				failedAssertions = append(failedAssertions, struct{ Sample, Assertion, Reason string }{
-					Sample:    sample.Metadata.GetName(),
-					Assertion: assertion.Name,
-					Reason:    assertion.GetFailureReason(),
+				failedAssertions = append(failedAssertions, struct{ Sample, Assertion, Reason, BlocksDump string }{
+					Sample:     sample.Metadata.GetName(),
+					Assertion:  assertion.Name,
+					Reason:     assertion.GetFailureReason(),
+					BlocksDump: dumpBlocks(blocks),
 				})
 			case cassie.Assertion_RESULT_SKIPPED:
 				numSkipped++
