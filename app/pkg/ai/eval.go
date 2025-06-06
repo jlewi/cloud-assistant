@@ -124,11 +124,12 @@ func (l llmJudge) Assert(ctx context.Context, as *cassie.Assertion, inputText st
 	var context_builder strings.Builder
 	context_builder.WriteString("User: " + inputText + "\n")
 	for _, block := range blocks {
-		if block.Role == cassie.BlockRole_BLOCK_ROLE_ASSISTANT {
+		switch block.Role {
+		case cassie.BlockRole_BLOCK_ROLE_ASSISTANT:
 			context_builder.WriteString("Assistant: " + block.Contents + "\n")
-		} else if block.Role == cassie.BlockRole_BLOCK_ROLE_USER {
+		case cassie.BlockRole_BLOCK_ROLE_USER:
 			context_builder.WriteString("User: " + block.Contents + "\n")
-		} else if block.Role == cassie.BlockRole_BLOCK_ROLE_UNKNOWN {
+		case cassie.BlockRole_BLOCK_ROLE_UNKNOWN:
 			context_builder.WriteString("Unknown: " + block.Contents + "\n")
 			logger.Info("Unknown block role", "block", block)
 		}
