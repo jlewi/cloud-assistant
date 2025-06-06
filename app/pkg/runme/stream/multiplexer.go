@@ -19,9 +19,10 @@ import (
 // Multiplexer is a processor for messages received over a websocket from a single RunmeConsole element
 // in the DOM.
 type Multiplexer struct {
-	Ctx  context.Context
-	auth *iam.AuthContext
+	Ctx   context.Context
+	runID string
 
+	auth    *iam.AuthContext
 	runner  *runme.Runner
 	streams *Streams
 
@@ -34,9 +35,10 @@ type Multiplexer struct {
 }
 
 // NewMultiplexer creates a new Multiplexer that manages the websocket connections for a single RunmeConsole element.
-func NewMultiplexer(ctx context.Context, auth *iam.AuthContext, runner *runme.Runner) *Multiplexer {
+func NewMultiplexer(ctx context.Context, runID string, auth *iam.AuthContext, runner *runme.Runner) *Multiplexer {
 	m := &Multiplexer{
 		Ctx:    ctx,
+		runID:  runID,
 		auth:   auth,
 		runner: runner,
 	}
@@ -48,10 +50,10 @@ func NewMultiplexer(ctx context.Context, auth *iam.AuthContext, runner *runme.Ru
 	return m
 }
 
-func (m *Multiplexer) acceptConnection(streamID string, sc *Connection, initialSocketRequest *cassie.SocketRequest) error {
+func (m *Multiplexer) acceptConnection(streamID string, sc *Connection) error {
 	log := logs.FromContextWithTrace(m.Ctx)
 
-	if err := m.streams.createStream(streamID, sc, initialSocketRequest); err != nil {
+	if err := m.streams.createStream(streamID, sc); err != nil {
 		log.Error(err, "Could not create stream")
 		return err
 	}
@@ -93,12 +95,26 @@ func (m *Multiplexer) process() {
 	defer span.End()
 	log := logs.FromContextWithTrace(ctx)
 
-	// Return early if we already have an inflight request.
+	// todo(sebastian): Still have to decide what to do if a user tries to send a new request before the current's done as below
 	p := m.getInflight()
 	if p != nil {
-		log.Info("Multiplexer.process: returning early because execution already inflight", "runID", p.RunID)
+		log.Info("Already have a run in flight", "runID", m.runID)
 		return
 	}
+	p = NewProcessor(ctx, m.runID)
+	m.setInflight(p)
+
+	// start a goroutine to execute requests against runme server
+	go m.execute(p)
+	// start a separate goroutine to broadcast responses to all clients
+	go m.broadcastResponses(p.ExecuteResponses)
+
+	// TODO(jlewi): What should we do if a user tries to send a new request before the current one has finished?
+	// How can we detect if its a new request? Should we check if anything other than a "Stop" request is sent
+	// after the first request? Right now we are just passing it along to RunME. Hopefully, RunMe handles it.
+
+	// Put the request on the channel
+	// Access the local variable to ensure its always set at this point and avoid race conditions.
 
 	// When the authedSocketRequests channel closes Runme finished executing the command.
 	defer m.close()
@@ -115,22 +131,6 @@ func (m *Multiplexer) process() {
 			continue
 		}
 
-		// todo(sebastian): Still have to decide what to do if a user tries to send a new request before the current's done as below
-		p := m.getInflight()
-		if p == nil {
-			p = NewProcessor(ctx, req.GetRunId())
-			m.setInflight(p)
-			go m.execute(p)
-
-			// start a separate goroutine to broadcast responses to all clients
-			go m.broadcastResponses(p.ExecuteResponses)
-		}
-		// TODO(jlewi): What should we do if a user tries to send a new request before the current one has finished?
-		// How can we detect if its a new request? Should we check if anything other than a "Stop" request is sent
-		// after the first request? Right now we are just passing it along to RunME. Hopefully, RunMe handles it.
-
-		// Put the request on the channel
-		// Access the local variable to ensure its always set at this point and avoid race conditions.
 		p.ExecuteRequests <- req.GetExecuteRequest()
 	}
 }

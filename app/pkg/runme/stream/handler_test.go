@@ -20,10 +20,16 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
+// todo(sebastian): reuses Runme's after moving it out under internal
+func genULID() ulid.ULID {
+	runID := ulid.MustNew(ulid.Timestamp(time.Now()), ulid.DefaultEntropy())
+	return runID
+}
+
 // dialWebSocket dials a websocket URL with a random id for testing and returns the connection, response, and error.
-func dialWebSocket(ts *httptest.Server) (*Connection, *http.Response, error) {
-	id := strings.ReplaceAll(uuid.New().String(), "-", "")
-	wsURL := "ws" + ts.URL[len("http"):] + "?id=" + id
+func dialWebSocket(ts *httptest.Server, runID string) (*Connection, *http.Response, error) {
+	streamID := strings.ReplaceAll(uuid.New().String(), "-", "")
+	wsURL := "ws" + ts.URL[len("http"):] + "?id=" + streamID + "&runID=" + runID
 	c, r, err := websocket.DefaultDialer.Dial(wsURL, nil)
 	if err != nil {
 		return nil, nil, err
@@ -43,7 +49,7 @@ func TestWebSocketHandler_Handler_SwitchingProtocols(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(h.Handler))
 	defer ts.Close()
 
-	sc, resp, err := dialWebSocket(ts)
+	sc, resp, err := dialWebSocket(ts, genULID().String())
 	if err != nil {
 		t.Errorf("Failed to dial websocket: %v", err)
 	}
@@ -122,14 +128,13 @@ func TestRunmeHandler_Roundtrip(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(h.Handler))
 	defer ts.Close()
 
-	sc, _, err := dialWebSocket(ts)
+	sc, _, err := dialWebSocket(ts, genULID().String())
 	if err != nil {
 		t.Errorf("Failed to dial websocket: %v", err)
 		return
 	}
 
-	// todo(sebastian): reuses Runme's after moving it out under internal
-	runID := ulid.MustNew(ulid.Timestamp(time.Now()), ulid.DefaultEntropy())
+	runID := genULID()
 
 	dummyReq, err := protojson.Marshal(&cassie.SocketRequest{
 		RunId: runID.String(),
@@ -182,6 +187,7 @@ func TestRunmeHandler_Roundtrip(t *testing.T) {
 }
 
 func TestRunmeHandler_MutliClient(t *testing.T) {
+	runID := genULID()
 	expectSequence := []string{"hello from mock runme", "bye bye"}
 
 	mockRunmeServer := newMockRunmeServer()
@@ -206,22 +212,17 @@ func TestRunmeHandler_MutliClient(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(h.Handler))
 	defer ts.Close()
 
-	numSockets := 1
+	numSockets := 5
 	connections := make([]*Connection, 0, numSockets)
 
 	for i := range numSockets {
-		sc, _, err := dialWebSocket(ts)
+		sc, _, err := dialWebSocket(ts, runID.String())
 		if err != nil {
-			t.Errorf("Failed to dial websocket %d: %v", i+1, err)
-			for _, c := range connections {
-				_ = c.Close()
-			}
-			return
+			t.Fatalf("Failed to dial websocket %d: %v", i+1, err)
 		}
 		connections = append(connections, sc)
 	}
 
-	runID := ulid.MustNew(ulid.Timestamp(time.Now()), ulid.DefaultEntropy())
 	dummyReq, err := protojson.Marshal(&cassie.SocketRequest{
 		RunId: runID.String(),
 		Payload: &cassie.SocketRequest_ExecuteRequest{
@@ -240,16 +241,16 @@ func TestRunmeHandler_MutliClient(t *testing.T) {
 		t.Errorf("Failed to marshal message: %v", err)
 	}
 
-	// A single input is enough to start porcessing inside the multiplexer.
+	// A single ExecuteRequest is enough to start processing inside the multiplexer.
 	if err := connections[0].WriteMessage(websocket.TextMessage, dummyReq); err != nil {
-		t.Errorf("Expected no error on sc1, got %v", err)
+		t.Fatalf("Expected no error on sc1, got %v", err)
 	}
 
 	defer func() {
 		for i, sc := range connections {
 			err := sc.Close()
 			if err != nil {
-				t.Errorf("Expected no error closing sc%d, got %v", i+1, err)
+				t.Errorf("Expected no error closing socket %d, got %v", i+1, err)
 			}
 		}
 	}()
@@ -294,6 +295,7 @@ func TestRunmeHandler_MutliClient(t *testing.T) {
 		results[out.idx] = out.res
 	}
 
+	// Check all results match the expected sequence
 	for i, seq := range results {
 		if len(seq.seq) != len(expectSequence) {
 			t.Errorf("Socket %d: expected %d messages, got %d", i+1, len(expectSequence), len(seq.seq))

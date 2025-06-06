@@ -54,6 +54,15 @@ func (h *WebSocketHandler) Handler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// runID is a ulid to identify a run end-to-end.
+	runID := r.URL.Query().Get("runID")
+	if runID == "" {
+		log.Error(errors.New("run id cannot be empty"), "Run id cannot be empty")
+		http.Error(w, "Run id cannot be empty", http.StatusBadRequest)
+		return
+	}
+
+	// streamID is a uuidv4 without dashes to identify a websocket connection.
 	streamID := r.URL.Query().Get("id")
 	if streamID == "" {
 		log.Error(errors.New("stream cannot be empty"), "Stream cannot be empty")
@@ -69,48 +78,36 @@ func (h *WebSocketHandler) Handler(w http.ResponseWriter, r *http.Request) {
 	}
 	sc := NewConnection(conn)
 
-	multiplex, err := h.handleConnection(ctx, streamID, sc)
+	multiplex, err := h.handleConnection(ctx, runID, streamID, sc)
 	if err != nil {
 		log.Error(err, "Could not handle websocket connection")
-		http.Error(w, "Could not handle websocket connection", http.StatusInternalServerError)
+		_ = sc.Error("Could not handle websocket connection")
 		return
 	}
 
-	// This will keep reading messages (even with 0 clients) and multiplexing them to clients until the processor is done.
+	// Keep reading messages (even with 0 clients) and multiplexing them to clients until the processor is done.
 	multiplex.process()
-	log.Info("Websocket request finished", "streamID", streamID)
+	log.Info("Websocket handler finished", "runID", runID, "streamID", streamID)
 }
 
-// handleConnection handles a websocket connection for a single stream. streamID is a uuidv4 without dashes to identify a stream.
-func (h *WebSocketHandler) handleConnection(ctx context.Context, streamID string, sc *Connection) (*Multiplexer, error) {
+// handleConnection handles a websocket connection for a single stream.
+func (h *WebSocketHandler) handleConnection(ctx context.Context, runID string, streamID string, sc *Connection) (*Multiplexer, error) {
 	log := logs.FromContextWithTrace(ctx)
-
-	req, err := sc.ReadSocketRequest(ctx)
-	if err != nil {
-		return nil, errors.Wrap(err, "could not read socket request")
-	}
-
-	runID := req.GetRunId()
-	if runID == "" {
-		return nil, errors.New("run id cannot be empty")
-	}
-	log.Info("WebSocketHandler.handleConnection", "streamID", streamID, "runID", req.GetRunId())
+	log.Info("WebSocketHandler.handleConnection", "runID", runID, "streamID", streamID)
 
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
-	// todo(sebastian): if we already have a run when should accept the connection on the existing multiplexer.
-	if _, ok := h.runs[runID]; ok {
-		return nil, errors.New("run already exists")
+	// If we already have a run, accept the connection on the existing multiplexer.
+	multiplex, ok := h.runs[runID]
+	if !ok {
+		multiplex = NewMultiplexer(ctx, runID, h.auth, h.runner)
+		h.runs[runID] = multiplex
 	}
 
-	multiplex := NewMultiplexer(ctx, h.auth, h.runner)
-	if err := multiplex.acceptConnection(streamID, sc, req); err != nil {
+	if err := multiplex.acceptConnection(streamID, sc); err != nil {
 		return nil, errors.Wrap(err, "could not accept connection")
 	}
-
-	// todo(sebastian): Temporarily just add the run until we decide when to evict runs.
-	h.runs[runID] = multiplex
 
 	return multiplex, nil
 }

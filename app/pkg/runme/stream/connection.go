@@ -2,6 +2,7 @@ package stream
 
 import (
 	"context"
+	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/jlewi/cloud-assistant/app/pkg/logs"
@@ -24,6 +25,16 @@ func NewConnection(conn *websocket.Conn) *Connection {
 // Close closes the websocket connection.
 func (sc *Connection) Close() error {
 	return sc.conn.Close()
+}
+
+// Error closes the connection with a protocol error.
+func (sc *Connection) Error(message string) error {
+	defer func() { _ = sc.conn.Close() }()
+	return sc.conn.WriteControl(
+		websocket.CloseProtocolError,
+		websocket.FormatCloseMessage(websocket.CloseProtocolError, message),
+		time.Now(),
+	)
 }
 
 // ReadSocketRequest reads a SocketRequest from the websocket connection.
