@@ -67,6 +67,8 @@ message Assertion {
   message CodeblockRegex {
     string regex = 1; // The regex pattern to match against code blocks
   }
+
+  string failure_reason= 9; // If the assertion failed, this will contain the reason.
 }
 
 // -------------------------------------------------------------------------

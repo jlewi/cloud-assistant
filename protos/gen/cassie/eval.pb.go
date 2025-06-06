@@ -151,6 +151,7 @@ type Assertion struct {
 	//	*Assertion_LlmJudge
 	//	*Assertion_CodeblockRegex_
 	Payload       isAssertion_Payload `protobuf_oneof:"payload"`
+	FailureReason string              `protobuf:"bytes,9,opt,name=failure_reason,json=failureReason,proto3" json:"failure_reason,omitempty"` // If the assertion failed, this will contain the reason.
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -256,6 +257,13 @@ func (x *Assertion) GetCodeblockRegex() *Assertion_CodeblockRegex {
 		}
 	}
 	return nil
+}
+
+func (x *Assertion) GetFailureReason() string {
+	if x != nil {
+		return x.FailureReason
+	}
+	return ""
 }
 
 type isAssertion_Payload interface {
@@ -832,7 +840,7 @@ var File_cassie_eval_proto protoreflect.FileDescriptor
 
 const file_cassie_eval_proto_rawDesc = "" +
 	"\n" +
-	"\x11cassie/eval.proto\"\xc0\a\n" +
+	"\x11cassie/eval.proto\"\xe7\a\n" +
 	"\tAssertion\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12#\n" +
 	"\x04type\x18\x02 \x01(\x0e2\x0f.Assertion.TypeR\x04type\x12)\n" +
@@ -841,7 +849,8 @@ const file_cassie_eval_proto_rawDesc = "" +
 	"\x0ftool_invocation\x18\x05 \x01(\v2\x19.Assertion.ToolInvocationH\x00R\x0etoolInvocation\x12A\n" +
 	"\x0efile_retrieval\x18\x06 \x01(\v2\x18.Assertion.FileRetrievalH\x00R\rfileRetrieval\x122\n" +
 	"\tllm_judge\x18\a \x01(\v2\x13.Assertion.LLMJudgeH\x00R\bllmJudge\x12D\n" +
-	"\x0fcodeblock_regex\x18\b \x01(\v2\x19.Assertion.CodeblockRegexH\x00R\x0ecodeblockRegex\x1aC\n" +
+	"\x0fcodeblock_regex\x18\b \x01(\v2\x19.Assertion.CodeblockRegexH\x00R\x0ecodeblockRegex\x12%\n" +
+	"\x0efailure_reason\x18\t \x01(\tR\rfailureReason\x1aC\n" +
 	"\x11ShellRequiredFlag\x12\x18\n" +
 	"\acommand\x18\x01 \x01(\tR\acommand\x12\x14\n" +
 	"\x05flags\x18\x02 \x03(\tR\x05flags\x1a-\n" +
