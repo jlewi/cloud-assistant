@@ -25,6 +25,7 @@ type Multiplexer struct {
 	runner  *runme.Runner
 	streams *Streams
 
+	// authedSocketRequests is a channel that receives socket requests from authenticated clients.
 	authedSocketRequests chan *cassie.SocketRequest
 
 	mu sync.Mutex
