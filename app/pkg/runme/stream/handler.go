@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"sync"
 
-	"github.com/go-logr/logr"
 	"github.com/gorilla/websocket"
 	"github.com/jlewi/cloud-assistant/app/pkg/iam"
 	"github.com/jlewi/cloud-assistant/app/pkg/logs"
@@ -45,7 +44,6 @@ func NewWebSocketHandler(runner *runme.Runner, auth *iam.AuthContext) *WebSocket
 func (h *WebSocketHandler) Handler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	log := logs.FromContextWithTrace(ctx)
-	ctx = logr.NewContext(ctx, log)
 	log.Info("WebsocketHandler.Handler")
 
 	if h.runner.Server == nil {

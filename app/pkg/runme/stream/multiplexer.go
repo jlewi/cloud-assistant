@@ -133,22 +133,17 @@ func (m *Multiplexer) process() (wait bool) {
 		case <-m.ctx.Done():
 			log.Info("Context done, no need to process more requests")
 			return
-		default:
-			// Move on to reading the next request.
+		case req, ok := <-m.authedSocketRequests:
+			if !ok {
+				log.Info("Closing authedSocketRequests channel")
+				return
+			}
+			if req.GetExecuteRequest() == nil {
+				log.Info("Received message doesn't contain an ExecuteRequest")
+				continue
+			}
+			p.ExecuteRequests <- req.GetExecuteRequest()
 		}
-
-		req, ok := <-m.authedSocketRequests
-		if !ok {
-			log.Info("Closing authedSocketRequests channel")
-			return
-		}
-
-		if req.GetExecuteRequest() == nil {
-			log.Info("Received message doesn't contain an ExecuteRequest")
-			continue
-		}
-
-		p.ExecuteRequests <- req.GetExecuteRequest()
 	}
 }
 
