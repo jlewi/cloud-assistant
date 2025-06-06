@@ -80,6 +80,8 @@ func (m *mockRunmeServer) Execute(p v2.RunnerService_ExecuteServer) error {
 	return nil
 }
 
+// TestRunmeHandler_Roundtrip tests the integration of the websocket handler,
+// multiplexer and processor with the Runme server.
 func TestRunmeHandler_Roundtrip(t *testing.T) {
 	mockRunmeServer := newMockRunmeServer()
 	mockRunmeServer.SetResponder(func() error {
@@ -112,8 +114,8 @@ func TestRunmeHandler_Roundtrip(t *testing.T) {
 		return
 	}
 
-	// Wrap the websocket.Conn in a SocketConn
-	sc := NewSocketConn(c)
+	// Wrap the websocket.Conn in a StreamConn
+	sc := NewStreamConn(c)
 
 	// todo(sebastian): reuses Runme's after moving it out under internal
 	runID := ulid.MustNew(ulid.Timestamp(time.Now()), ulid.DefaultEntropy())
