@@ -11,7 +11,7 @@ import (
 	"google.golang.org/grpc/metadata"
 )
 
-// Processor handles the execution requests and responses for a run.
+// Processor handles the v2.ExecuteRequest and v2.ExecuteResponse for a run in runme.Runner.
 type Processor struct {
 	Ctx              context.Context
 	RunID            string
@@ -44,6 +44,8 @@ func (p *Processor) close() {
 	close(p.ExecuteResponses)
 }
 
+// Recv reads a v2.ExecuteRequest inside Runme.Runner for the Execute operation from the
+// channel until it is closed.
 func (p *Processor) Recv() (*v2.ExecuteRequest, error) {
 	log := logs.FromContextWithTrace(p.Ctx)
 

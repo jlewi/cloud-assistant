@@ -41,6 +41,7 @@ func NewWebSocketHandler(runner *runme.Runner, auth *iam.AuthContext) *WebSocket
 	}
 }
 
+// Handler is the main handler mounted in a mux to handle websocket connection upgrades.
 func (h *WebSocketHandler) Handler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	log := logs.FromContextWithTrace(ctx)
@@ -92,7 +93,7 @@ func (h *WebSocketHandler) Handler(w http.ResponseWriter, r *http.Request) {
 	log.Info("Websocket handler finished", "runID", runID, "streamID", streamID, "wait", wait)
 }
 
-// handleConnection handles a websocket connection for a single stream.
+// handleConnection accepts a websocket connection as a stream into a multiplexer.
 func (h *WebSocketHandler) handleConnection(ctx context.Context, runID string, streamID string, sc *Connection) (*Multiplexer, error) {
 	log := logs.FromContextWithTrace(ctx)
 	log.Info("WebSocketHandler.handleConnection", "runID", runID, "streamID", streamID)

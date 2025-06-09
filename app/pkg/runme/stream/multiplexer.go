@@ -16,8 +16,11 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
-// Multiplexer is a processor for messages received over a websocket from a single RunmeConsole element
-// in the DOM.
+// Multiplexer manages websocket connections, runme.Runner Execution bidirectional processing, and request/response multiplexing
+// for a given runID. It handles multiple streams and clients, coordinating authenticated requests and responses between them
+// and the Runme runner. The same multiplexer bridges the v2.ExecuteRequest and v2.ExecuteResponse for a run in runme.Runner
+// for one or many Console DOM element with the same runID.
+// Todo(sebastian): Deduplicate Cell/Block ID to the runID to peg the run to a specific cell/block.
 type Multiplexer struct {
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -32,11 +35,11 @@ type Multiplexer struct {
 	authedSocketRequests chan *cassie.SocketRequest
 
 	mu sync.Mutex
-	// p is the processor that is currently processing messages. If p is nil then no processor is currently processing
+	// p is the processor that is currently processing messages. If p is nil then no run against runme.Runner is currently processing
 	p *Processor
 }
 
-// NewMultiplexer creates a new Multiplexer that manages the websocket connections for a single RunmeConsole element.
+// NewMultiplexer creates a new Multiplexer (see description above).
 func NewMultiplexer(ctx context.Context, runID string, auth *iam.AuthContext, runner *runme.Runner) *Multiplexer {
 	ctx, cancel := context.WithCancel(ctx)
 	m := &Multiplexer{
@@ -93,7 +96,7 @@ func (m *Multiplexer) receiveRequests(streamID string, sc *Connection) {
 	}
 }
 
-// close shuts down the RunmeMultiplexer
+// close shuts down the RunmeMultiplexer. We wait for 30s to give the client a chance to close the connection (preferred).
 func (m *Multiplexer) close() {
 	p := m.getInflight()
 	if p != nil {
@@ -108,7 +111,10 @@ func (m *Multiplexer) close() {
 	m.streams.close(m.ctx)
 }
 
-// process keeps reading messages and multiplexing them to clients (even if all clients disconnect) until the processor is done.
+// process manages request processing for a runID. Returns false if a run is already in flight.
+// Launches goroutines to execute requests and broadcast responses, then forwards ExecuteRequests
+// to the processor until context cancellation or channel closure. Handles cleanup on exit.
+// Todo(sebastian): Can we get away without the wait flag? Had premature closing issues without it.
 func (m *Multiplexer) process() (wait bool) {
 	wait = true
 
@@ -117,7 +123,8 @@ func (m *Multiplexer) process() (wait bool) {
 	defer span.End()
 	log := logs.FromContextWithTrace(ctx)
 
-	// todo(sebastian): Still have to decide what to do if a user tries to send a new request before the current's done as below
+	// todo(sebastian): Still have to decide what to do if a user tries to send a new request
+	// before the current's done as below. The cleanest solution might be to SIGINT the run in runme.Runner.
 	p := m.getInflight()
 	if p != nil {
 		log.Info("Already have a run in flight", "runID", m.runID)
@@ -127,9 +134,9 @@ func (m *Multiplexer) process() (wait bool) {
 	p = NewProcessor(ctx, m.runID)
 	m.setInflight(p)
 
-	// start a goroutine to execute requests against runme server
+	// Start a goroutine to execute requests against runme server.
 	go m.execute(p)
-	// start a separate goroutine to broadcast responses to all clients
+	// Start a separate goroutine to broadcast responses to all clients.
 	go m.broadcastResponses(p)
 
 	// TODO(jlewi): What should we do if a user tries to send a new request before the current one has finished?

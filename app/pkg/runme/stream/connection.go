@@ -13,7 +13,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// Connection is a thin wrapper around *websocket.Conn for reading/writing SocketRequest/SocketResponse.
+// Connection is a thin wrapper around *websocket.Conn for common SocketRequest/SocketResponse operations.
 type Connection struct {
 	conn *websocket.Conn
 }

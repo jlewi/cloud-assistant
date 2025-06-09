@@ -12,7 +12,10 @@ import (
 	"google.golang.org/genproto/googleapis/rpc/code"
 )
 
-// Streams manages multiple websocket connections attached to a muliplexed Runme execution.
+// Streams manages multiple websocket connections for a Runme execution (aka "run"). Each connection represents either:
+// - A single Console DOM element
+// - A client reconnection (e.g. when the client is disconnected and reconnects/resumes)
+// These connections are multiplexed bidirectionally together to handle the execution flow.
 type Streams struct {
 	auth *iam.AuthContext
 
