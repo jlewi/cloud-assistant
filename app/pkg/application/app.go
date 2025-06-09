@@ -74,21 +74,28 @@ func (a *App) SetupOTEL() error {
 		return errors.New("config shouldn't be nil; did you forget to call LoadConfig?")
 	}
 
-	// Set up OTLP HTTP exporter
-	log.Info("Setting up OTLP HTTP exporter")
-	exp, err := otlptracehttp.New(context.Background(), otlptracehttp.WithEndpoint("localhost:4318"), otlptracehttp.WithInsecure())
-	if err != nil {
-		return errors.Wrap(err, "failed to create OTLP HTTP exporter")
+	var tpOptions []trace.TracerProviderOption
+
+	// Always set the resource
+	tpOptions = append(tpOptions, trace.WithResource(resource.NewWithAttributes(
+		semconv.SchemaURL,
+		semconv.ServiceNameKey.String("cloud-assistant"),
+	)))
+
+	// Only set up OTLP HTTP exporter if endpoint is configured.
+	if a.Config != nil && a.Config.Telemetry != nil && a.Config.Telemetry.OtlpHTTPEndpoint != "" {
+		endpoint := a.Config.Telemetry.OtlpHTTPEndpoint
+		log.Info("Setting up OTLP HTTP exporter", "endpoint", endpoint)
+		exp, err := otlptracehttp.New(context.Background(), otlptracehttp.WithEndpoint(endpoint), otlptracehttp.WithInsecure())
+		if err != nil {
+			return errors.Wrap(err, "failed to create OTLP HTTP exporter")
+		}
+		tpOptions = append(tpOptions, trace.WithBatcher(exp))
+	} else {
+		log.Info("OTLP HTTP endpoint not specified; skipping OTLP exporter setup")
 	}
 
-	// Set up trace provider with the exporter
-	tracerProvider := trace.NewTracerProvider(
-		trace.WithBatcher(exp),
-		trace.WithResource(resource.NewWithAttributes(
-			semconv.SchemaURL,
-			semconv.ServiceNameKey.String("cloud-assistant"),
-		)),
-	)
+	tracerProvider := trace.NewTracerProvider(tpOptions...)
 	otel.SetTracerProvider(tracerProvider)
 	a.otelShutdownFn = func() {
 		if err := tracerProvider.Shutdown(context.Background()); err != nil {
@@ -97,9 +104,9 @@ func (a *App) SetupOTEL() error {
 		}
 	}
 
-	// Set ottlhttp.DefaultClient to use a transport that will report metrics.
-	// For other clients I think we need to use
-	// otelhttp.NewTransport and configure the transport.
+	// Set otelhttp.DefaultClient to use a transport that will report metrics.
+	// For other http.Clients, wrap the Transport with otelhttp.NewTransport
+	// to enable OpenTelemetry instrumentation.
 	otelhttp.DefaultClient = &http.Client{
 		Transport: otelhttp.NewTransport(http.DefaultTransport),
 	}

@@ -116,6 +116,8 @@ type LogSink struct {
 
 type TelemetryConfig struct {
 	Honeycomb *HoneycombConfig `json:"honeycomb,omitempty" yaml:"honeycomb,omitempty"`
+	// OtlpHTTPEndpoint is the endpoint for OTLP HTTP exporter (e.g., "localhost:4318").
+	OtlpHTTPEndpoint string `json:"otlpHttpEndpoint,omitempty" yaml:"otlpHttpEndpoint,omitempty"`
 }
 
 type HoneycombConfig struct {
