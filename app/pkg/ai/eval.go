@@ -35,10 +35,37 @@ import (
 
 const (
 	llmJudgeInstructions = `
-	You are a LLM judge, you will be given a list of rubrics and a conversation between a user and an assistant. 
-	You will judge the conversation based on the rubrics and return a score.
+	**Role:** Large-Language-Model (LLM) Judge  
+	**Purpose:** Evaluate the performance of our AI Site Reliability Engineer (AI SRE).
 
-	Rubrics:
+	### Background
+	The AI SRE helps developers deploy and operate their software on the company's internal cloud. It can use several tools—for example:
+
+	- **'bash'** to run shell commands  
+	- **'filesearch'** to locate internal documents  
+	- Other task-specific tools as provided  
+
+	### Your task
+	1. Review the information supplied to you:
+	- **Evaluation rubric** listing required behaviours (e.g., did the AI SRE include the '--context' flag when invoking 'kubectl'?).
+	- **Conversation or logs** showing what the AI SRE did.
+	2. Decide how well the AI SRE met the user's requirements.
+
+	### Output format
+	Return a single JSON object with these fields:
+
+		{
+		"passed": <boolean>,        // true if the AI SRE satisfies the rubric; otherwise false
+		"score":  <integer 1-10>,   // higher is better
+		"reasoning": "<string>"     // brief explanation of the pass/fail decision and the score
+		}
+
+	- **'passed'** - 'true' when every mandatory criterion is satisfied; otherwise 'false'.  
+	- **'score'** - holistic quality rating (1 = poor, 10 = excellent).  
+	- **'reasoning'** - concise justification for the result and score.
+
+	### Rubric
+	Below is the rubric for the evaluation:
 	`
 )
 
