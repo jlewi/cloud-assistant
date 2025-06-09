@@ -18,6 +18,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/go-logr/logr"
 	"github.com/go-logr/zapr"
+	"github.com/jlewi/cloud-assistant/app/pkg/docs"
 	"github.com/jlewi/cloud-assistant/app/pkg/logs"
 	"github.com/jlewi/cloud-assistant/app/pkg/version"
 	"github.com/jlewi/cloud-assistant/protos/gen/cassie"
@@ -148,17 +149,9 @@ func NewLlmJudge(client *openai.Client) *llmJudge {
 func (l llmJudge) Assert(ctx context.Context, as *cassie.Assertion, inputText string, blocks map[string]*cassie.Block) error {
 	logger, _ := logr.FromContext(ctx)
 	var context_builder strings.Builder
-	context_builder.WriteString("User: " + inputText + "\n")
 	for _, block := range blocks {
-		switch block.Role {
-		case cassie.BlockRole_BLOCK_ROLE_ASSISTANT:
-			context_builder.WriteString("Assistant: " + block.Contents + "\n")
-		case cassie.BlockRole_BLOCK_ROLE_USER:
-			context_builder.WriteString("User: " + block.Contents + "\n")
-		case cassie.BlockRole_BLOCK_ROLE_UNKNOWN:
-			context_builder.WriteString("Unknown: " + block.Contents + "\n")
-			logger.Info("Unknown block role", "block", block)
-		}
+		markdown := docs.BlockToMarkdown(block, 10000)
+		context_builder.WriteString(markdown + "\n")
 	}
 	logger.Info("llm_judge_debug_input", "input", context_builder.String())
 	logger.Info("llm_judge_debug_output", "output", llmJudgeInstructions+as.GetLlmJudge().GetPrompt())

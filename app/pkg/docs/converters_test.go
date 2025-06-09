@@ -164,3 +164,92 @@ func Test_MarkdownToBlocks(t *testing.T) {
 		})
 	}
 }
+
+func Test_BlockToMarkdown(t *testing.T) {
+	type testCase struct {
+		name      string
+		block     *cassie.Block
+		maxLength int
+		expected  string
+	}
+
+	testCases := []testCase{
+		{
+			name: "markup",
+			block: &cassie.Block{
+				Kind:     cassie.BlockKind_MARKUP,
+				Contents: "This is a test",
+			},
+			expected: "This is a test\n",
+		},
+		{
+			name: "code",
+			block: &cassie.Block{
+				Kind:     cassie.BlockKind_CODE,
+				Contents: "echo \"something something\"",
+				Outputs: []*cassie.BlockOutput{
+					{
+						Items: []*cassie.BlockOutputItem{
+							{
+								TextData: "something something",
+							},
+						},
+					},
+				},
+			},
+			expected: "```bash\necho \"something something\"\n```\n```output\nsomething something\n```\n",
+		},
+		{
+			name: "filter-by-mime-type",
+			block: &cassie.Block{
+				Kind:     cassie.BlockKind_CODE,
+				Contents: "echo \"something something\"",
+				Outputs: []*cassie.BlockOutput{
+					{
+						Items: []*cassie.BlockOutputItem{
+							{
+								TextData: "Should be excluded",
+								Mime:     StatefulRunmeOutputItemsMimeType,
+							},
+							{
+								TextData: "Terminal be excluded",
+								Mime:     StatefulRunmeTerminalMimeType,
+							},
+							{
+								TextData: "Should be included",
+								Mime:     "application/vnd.code.notebook.stdout",
+							},
+						},
+					},
+				},
+			},
+			expected: "```bash\necho \"something something\"\n```\n```output\nShould be included\n```\n",
+		},
+		{
+			name: "truncate-output",
+			block: &cassie.Block{
+				Kind:     cassie.BlockKind_CODE,
+				Contents: "echo line1\nline2",
+				Outputs: []*cassie.BlockOutput{
+					{
+						Items: []*cassie.BlockOutputItem{
+							{
+								TextData: "some really long output",
+							},
+						},
+					},
+				},
+			},
+			maxLength: 10,
+			expected:  "```bash\n<...code was truncated...>\nline2\n```\n```output\nsome r<...stdout was truncated...>\n```\n",
+		},
+	}
+	for _, c := range testCases {
+		t.Run(c.name, func(t *testing.T) {
+			actual := BlockToMarkdown(c.block, c.maxLength)
+			if d := cmp.Diff(c.expected, actual); d != "" {
+				t.Errorf("Unexpected diff:\n%s", d)
+			}
+		})
+	}
+}
