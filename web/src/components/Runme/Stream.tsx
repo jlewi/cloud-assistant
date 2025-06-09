@@ -70,7 +70,7 @@ class Stream {
   }
 
   constructor(
-    private readonly blockID: string,
+    private readonly knownID: string,
     private readonly runID: string,
     private readonly runnerEndpoint: string
   ) {
@@ -135,7 +135,7 @@ class Stream {
             this.callback?.({
               type: ClientMessages.terminalStdout,
               output: {
-                'runme.dev/id': this.blockID,
+                'runme.dev/id': this.knownID,
                 data: response.stdoutData,
               },
             } as any)
@@ -146,7 +146,7 @@ class Stream {
             this.callback?.({
               type: ClientMessages.terminalStderr,
               output: {
-                'runme.dev/id': this.blockID,
+                'runme.dev/id': this.knownID,
                 data: response.stderrData,
               },
             } as any)
@@ -172,7 +172,7 @@ class Stream {
         socket.onopen = () => {
           console.log(
             new Date(),
-            `✅ Connected WebSocket for block ${this.blockID} with runID ${this.runID}`
+            `✅ Connected WebSocket for block ${this.knownID} with runID ${this.runID}`
           )
           subscriber.next(socket)
         }
@@ -180,7 +180,7 @@ class Stream {
         return () => {
           console.log(
             new Date(),
-            `☑️ Cleanly disconnected WebSocket for block ${this.blockID} with runID ${this.runID}`
+            `☑️ Cleanly disconnected WebSocket for block ${this.knownID} with runID ${this.runID}`
           )
 
           // Complete so that any subscribers can unsubscribe
@@ -238,7 +238,11 @@ class Stream {
     const sender = merged.pipe(
       withLatestFrom(ws),
       map(([req, socket]) => {
+        // knownID is important to track the origin cell/block of the request.
+        req.knownId = this.knownID
+        // runID is important to identify the specific execution of the request.
         req.runId = this.runID
+
         const token = getTokenValue()
         // Add bearer token, if available
         if (token && req) {
