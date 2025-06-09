@@ -99,6 +99,11 @@ func (t toolInvocation) Assert(ctx context.Context, as *cassie.Assertion, inputT
 				as.Result = cassie.Assertion_RESULT_TRUE
 				break
 			}
+		} else if targetTool == "file_retrieval" {
+			if block.Kind == cassie.BlockKind_FILE_SEARCH_RESULTS {
+				as.Result = cassie.Assertion_RESULT_TRUE
+				break
+			}
 		}
 	}
 	if as.Result == cassie.Assertion_RESULT_FALSE {
