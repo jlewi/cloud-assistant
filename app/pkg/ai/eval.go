@@ -23,7 +23,6 @@ import (
 	"github.com/jlewi/cloud-assistant/protos/gen/cassie"
 	"github.com/jlewi/cloud-assistant/protos/gen/cassie/cassieconnect"
 	"github.com/openai/openai-go"
-	"github.com/openai/openai-go/option"
 	"github.com/openai/openai-go/packages/param"
 	"github.com/openai/openai-go/responses"
 	"github.com/pkg/errors"
@@ -133,7 +132,13 @@ func (f fileRetrieved) Assert(ctx context.Context, as *cassie.Assertion, inputTe
 	return nil
 }
 
-type llmJudge struct{}
+type llmJudge struct {
+	client *openai.Client
+}
+
+func NewLlmJudge(client *openai.Client) *llmJudge {
+	return &llmJudge{client: client}
+}
 
 func (l llmJudge) Assert(ctx context.Context, as *cassie.Assertion, inputText string, blocks map[string]*cassie.Block) error {
 	logger, _ := logr.FromContext(ctx)
@@ -187,12 +192,10 @@ func (l llmJudge) Assert(ctx context.Context, as *cassie.Assertion, inputText st
 			},
 		},
 	}
-	apiKey, ok := APIKeyFromContext(ctx)
-	if !ok {
-		return errors.New("OpenAI API key not found in context")
+	if l.client == nil {
+		return errors.New("llmJudge client is not set")
 	}
-	client := openai.NewClient(option.WithAPIKey(apiKey))
-	response, err := client.Responses.New(context.Background(), createResponse)
+	response, err := l.client.Responses.New(context.Background(), createResponse)
 	if err != nil {
 		return errors.Wrapf(err, "failed to create response")
 	}
@@ -442,7 +445,8 @@ func APIKeyFromContext(ctx context.Context) (string, bool) {
 }
 
 // EvalFromExperiment runs an experiment based on the Experiment config.
-func EvalFromExperiment(exp *cassie.Experiment, cookie map[string]string, api_key string, log logr.Logger) (map[string]*cassie.Block, error) {
+func EvalFromExperiment(exp *cassie.Experiment, cookie map[string]string, client *openai.Client, log logr.Logger) (map[string]*cassie.Block, error) {
+	registry[cassie.Assertion_TYPE_LLM_JUDGE] = NewLlmJudge(client)
 	// Read the experiment YAML file
 	data, err := os.ReadFile(exp.Spec.GetDatasetPath())
 	if err != nil {
@@ -467,7 +471,6 @@ func EvalFromExperiment(exp *cassie.Experiment, cookie map[string]string, api_ke
 	inferenceEndpoint := exp.Spec.GetInferenceEndpoint()
 
 	ctx := logr.NewContext(context.Background(), log)
-	ctx = ContextWithAPIKey(ctx, api_key)
 
 	loc, _ := time.LoadLocation("America/Los_Angeles")
 	report := &markdownReport{

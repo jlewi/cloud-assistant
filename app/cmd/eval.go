@@ -59,15 +59,10 @@ func NewEvalCmd() *cobra.Command {
 			}
 			cookies := make(map[string]string)
 			lines := strings.Split(string(cookieData), "\n")
-			key_file := app.Config.OpenAI.APIKeyFile
-			if key_file == "" {
-				return fmt.Errorf("OpenAI API key file is empty")
-			}
-			b, err := os.ReadFile(key_file)
+			client, err := ai.NewClient(*app.Config.OpenAI)
 			if err != nil {
 				return fmt.Errorf("failed to read OpenAI API key file: %w", err)
 			}
-			api_key := strings.TrimSpace(string(b))
 			for _, line := range lines {
 				line = strings.TrimSpace(line)
 				if line == "" || strings.HasPrefix(line, "#") {
@@ -79,7 +74,7 @@ func NewEvalCmd() *cobra.Command {
 				}
 			}
 			log := zapr.NewLogger(zap.L())
-			_, err = ai.EvalFromExperiment(&experiment, cookies, api_key, log)
+			_, err = ai.EvalFromExperiment(&experiment, cookies, client, log)
 			if err != nil {
 				return err
 			}

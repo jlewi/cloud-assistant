@@ -28,6 +28,33 @@ func TestAssertions(t *testing.T) {
 		expectedAssertion *cassie.Assertion
 		inputText         string
 	}
+	isGHA := os.Getenv("GITHUB_ACTIONS") == "true"
+	app := application.NewApp()
+	if err := app.LoadConfig(nil); err != nil {
+		t.Fatal(err)
+	}
+	cfg := app.GetConfig()
+	var apiKey string
+	if !isGHA {
+		// When running locally create the OpenAI client using the config
+		apiKeyFile := cfg.OpenAI.APIKeyFile
+		apiKeyBytes, err := os.ReadFile(apiKeyFile)
+		if err != nil {
+			t.Fatalf("Failed to read API key file; %v", err)
+		}
+		apiKey = string(apiKeyBytes)
+	} else {
+		// In GHA we get the API key from the environment variable
+		apiKey = os.Getenv("OPENAI_API_KEY")
+		if apiKey == "" {
+			t.Fatal("OPENAI_API_KEY environment variable is not set")
+		}
+	}
+	apiKey = strings.TrimSpace(apiKey)
+	client, err := NewClientWithKey(apiKey)
+	if err != nil {
+		t.Fatalf("Failed to create client from API key; %v", err)
+	}
 
 	testCases := []testCase{
 		{
@@ -218,7 +245,7 @@ func TestAssertions(t *testing.T) {
 		},
 		{
 			name:     "llm-judge-basic",
-			asserter: llmJudge{},
+			asserter: llmJudge{client: client},
 			assertion: &cassie.Assertion{
 				Name: "basic_llm_judge",
 				Type: cassie.Assertion_TYPE_LLM_JUDGE,
@@ -247,32 +274,9 @@ func TestAssertions(t *testing.T) {
 			inputText: "What region is cluster unified-60 in?",
 		},
 	}
-	isGHA := os.Getenv("GITHUB_ACTIONS") == "true"
-	app := application.NewApp()
-	if err := app.LoadConfig(nil); err != nil {
-		t.Fatal(err)
-	}
-	cfg := app.GetConfig()
-	var apiKey string
-	if !isGHA {
-		// When running locally create the OpenAI client using the config
-		apiKeyFile := cfg.OpenAI.APIKeyFile
-		apiKeyBytes, err := os.ReadFile(apiKeyFile)
-		if err != nil {
-			t.Fatalf("Failed to read API key file; %v", err)
-		}
-		apiKey = string(apiKeyBytes)
-	} else {
-		// In GHA we get the API key from the environment variable
-		apiKey = os.Getenv("OPENAI_API_KEY")
-		if apiKey == "" {
-			t.Fatal("OPENAI_API_KEY environment variable is not set")
-		}
-	}
-	apiKey = strings.TrimSpace(apiKey)
+
 	log := zapr.NewLogger(zap.L())
 	ctx := logr.NewContext(context.Background(), log)
-	ctx = ContextWithAPIKey(ctx, apiKey)
 	opts := cmp.Options{
 		cmpopts.IgnoreUnexported(
 			cassie.Assertion{},
