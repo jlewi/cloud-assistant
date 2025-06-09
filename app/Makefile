@@ -39,7 +39,7 @@ lint:
 	golangci-lint run --fix
 
 test:
-	GITHUB_ACTIONS=true go test -v ./...
+	GITHUB_ACTIONS=$${GITHUB_ACTIONS:-true} go test -v ./...
 
 install/pre-commit:
 	pre-commit install
