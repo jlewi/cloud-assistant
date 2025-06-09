@@ -14,7 +14,6 @@ import (
 
 // Streams manages multiple websocket connections attached to a muliplexed Runme execution.
 type Streams struct {
-	ctx  context.Context
 	auth *iam.AuthContext
 
 	mu    sync.RWMutex
@@ -26,7 +25,6 @@ type Streams struct {
 // NewStreams creates a instance of Streams that manages multiple websocket connections attached to a muliplexed Runme execution.
 func NewStreams(ctx context.Context, auth *iam.AuthContext, socketRequests chan *cassie.SocketRequest) *Streams {
 	return &Streams{
-		ctx:                  ctx,
 		auth:                 auth,
 		conns:                make(map[string]*Connection, 1),
 		authedSocketRequests: socketRequests,
@@ -46,8 +44,8 @@ func (s *Streams) createStream(streamID string, sc *Connection) error {
 	return nil
 }
 
-func (s *Streams) removeStream(streamID string) {
-	log := logs.FromContextWithTrace(s.ctx)
+func (s *Streams) removeStream(ctx context.Context, streamID string) {
+	log := logs.FromContextWithTrace(ctx)
 	log.Info("Removing stream", "streamID", streamID)
 
 	s.mu.Lock()
@@ -63,8 +61,8 @@ func (s *Streams) removeStream(streamID string) {
 	_ = sc.Close()
 }
 
-func (s *Streams) close() {
-	log := logs.FromContextWithTrace(s.ctx)
+func (s *Streams) close(ctx context.Context) {
+	log := logs.FromContextWithTrace(ctx)
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -77,12 +75,12 @@ func (s *Streams) close() {
 	}
 }
 
-func (s *Streams) receive(streamID string, sc *Connection) error {
-	log := logs.FromContextWithTrace(s.ctx)
+func (s *Streams) receive(ctx context.Context, streamID string, sc *Connection) error {
+	log := logs.FromContextWithTrace(ctx)
 
 	for {
 		log.Info("Reading socket requests", "streamID", streamID)
-		req, err := sc.ReadSocketRequest(s.ctx)
+		req, err := sc.ReadSocketRequest(ctx)
 		if err != nil {
 			log.Error(err, "Could not read socket request")
 			return err
@@ -90,9 +88,9 @@ func (s *Streams) receive(streamID string, sc *Connection) error {
 
 		log.Info("Received socket request", "streamID", streamID, "runID", req.GetRunId())
 		// Return error to reject the connection if the socket request is not authorized.
-		if err := s.auth.AuthorizeRequest(s.ctx, req); err != nil {
+		if err := s.auth.AuthorizeRequest(ctx, req); err != nil {
 			log.Error(err, "Could not authorize request", "streamID", streamID, "runID", req.GetRunId())
-			sc.ErrorMessage(s.ctx, code.Code_PERMISSION_DENIED, "Unauthorized request")
+			sc.ErrorMessage(ctx, code.Code_PERMISSION_DENIED, "Unauthorized request")
 			return err
 		}
 
@@ -101,8 +99,8 @@ func (s *Streams) receive(streamID string, sc *Connection) error {
 	}
 }
 
-func (s *Streams) broadcast(responseData []byte) error {
-	log := logs.FromContextWithTrace(s.ctx)
+func (s *Streams) broadcast(ctx context.Context, responseData []byte) error {
+	log := logs.FromContextWithTrace(ctx)
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 

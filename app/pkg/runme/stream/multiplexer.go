@@ -11,6 +11,7 @@ import (
 	"github.com/jlewi/cloud-assistant/app/pkg/runme"
 	"github.com/jlewi/cloud-assistant/protos/gen/cassie"
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
 	"google.golang.org/genproto/googleapis/rpc/code"
 	"google.golang.org/protobuf/encoding/protojson"
 )
@@ -62,21 +63,34 @@ func (m *Multiplexer) acceptConnection(streamID string, sc *Connection) error {
 		return err
 	}
 
-	go func() {
-		defer m.streams.removeStream(streamID)
-
-		if err := m.streams.receive(streamID, sc); err != nil {
-			closeErr, ok := err.(*websocket.CloseError)
-			if !ok {
-				log.Error(err, "Unexpected error while receiving socket requests")
-				return
-			}
-
-			log.Info("Connection closed", "streamID", streamID, "closeCode", closeErr.Code, "closeText", closeErr.Error())
-		}
-	}()
+	go m.receiveRequests(streamID, sc)
 
 	return nil
+}
+
+// receiveRequests handles receiving socket requests for a specific stream in a goroutine.
+func (m *Multiplexer) receiveRequests(streamID string, sc *Connection) {
+	tracer := otel.Tracer("github.com/jlewi/cloud-assistant/app/pkg/runme/stream")
+	ctx, span := tracer.Start(m.ctx, "Multiplexer.receiveRequests")
+	// todo(sebastian): ideally we set attributes from the context so we don't have set them every time.
+	span.SetAttributes(
+		attribute.String("streamID", streamID),
+		attribute.String("runID", m.runID),
+	)
+	defer span.End()
+
+	defer m.streams.removeStream(ctx, streamID)
+	log := logs.FromContextWithTrace(ctx)
+
+	if err := m.streams.receive(ctx, streamID, sc); err != nil {
+		closeErr, ok := err.(*websocket.CloseError)
+		if !ok {
+			log.Error(err, "Unexpected error while receiving socket requests")
+			return
+		}
+
+		log.Info("Connection closed", "streamID", streamID, "closeCode", closeErr.Code, "closeText", closeErr.Error())
+	}
 }
 
 // close shuts down the RunmeMultiplexer
@@ -91,7 +105,7 @@ func (m *Multiplexer) close() {
 	// Delay close because clients might still be connected.
 	close(m.authedSocketRequests)
 	// With Runme's execution finished we can close all websocket connections.
-	m.streams.close()
+	m.streams.close(m.ctx)
 }
 
 // process keeps reading messages and multiplexing them to clients (even if all clients disconnect) until the processor is done.
@@ -204,7 +218,7 @@ func (m *Multiplexer) broadcastResponses(p *Processor) {
 			log.Error(err, "Could not marshal response")
 		}
 
-		if err := m.streams.broadcast(responseData); err != nil {
+		if err := m.streams.broadcast(ctx, responseData); err != nil {
 			log.Error(err, "Could not broadcast response")
 		}
 	}
