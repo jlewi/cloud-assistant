@@ -86,8 +86,10 @@ type SocketRequest struct {
 	Payload isSocketRequest_Payload `protobuf_oneof:"payload"`
 	// Optional authorization header, similar to the HTTP Authorization header.
 	Authorization string `protobuf:"bytes,200,opt,name=authorization,proto3" json:"authorization,omitempty"`
+	// Optional Known ID to track the origin cell/block of the request.
+	KnownId string `protobuf:"bytes,210,opt,name=known_id,json=knownId,proto3" json:"known_id,omitempty"`
 	// Optional Run ID to track and resume execution.
-	RunId         string `protobuf:"bytes,210,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	RunId         string `protobuf:"bytes,220,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -145,6 +147,13 @@ func (x *SocketRequest) GetAuthorization() string {
 	return ""
 }
 
+func (x *SocketRequest) GetKnownId() string {
+	if x != nil {
+		return x.KnownId
+	}
+	return ""
+}
+
 func (x *SocketRequest) GetRunId() string {
 	if x != nil {
 		return x.RunId
@@ -172,8 +181,10 @@ type SocketResponse struct {
 	Payload isSocketResponse_Payload `protobuf_oneof:"payload"`
 	// Optional socket-level status.
 	Status *SocketStatus `protobuf:"bytes,200,opt,name=status,proto3" json:"status,omitempty"`
+	// Optional Known ID to track the origin cell/block of the request.
+	KnownId string `protobuf:"bytes,210,opt,name=known_id,json=knownId,proto3" json:"known_id,omitempty"`
 	// Optional Run ID to track and resume execution.
-	RunId         string `protobuf:"bytes,210,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	RunId         string `protobuf:"bytes,220,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -231,6 +242,13 @@ func (x *SocketResponse) GetStatus() *SocketStatus {
 	return nil
 }
 
+func (x *SocketResponse) GetKnownId() string {
+	if x != nil {
+		return x.KnownId
+	}
+	return ""
+}
+
 func (x *SocketResponse) GetRunId() string {
 	if x != nil {
 		return x.RunId
@@ -255,16 +273,18 @@ const file_cassie_sockets_proto_rawDesc = "" +
 	"\x14cassie/sockets.proto\x1a\x1crunme/runner/v2/runner.proto\x1a\x15google/rpc/code.proto\"N\n" +
 	"\fSocketStatus\x12$\n" +
 	"\x04code\x18\x01 \x01(\x0e2\x10.google.rpc.CodeR\x04code\x12\x18\n" +
-	"\amessage\x18\x02 \x01(\tR\amessage\"\xa5\x01\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage\"\xc1\x01\n" +
 	"\rSocketRequest\x12J\n" +
 	"\x0fexecute_request\x18\x01 \x01(\v2\x1f.runme.runner.v2.ExecuteRequestH\x00R\x0eexecuteRequest\x12%\n" +
-	"\rauthorization\x18\xc8\x01 \x01(\tR\rauthorization\x12\x16\n" +
-	"\x06run_id\x18\xd2\x01 \x01(\tR\x05runIdB\t\n" +
-	"\apayload\"\xaa\x01\n" +
+	"\rauthorization\x18\xc8\x01 \x01(\tR\rauthorization\x12\x1a\n" +
+	"\bknown_id\x18\xd2\x01 \x01(\tR\aknownId\x12\x16\n" +
+	"\x06run_id\x18\xdc\x01 \x01(\tR\x05runIdB\t\n" +
+	"\apayload\"\xc6\x01\n" +
 	"\x0eSocketResponse\x12M\n" +
 	"\x10execute_response\x18\x01 \x01(\v2 .runme.runner.v2.ExecuteResponseH\x00R\x0fexecuteResponse\x12&\n" +
-	"\x06status\x18\xc8\x01 \x01(\v2\r.SocketStatusR\x06status\x12\x16\n" +
-	"\x06run_id\x18\xd2\x01 \x01(\tR\x05runIdB\t\n" +
+	"\x06status\x18\xc8\x01 \x01(\v2\r.SocketStatusR\x06status\x12\x1a\n" +
+	"\bknown_id\x18\xd2\x01 \x01(\tR\aknownId\x12\x16\n" +
+	"\x06run_id\x18\xdc\x01 \x01(\tR\x05runIdB\t\n" +
 	"\apayloadBDB\fSocketsProtoP\x01Z2github.com/jlewi/cloud-assistant/protos/gen/cassieb\x06proto3"
 
 var (

@@ -21,8 +21,11 @@ message SocketRequest {
     // Optional authorization header, similar to the HTTP Authorization header.
     string authorization = 200;
 
+    // Optional Known ID to track the origin cell/block of the request.
+    string known_id = 210;
+
     // Optional Run ID to track and resume execution.
-    string run_id = 210;
+    string run_id = 220;
 }
 
 // SocketResponse defines the message sent by the server over a websocket.
@@ -36,6 +39,9 @@ message SocketResponse {
     // Optional socket-level status.
     SocketStatus status = 200;
 
+    // Optional Known ID to track the origin cell/block of the request.
+    string known_id = 210;
+
     // Optional Run ID to track and resume execution.
-    string run_id = 210;
+    string run_id = 220;
 }

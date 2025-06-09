@@ -80,9 +80,16 @@ export declare type SocketRequest = Message<"SocketRequest"> & {
   authorization: string;
 
   /**
+   * Optional Known ID to track the origin cell/block of the request.
+   *
+   * @generated from field: string known_id = 210;
+   */
+  knownId: string;
+
+  /**
    * Optional Run ID to track and resume execution.
    *
-   * @generated from field: string run_id = 210;
+   * @generated from field: string run_id = 220;
    */
   runId: string;
 };
@@ -109,9 +116,16 @@ export declare type SocketRequestJson = {
   authorization?: string;
 
   /**
+   * Optional Known ID to track the origin cell/block of the request.
+   *
+   * @generated from field: string known_id = 210;
+   */
+  knownId?: string;
+
+  /**
    * Optional Run ID to track and resume execution.
    *
-   * @generated from field: string run_id = 210;
+   * @generated from field: string run_id = 220;
    */
   runId?: string;
 };
@@ -150,9 +164,16 @@ export declare type SocketResponse = Message<"SocketResponse"> & {
   status?: SocketStatus;
 
   /**
+   * Optional Known ID to track the origin cell/block of the request.
+   *
+   * @generated from field: string known_id = 210;
+   */
+  knownId: string;
+
+  /**
    * Optional Run ID to track and resume execution.
    *
-   * @generated from field: string run_id = 210;
+   * @generated from field: string run_id = 220;
    */
   runId: string;
 };
@@ -179,9 +200,16 @@ export declare type SocketResponseJson = {
   status?: SocketStatusJson;
 
   /**
+   * Optional Known ID to track the origin cell/block of the request.
+   *
+   * @generated from field: string known_id = 210;
+   */
+  knownId?: string;
+
+  /**
    * Optional Run ID to track and resume execution.
    *
-   * @generated from field: string run_id = 210;
+   * @generated from field: string run_id = 220;
    */
   runId?: string;
 };
