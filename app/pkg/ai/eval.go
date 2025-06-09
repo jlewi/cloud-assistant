@@ -437,18 +437,6 @@ func (r *markdownReport) Render() string {
 	return strings.Join(lines, "\n")
 }
 
-type contextKeyAPIKey struct{}
-
-func ContextWithAPIKey(ctx context.Context, apiKey string) context.Context {
-	return context.WithValue(ctx, contextKeyAPIKey{}, apiKey)
-}
-
-func APIKeyFromContext(ctx context.Context) (string, bool) {
-	v := ctx.Value(contextKeyAPIKey{})
-	key, ok := v.(string)
-	return key, ok
-}
-
 // EvalFromExperiment runs an experiment based on the Experiment config.
 func EvalFromExperiment(exp *cassie.Experiment, cookie map[string]string, client *openai.Client, log logr.Logger) (map[string]*cassie.Block, error) {
 	registry[cassie.Assertion_TYPE_LLM_JUDGE] = NewLlmJudge(client)
