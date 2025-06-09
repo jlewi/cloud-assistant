@@ -15,13 +15,3 @@ Runme is used by linking it in; rather than running it as a separate process and
 
 This currently depends on a forked version of Runme available in
 [runmedev/runme#767](https://github.com/runmedev/runme/pull/767).
-
-```sh {"name":"jaeger"}
-docker run --rm --name jaeger \
-  -p 16686:16686 \
-  -p 4317:4317 \
-  -p 4318:4318 \
-  -p 5778:5778 \
-  -p 9411:9411 \
-  jaegertracing/jaeger:2.6.0
-```

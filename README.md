@@ -87,6 +87,28 @@ If you make changes to the UI you need to rerun `npm run build` to recompile the
 However, you don't need to restart the GoLang server; it is sufficient to refresh the page to pick up the
 latest static assets.
 
+## Local Tracing
+
+It's handy to have local tracing for debugging. Make sure to configure the OTLP
+endpoint in the config.yaml file.
+
+```yaml
+telemetry:
+  otlpHTTPEndpoint: localhost:4318
+```
+
+### Run Jaeger locally
+
+```sh {"name":"jaeger"}
+docker run --rm --name jaeger \
+  -p 16686:16686 \
+  -p 4317:4317 \
+  -p 4318:4318 \
+  -p 5778:5778 \
+  -p 9411:9411 \
+  jaegertracing/jaeger:2.6.0
+```
+
 ## Build the docker container
 
 The image is published in GHCR https://github.com/jlewi/cloud-assistant/pkgs/container/cloud-assistant
