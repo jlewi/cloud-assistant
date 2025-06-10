@@ -30,8 +30,8 @@ const MessageContainer = ({
   role: BlockRole
   children: React.ReactNode
 }) => {
-  const self = role === BlockRole.USER ? 'self-end' : 'self-start'
-  const color = role === BlockRole.USER ? 'indigo' : 'gray'
+  const self = role !== BlockRole.USER ? 'self-end' : 'self-start'
+  const color = role !== BlockRole.USER ? 'indigo' : 'gray'
   return (
     <Callout.Root
       highContrast
@@ -72,11 +72,11 @@ const AssistantMessage = ({ block }: { block: Block }) => {
 const CodeMessage = memo(
   ({
     block,
-    isLastCodeBlock,
+    isRecentCodeBlock,
     onClick,
   }: {
     block: Block
-    isLastCodeBlock?: boolean
+    isRecentCodeBlock?: boolean
     onClick?: () => void
   }) => {
     const { runCodeBlock } = useBlock()
@@ -91,9 +91,12 @@ const CodeMessage = memo(
     }
 
     return (
-      <div className="self-start flex flex-row items-center gap-1">
+      <div className="flex justify-end items-center h-full">
+        {isRecentCodeBlock && (
+          <span className="text-xs text-gray-400">Press CTRL+ENTER to run</span>
+        )}
         <div
-          className="flex items-center gap-2 m-1 p-2 bg-[#1e1e1e] rounded-md max-w-[80%] cursor-pointer"
+          className="flex items-center m-1 p-2 bg-[#1e1e1e] rounded-md max-w-[80%] cursor-pointer"
           onClick={handleClick}
         >
           <svg
@@ -128,9 +131,6 @@ const CodeMessage = memo(
             {firstLine}
           </span>
         </div>
-        {isLastCodeBlock && (
-          <span className="text-xs text-gray-400">Press CTRL+ENTER to run</span>
-        )}
       </div>
     )
   },
@@ -139,21 +139,21 @@ const CodeMessage = memo(
       prevProps.block.id === nextProps.block.id &&
       JSON.stringify(prevProps.block.contents) ===
         JSON.stringify(nextProps.block.contents) &&
-      prevProps.isLastCodeBlock === nextProps.isLastCodeBlock
+      prevProps.isRecentCodeBlock === nextProps.isRecentCodeBlock
     )
   }
 )
 
 const Message = ({
   block,
-  isLastCodeBlock,
-}: MessageProps & { isLastCodeBlock?: boolean }) => {
+  isRecentCodeBlock,
+}: MessageProps & { isRecentCodeBlock?: boolean }) => {
   if (block.kind === BlockKind.CODE) {
     return (
       <CodeMessage
         key={block.id}
         block={block}
-        isLastCodeBlock={isLastCodeBlock}
+        isRecentCodeBlock={isRecentCodeBlock}
       />
     )
   }
@@ -171,23 +171,14 @@ const Message = ({
 const ChatMessages = () => {
   const { useColumns, isTyping, runCodeBlock } = useBlock()
   const { chat } = useColumns()
-  const messagesEndRef = useRef<HTMLDivElement | null>(null)
   const outerDivRef = useRef<HTMLDivElement>(null)
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }
-
-  useEffect(() => {
-    scrollToBottom()
-  }, [chat])
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.ctrlKey && event.key === 'Enter') {
-        const lastBlock = chat[chat.length - 1]
-        if (lastBlock?.kind === BlockKind.CODE) {
-          runCodeBlock(lastBlock)
+        const firstBlock = chat[0]
+        if (firstBlock?.kind === BlockKind.CODE) {
+          runCodeBlock(firstBlock)
         }
       }
     }
@@ -206,23 +197,20 @@ const ChatMessages = () => {
       ref={outerDivRef}
       className="overflow-y-clip p-1 flex flex-col order-2 whitespace-pre-wrap"
     >
+      {isTyping && (
+        <div className="flex justify-end items-center h-full">
+          <Message block={TypingBlock} />
+        </div>
+      )}
       {chat.map((msg: Block, index: number) => (
         <Message
           key={index}
           block={msg}
-          isLastCodeBlock={
-            msg.kind === BlockKind.CODE &&
-            index === chat.length - 1 &&
-            !isTyping
+          isRecentCodeBlock={
+            msg.kind === BlockKind.CODE && index === 0 && !isTyping
           }
         />
       ))}
-      {isTyping && (
-        <div className="flex justify-start items-center h-full">
-          <Message block={TypingBlock} />
-        </div>
-      )}
-      <div ref={messagesEndRef} />
     </div>
   )
 }
@@ -245,7 +233,7 @@ const ChatInput = () => {
 
   return (
     <form onSubmit={handleSubmit} className="flex w-full order-1">
-      <Flex className="w-full flex flex-nowrap items-center">
+      <Flex className="w-full flex flex-nowrap items-center justify-start">
         <TextField.Root
           name="userInput"
           value={userInput}
@@ -270,23 +258,14 @@ const ChatInput = () => {
 function Chat() {
   const { useColumns, runCodeBlock } = useBlock()
   const { chat } = useColumns()
-  const messagesEndRef = useRef<HTMLDivElement | null>(null)
   const outerDivRef = useRef<HTMLDivElement>(null)
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }
-
-  useEffect(() => {
-    scrollToBottom()
-  }, [chat])
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.ctrlKey && event.key === 'Enter') {
-        const lastBlock = chat[chat.length - 1]
-        if (lastBlock?.kind === BlockKind.CODE) {
-          runCodeBlock(lastBlock)
+        const firstBlock = chat[0]
+        if (firstBlock?.kind === BlockKind.CODE) {
+          runCodeBlock(firstBlock)
         }
       }
     }
@@ -304,9 +283,9 @@ function Chat() {
         How can I help you?
       </Text>
       <ScrollArea type="auto" scrollbars="vertical" className="flex-1 p-4">
-        <div className="flex flex-col-reverse h-full w-full">
-          <ChatMessages />
+        <div className="flex flex-col h-full w-full">
           <ChatInput />
+          <ChatMessages />
         </div>
       </ScrollArea>
     </div>

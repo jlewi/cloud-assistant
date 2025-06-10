@@ -296,17 +296,12 @@ function Console({
         const terminalEnd = document.createElement('div')
         terminalEnd.setAttribute('className', 'h-1')
         el.appendChild(terminalEnd)
-
-        setTimeout(() => {
-          if (!isInViewport(terminalEnd)) {
-            terminalEnd.scrollIntoView({ behavior: 'smooth' })
-          }
-        }, 0)
       }}
     ></div>
   )
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function isInViewport(element: Element) {
   const rect = element.getBoundingClientRect()
   return (

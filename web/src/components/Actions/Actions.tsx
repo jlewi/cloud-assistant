@@ -257,16 +257,6 @@ function Actions() {
   const { useColumns, addCodeBlock } = useBlock()
   const { actions } = useColumns()
 
-  const actionsEndRef = useRef<HTMLDivElement | null>(null)
-  // automatically scroll to bottom of chat
-  const scrollToBottom = () => {
-    actionsEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }
-
-  useEffect(() => {
-    scrollToBottom()
-  }, [actions])
-
   return (
     <div className="flex flex-col h-full">
       <div className="flex items-center mb-2">
@@ -286,7 +276,6 @@ function Actions() {
         {actions.map((action) => (
           <Action key={action.id} block={action} />
         ))}
-        <div ref={actionsEndRef} className="h-1" />
       </ScrollArea>
     </div>
   )
