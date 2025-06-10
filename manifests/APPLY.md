@@ -19,8 +19,11 @@ kubectl create -n cloud-assistant secret generic openai \
 kubectl apply -f -
 ```
 
-```sh
+```sh {"terminalRows":"7"}
 kubectl delete -k manifests
+```
+
+```sh {"terminalRows":"7"}
 kubectl apply -k manifests
 ```
 
@@ -34,15 +37,10 @@ kubectl logs -n cloud-assistant -l app=cloud-assistant-ui
 
 ## Expose locally
 
-```sh
-kubectl expose -n cloud-assistant deployment cloud-assistant-ui \
-  --name cloud-assistant-ui \
-  --port 5443 \
-  --target-port cloud-assi-tls \
-  --type ClusterIP
-
+```sh {"background":"true"}
+kubectl port-forward svc/cloud-assistant-ui -n cloud-assistant 5443:5443
 ```
 
 ```sh {"background":"true"}
-kubectl port-forward svc/cloud-assistant-ui -n cloud-assistant 5443:5443
+kubectl port-forward -n chaos-mesh svc/chaos-dashboard 2333:2333 2334:2334
 ```

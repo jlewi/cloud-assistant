@@ -1,0 +1,18 @@
+apiVersion: chaos-mesh.org/v1alpha1
+kind: DNSChaos
+metadata:
+  namespace: cloud-assistant
+  name: dns-chaos
+spec:
+  action: error
+  mode: all
+  patterns:
+    - cloud-assistant.workspace.stateful.com
+    - google.com
+    - chaos-mesh.*
+    - github.?om
+  selector:
+    namespaces:
+      - cloud-assistant
+    # labelSelectors:
+    #   app: cloud-assistant-ui

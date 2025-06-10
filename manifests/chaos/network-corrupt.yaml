@@ -1,0 +1,23 @@
+kind: NetworkChaos
+apiVersion: chaos-mesh.org/v1alpha1
+metadata:
+  namespace: cloud-assistant
+  name: network-corrupt
+spec:
+  selector:
+    namespaces:
+      - cloud-assistant
+  mode: all
+  action: corrupt
+  duration: 60m
+  corrupt:
+    corrupt: '80'
+    correlation: '80'
+  direction: both
+  target:
+    selector:
+      namespaces:
+        - cloud-assistant
+      labelSelectors:
+        app: cloud-assistant-ui
+    mode: all

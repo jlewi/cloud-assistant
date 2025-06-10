@@ -1,0 +1,23 @@
+kind: NetworkChaos
+apiVersion: chaos-mesh.org/v1alpha1
+metadata:
+  namespace: cloud-assistant
+  name: network-loss
+spec:
+  selector:
+    namespaces:
+      - cloud-assistant
+  mode: all
+  action: loss
+  duration: 60m
+  loss:
+    loss: '100'
+    correlation: '100'
+  direction: both
+  target:
+    selector:
+      namespaces:
+        - cloud-assistant
+      # labelSelectors:
+      #   app: cloud-assistant-ui
+    mode: all
