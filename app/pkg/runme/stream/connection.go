@@ -128,13 +128,13 @@ func unmarshalSocketMessage[T proto.Message](ctx context.Context, messageType in
 			var zero T
 			return zero, errors.Wrap(err, "Could not unmarshal message as TextMessage")
 		}
-		log.Info("Received message", "message", msg)
+		log.Info("Received message", "messageType", messageType, "messageLength", len(message))
 	case websocket.BinaryMessage:
 		if err := proto.Unmarshal(message, msg); err != nil {
 			var zero T
 			return zero, errors.Wrap(err, "Could not unmarshal message as BinaryMessage")
 		}
-		log.Info("Received message", "message", msg)
+		log.Info("Received message", "messageType", messageType, "messageLength", len(message))
 	default:
 		var zero T
 		return zero, errors.Errorf("Unsupported message type: %d", messageType)
