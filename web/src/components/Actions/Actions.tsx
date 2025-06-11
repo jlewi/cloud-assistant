@@ -4,7 +4,7 @@ import { Box, Button, Card, ScrollArea, Text } from '@radix-ui/themes'
 
 import { Block, BlockOutputKind, useBlock } from '../../contexts/BlockContext'
 import Console from '../Runme/Console'
-import { genRunID } from '../Runme/Stream'
+import { genRunID } from '../Runme/Streams'
 import Editor from './Editor'
 import {
   ErrorIcon,

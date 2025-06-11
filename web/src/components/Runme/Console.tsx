@@ -12,7 +12,7 @@ import { RendererContext } from 'vscode-notebook-renderer'
 import { VSCodeEvent } from 'vscode-notebook-renderer/events'
 
 import { useSettings } from '../../contexts/SettingsContext'
-import Stream from './Stream'
+import Streams from './Streams'
 // anything below is required for the webcomponents to work
 import './renderers/client'
 // @ts-expect-error because the webcomponents are not typed
@@ -55,7 +55,7 @@ function Console({
     }
 
     console.log('Creating stream', blockID, runID, settings.runnerEndpoint)
-    return new Stream(blockID, runID, settings.runnerEndpoint)
+    return new Streams(blockID, runID, settings.runnerEndpoint)
   }, [blockID, runID, settings.runnerEndpoint])
 
   useEffect(() => {
