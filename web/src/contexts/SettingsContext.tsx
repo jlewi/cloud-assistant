@@ -8,7 +8,9 @@ import {
   useState,
 } from 'react'
 
-// import { getTokenValue } from '../token'
+import { ulid } from 'ulid'
+
+import Stream, { StreamError, genRunID } from '../components/Runme/Stream'
 
 interface Settings {
   agentEndpoint: string
@@ -19,7 +21,7 @@ interface Settings {
 interface SettingsContextType {
   checkRunnerAuth: () => void
   defaultSettings: Settings
-  runnerError: Error | null
+  runnerError: StreamError | null
   settings: Settings
   updateSettings: (newSettings: Partial<Settings>) => void
 }
@@ -50,7 +52,7 @@ export const SettingsProvider = ({
   requireAuth,
   webApp,
 }: SettingsProviderProps) => {
-  const [runnerError] = useState<Error | null>(null)
+  const [runnerError, setRunnerError] = useState<StreamError | null>(null)
 
   const defaultSettings: Settings = useMemo(() => {
     const isLocalhost = window.location.hostname === 'localhost'
@@ -93,34 +95,15 @@ export const SettingsProvider = ({
   }, [settings])
 
   const checkRunnerAuth = useCallback(async () => {
-    // // Use the same endpoint as the WebSocket but with HTTP
-    // const endpoint = settings.runnerEndpoint
-    //   .replace('ws://', 'http://')
-    //   .replace('wss://', 'https://')
-    // const endpointUrl = new URL(endpoint)
-    // const token = getTokenValue()
-    // const headers: Record<string, string> = {
-    //   Accept: 'application/json',
-    // }
-    // if (token !== undefined) {
-    //   headers.Authorization = `Bearer ${token}`
-    // }
-    // try {
-    //   const response = await fetch(endpointUrl.toString(), {
-    //     method: 'HEAD',
-    //     credentials: 'include', // Include cookies for authentication
-    //     headers,
-    //   })
-    //   if (response.status === 401) {
-    //     setRunnerError(new Error(`${response.status}: ${response.statusText}`))
-    //   } else {
-    //     setRunnerError(null)
-    //   }
-    // } catch (error) {
-    //   console.error('Error checking runner endpoint:', error)
-    //   setRunnerError(error as Error)
-    // }
-  }, [])
+    if (!settings.runnerEndpoint) {
+      return
+    }
+    const stream = new Stream(ulid(), genRunID(), settings.runnerEndpoint)
+    stream.errors.subscribe((error) => {
+      console.log(new Date(), 'Runner error', error)
+      setRunnerError(error)
+    })
+  }, [settings.runnerEndpoint])
 
   useEffect(() => {
     if (!settings.requireAuth) {

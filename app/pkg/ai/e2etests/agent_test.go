@@ -247,7 +247,7 @@ const (
 kind: Deployment
 metadata:
   annotations:
-    deployment.kubernetes.io/revision: "9" 
+    deployment.kubernetes.io/revision: "9"
   creationTimestamp: "2024-12-10T19:36:25Z"
   generation: 20
   labels:

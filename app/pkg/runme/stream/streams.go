@@ -90,11 +90,23 @@ func (s *Streams) receive(ctx context.Context, streamID string, sc *Connection) 
 		}
 
 		log.Info("Received socket request", "streamID", streamID, "runID", req.GetRunId())
+
 		// Return error to reject the connection if the socket request is not authorized.
 		if err := s.auth.AuthorizeRequest(ctx, req); err != nil {
 			log.Error(err, "Could not authorize request", "streamID", streamID, "runID", req.GetRunId())
 			sc.ErrorMessage(ctx, code.Code_PERMISSION_DENIED, "Unauthorized request")
 			return err
+		}
+
+		// Handle protocol-level ping
+		if req.GetPing() != nil {
+			pong := &cassie.Pong{Timestamp: req.GetPing().GetTimestamp()}
+			resp := &cassie.SocketResponse{Pong: pong}
+			err := sc.WriteSocketResponse(ctx, resp)
+			if err != nil {
+				log.Error(err, "Could not send pong response")
+			}
+			continue // Do not forward ping to multiplexer
 		}
 
 		// Only authorized requests are forwarded to the multiplexer.

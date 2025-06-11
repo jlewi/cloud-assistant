@@ -10,6 +10,16 @@ message SocketStatus {
     string message = 2;
 }
 
+// Ping message for protocol-level keep-alive
+message Ping {
+    int64 timestamp = 1;
+}
+
+// Pong message for protocol-level keep-alive response
+message Pong {
+    int64 timestamp = 1;
+}
+
 // SocketRequest defines the message sent by the client over a websocket.
 // The request is a union of types that indicate the type of message.
 message SocketRequest {
@@ -17,6 +27,9 @@ message SocketRequest {
         runme.runner.v2.ExecuteRequest execute_request = 1;
         // Add other payloads here as needed.
     }
+
+    // Protocol-level ping (not part of app payload)
+    Ping ping = 100;
 
     // Optional authorization header, similar to the HTTP Authorization header.
     string authorization = 200;
@@ -35,6 +48,9 @@ message SocketResponse {
         runme.runner.v2.ExecuteResponse execute_response = 1;
         // Add other payloads here as needed.
     }
+
+    // Protocol-level pong (not part of app payload)
+    Pong pong = 100;
 
     // Optional socket-level status.
     SocketStatus status = 200;
