@@ -50,14 +50,17 @@ function Console({
 }) {
   const { settings } = useSettings()
   const stream = useMemo(() => {
+    if (!blockID || !runID || !settings.runnerEndpoint) {
+      return undefined
+    }
+
+    console.log('Creating stream', blockID, runID, settings.runnerEndpoint)
     return new Stream(blockID, runID, settings.runnerEndpoint)
   }, [blockID, runID, settings.runnerEndpoint])
 
   useEffect(() => {
-    return () => {
-      // this will close previous stream, if still open
-      stream?.close()
-    }
+    // connect a single stream
+    stream?.connect()
   }, [stream])
 
   let winsize = create(WinsizeSchema, {
@@ -136,7 +139,7 @@ function Console({
           const req = create(ExecuteRequestSchema, {
             winsize,
           })
-          stream.sendExecuteRequest(req)
+          stream?.sendExecuteRequest(req)
         }
       }
 
@@ -145,47 +148,47 @@ function Console({
         const req = create(ExecuteRequestSchema, { inputData })
         // const reqJson = toJson(ExecuteRequestSchema, req)
         // console.log('terminalStdin', reqJson)
-        stream.sendExecuteRequest(req)
+        stream?.sendExecuteRequest(req)
       }
     },
     onDidReceiveMessage: (listener: VSCodeEvent<any>) => {
-      stream.setCallback(listener)
+      stream?.setCallback(listener)
     },
   } as Partial<RendererContext<void>>)
 
   useEffect(() => {
-    const stdoutSub = stream.stdout.subscribe((data: Uint8Array) => {
+    const stdoutSub = stream?.stdout.subscribe((data: Uint8Array) => {
       onStdout?.(data)
     })
-    return () => stdoutSub.unsubscribe()
+    return () => stdoutSub?.unsubscribe()
   }, [stream, onStdout])
 
   useEffect(() => {
-    const stderrSub = stream.stderr.subscribe((data: Uint8Array) => {
+    const stderrSub = stream?.stderr.subscribe((data: Uint8Array) => {
       onStderr?.(data)
     })
-    return () => stderrSub.unsubscribe()
+    return () => stderrSub?.unsubscribe()
   }, [stream, onStderr])
 
   useEffect(() => {
-    const exitCodeSub = stream.exitCode.subscribe((code: number) => {
+    const exitCodeSub = stream?.exitCode.subscribe((code: number) => {
       onExitCode?.(code)
     })
-    return () => exitCodeSub.unsubscribe()
+    return () => exitCodeSub?.unsubscribe()
   }, [stream, onExitCode])
 
   useEffect(() => {
-    const pidSub = stream.pid.subscribe((pid: number) => {
+    const pidSub = stream?.pid.subscribe((pid: number) => {
       onPid?.(pid)
     })
-    return () => pidSub.unsubscribe()
+    return () => pidSub?.unsubscribe()
   }, [stream, onPid])
 
   useEffect(() => {
-    const mimeTypeSub = stream.mimeType.subscribe((mimeType: string) => {
+    const mimeTypeSub = stream?.mimeType.subscribe((mimeType: string) => {
       onMimeType?.(mimeType)
     })
-    return () => mimeTypeSub.unsubscribe()
+    return () => mimeTypeSub?.unsubscribe()
   }, [stream, onMimeType])
 
   useEffect(() => {
@@ -196,7 +199,7 @@ function Console({
       'useEffect invoked - Commands changed:',
       JSON.stringify(executeRequest.config!.source!.value)
     )
-    stream.sendExecuteRequest(executeRequest)
+    stream?.sendExecuteRequest(executeRequest)
   }, [executeRequest, stream])
 
   return (

@@ -1,10 +1,10 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { Box, Button, Card, ScrollArea, Text } from '@radix-ui/themes'
-import { ulid } from 'ulid'
 
 import { Block, BlockOutputKind, useBlock } from '../../contexts/BlockContext'
 import Console from '../Runme/Console'
+import { genRunID } from '../Runme/Stream'
 import Editor from './Editor'
 import {
   ErrorIcon,
@@ -117,7 +117,7 @@ function Action({ block }: { block: Block }) {
       setPid(null)
       setExitCode(null)
       setTakeFocus(takeFocus)
-      setExec({ value: editorValue, runID: ulid() })
+      setExec({ value: editorValue, runID: genRunID() })
     },
     [editorValue]
   )

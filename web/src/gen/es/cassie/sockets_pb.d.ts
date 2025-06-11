@@ -53,6 +53,66 @@ export declare type SocketStatusJson = {
 export declare const SocketStatusSchema: GenMessage<SocketStatus, SocketStatusJson>;
 
 /**
+ * Ping message for protocol-level keep-alive
+ *
+ * @generated from message Ping
+ */
+export declare type Ping = Message<"Ping"> & {
+  /**
+   * @generated from field: int64 timestamp = 1;
+   */
+  timestamp: bigint;
+};
+
+/**
+ * Ping message for protocol-level keep-alive
+ *
+ * @generated from message Ping
+ */
+export declare type PingJson = {
+  /**
+   * @generated from field: int64 timestamp = 1;
+   */
+  timestamp?: string;
+};
+
+/**
+ * Describes the message Ping.
+ * Use `create(PingSchema)` to create a new message.
+ */
+export declare const PingSchema: GenMessage<Ping, PingJson>;
+
+/**
+ * Pong message for protocol-level keep-alive response
+ *
+ * @generated from message Pong
+ */
+export declare type Pong = Message<"Pong"> & {
+  /**
+   * @generated from field: int64 timestamp = 1;
+   */
+  timestamp: bigint;
+};
+
+/**
+ * Pong message for protocol-level keep-alive response
+ *
+ * @generated from message Pong
+ */
+export declare type PongJson = {
+  /**
+   * @generated from field: int64 timestamp = 1;
+   */
+  timestamp?: string;
+};
+
+/**
+ * Describes the message Pong.
+ * Use `create(PongSchema)` to create a new message.
+ */
+export declare const PongSchema: GenMessage<Pong, PongJson>;
+
+/**
  * SocketRequest defines the message sent by the client over a websocket.
  * The request is a union of types that indicate the type of message.
  *
@@ -71,6 +131,13 @@ export declare type SocketRequest = Message<"SocketRequest"> & {
     value: ExecuteRequest;
     case: "executeRequest";
   } | { case: undefined; value?: undefined };
+
+  /**
+   * Protocol-level ping (not part of app payload)
+   *
+   * @generated from field: Ping ping = 100;
+   */
+  ping?: Ping;
 
   /**
    * Optional authorization header, similar to the HTTP Authorization header.
@@ -107,6 +174,13 @@ export declare type SocketRequestJson = {
    * @generated from field: runme.runner.v2.ExecuteRequest execute_request = 1;
    */
   executeRequest?: ExecuteRequestJson;
+
+  /**
+   * Protocol-level ping (not part of app payload)
+   *
+   * @generated from field: Ping ping = 100;
+   */
+  ping?: PingJson;
 
   /**
    * Optional authorization header, similar to the HTTP Authorization header.
@@ -157,6 +231,13 @@ export declare type SocketResponse = Message<"SocketResponse"> & {
   } | { case: undefined; value?: undefined };
 
   /**
+   * Protocol-level pong (not part of app payload)
+   *
+   * @generated from field: Pong pong = 100;
+   */
+  pong?: Pong;
+
+  /**
    * Optional socket-level status.
    *
    * @generated from field: SocketStatus status = 200;
@@ -191,6 +272,13 @@ export declare type SocketResponseJson = {
    * @generated from field: runme.runner.v2.ExecuteResponse execute_response = 1;
    */
   executeResponse?: ExecuteResponseJson;
+
+  /**
+   * Protocol-level pong (not part of app payload)
+   *
+   * @generated from field: Pong pong = 100;
+   */
+  pong?: PongJson;
 
   /**
    * Optional socket-level status.
