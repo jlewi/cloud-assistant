@@ -38,7 +38,7 @@ class Streams {
 
   private readonly queue = new Subject<pb.SocketRequest>()
 
-  private reconnect = new Subject<void>()
+  private reconnect = new Subject<string>()
   private client = new Observable<WebSocket>()
 
   // App protocol-level errors
@@ -94,9 +94,7 @@ class Streams {
     this.client = this.reconnect
       .pipe(
         // switchMap avoids overlapping socket clients; mergeMap would allow overlapping
-        switchMap(() => {
-          return this.createSocketClient(genStreamID())
-        })
+        switchMap((streamID) => this.createSocketClient(streamID))
       )
       .pipe(share())
 
@@ -325,8 +323,11 @@ class Streams {
     //   })
   }
 
-  public connect(): void {
-    this.reconnect.next()
+  // Returns the streamID for the new stream
+  public connect(): string {
+    const streamID = genStreamID()
+    this.reconnect.next(streamID)
+    return streamID
   }
 }
 
