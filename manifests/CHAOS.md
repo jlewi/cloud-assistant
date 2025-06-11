@@ -1,3 +1,11 @@
+```sh {"promptEnv":"auto","terminalRows":"12"}
+minikube start --container-runtime=containerd --driver=docker
+```
+
+```sh
+minikube addons enable ingress
+```
+
 ```sh {"terminalRows":"3"}
 helm repo add chaos-mesh https://charts.chaos-mesh.org
 ```
@@ -10,7 +18,7 @@ kubectl create ns chaos-mesh
 helm install chaos-mesh chaos-mesh/chaos-mesh -n=chaos-mesh --set chaosDaemon.runtime=containerd --set chaosDaemon.socketPath=/run/containerd/containerd.sock --version 2.7.2
 ```
 
-```sh {"terminalRows":"12"}
+```sh {"terminalRows":"14"}
 kubectl get pods --namespace chaos-mesh -l app.kubernetes.io/instance=chaos-mesh
 ```
 

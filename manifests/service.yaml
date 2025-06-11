@@ -4,10 +4,10 @@ metadata:
   name: cloud-assistant-ui
   namespace: cloud-assistant
 spec:
-  type: ClusterIP
+  # type: ClusterIP
   selector:
     app: cloud-assistant-ui
   ports:
     - name: https
-      port: 5443
+      port: 8443
       targetPort: 8443

@@ -1,23 +1,19 @@
 kind: NetworkChaos
 apiVersion: chaos-mesh.org/v1alpha1
 metadata:
-  namespace: cloud-assistant
-  name: network-corrupt
+  namespace: ingress-nginx
+  name: network-corrupt-ingress-nginx
 spec:
   selector:
     namespaces:
-      - cloud-assistant
+      - ingress-nginx
+    labelSelectors:
+      app.kubernetes.io/component: controller
+      app.kubernetes.io/name: ingress-nginx
   mode: all
   action: corrupt
   duration: 60m
   corrupt:
-    corrupt: '80'
-    correlation: '80'
-  direction: both
-  target:
-    selector:
-      namespaces:
-        - cloud-assistant
-      labelSelectors:
-        app: cloud-assistant-ui
-    mode: all
+    corrupt: '100'
+    correlation: '100'
+  direction: to

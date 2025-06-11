@@ -2,6 +2,10 @@
 cwd: ..
 ---
 
+```sh {"terminalRows":"3"}
+kubectl create ns cloud-assistant
+```
+
 ## Replace the cert and key with your own
 
 ```sh {"terminalRows":"2"}
@@ -27,20 +31,24 @@ kubectl delete -k manifests
 kubectl apply -k manifests
 ```
 
-```sh
+```sh {"background":"true"}
+kubectl get pods -n cloud-assistant -w
+```
+
+```sh {"background":"true"}
+sudo minikube tunnel
+```
+
+```sh {"terminalRows":"3"}
 kubectl rollout restart -n cloud-assistant deploy cloud-assistant-ui
 ```
 
-```sh {"terminalRows":"20"}
+```sh {"terminalRows":"34"}
 kubectl logs -n cloud-assistant -l app=cloud-assistant-ui
 ```
 
 ## Expose locally
 
 ```sh {"background":"true"}
-kubectl port-forward svc/cloud-assistant-ui -n cloud-assistant 5443:5443
-```
-
-```sh {"background":"true"}
-kubectl port-forward -n chaos-mesh svc/chaos-dashboard 2333:2333 2334:2334
+kubectl port-forward svc/cloud-assistant-ui -n cloud-assistant 5443:8443
 ```

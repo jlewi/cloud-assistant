@@ -1,23 +1,19 @@
 kind: NetworkChaos
 apiVersion: chaos-mesh.org/v1alpha1
 metadata:
-  namespace: cloud-assistant
-  name: network-loss
+  namespace: ingress-nginx
+  name: network-loss-ingress-nginx
 spec:
   selector:
     namespaces:
-      - cloud-assistant
+      - ingress-nginx
+    labelSelectors:
+      app.kubernetes.io/component: controller
+      app.kubernetes.io/name: ingress-nginx
   mode: all
   action: loss
   duration: 60m
   loss:
-    loss: '100'
-    correlation: '100'
-  direction: both
-  target:
-    selector:
-      namespaces:
-        - cloud-assistant
-      # labelSelectors:
-      #   app: cloud-assistant-ui
-    mode: all
+    loss: '50'
+    correlation: '50'
+  direction: to
