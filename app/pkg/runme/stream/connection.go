@@ -28,13 +28,15 @@ func (sc *Connection) Close() error {
 	return sc.conn.Close()
 }
 
-// Error closes the connection with a protocol error.
+// Error closes the connection with a protocol error; details are in the message.
 func (sc *Connection) Error(message string) error {
-	defer func() { _ = sc.conn.Close() }()
+	const timeout = 10 * time.Second
+	// The websocket is treated as a transport which is why app-level errors are protocol errors.
+	const closeCode = websocket.CloseProtocolError
 	return sc.conn.WriteControl(
-		websocket.CloseProtocolError,
-		websocket.FormatCloseMessage(websocket.CloseProtocolError, message),
-		time.Now(),
+		websocket.CloseMessage,
+		websocket.FormatCloseMessage(closeCode, message),
+		time.Now().Add(timeout),
 	)
 }
 
@@ -54,8 +56,8 @@ func (sc *Connection) ErrorMessage(ctx context.Context, code code.Code, message 
 		log.Error(err, "Could not send error message")
 	}
 
-	if err := sc.Close(); err != nil {
-		log.Error(err, "Could not close websocket")
+	if err := sc.Error(message); err != nil {
+		log.Error(err, "Could not close websocket with error")
 	}
 }
 
