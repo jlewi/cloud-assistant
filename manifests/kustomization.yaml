@@ -13,5 +13,5 @@ resources:
 - service.yaml
 images:
 - name: cloud-assistant
-  newName: ttl.sh/cloud-assistant
-  newTag: 24h
+  newName: ghcr.io/jlewi/cloud-assistant
+  newTag: commit-a1b29c5
