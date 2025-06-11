@@ -4,7 +4,6 @@ metadata:
   name: cloud-assistant-ui
   namespace: cloud-assistant
 spec:
-  # type: ClusterIP
   selector:
     app: cloud-assistant-ui
   ports:
