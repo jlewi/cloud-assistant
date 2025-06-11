@@ -296,26 +296,8 @@ function Console({
         const terminalEnd = document.createElement('div')
         terminalEnd.setAttribute('className', 'h-1')
         el.appendChild(terminalEnd)
-
-        setTimeout(() => {
-          if (!isInViewport(terminalEnd)) {
-            terminalEnd.scrollIntoView({ behavior: 'smooth' })
-          }
-        }, 0)
       }}
     ></div>
   )
 }
-
-function isInViewport(element: Element) {
-  const rect = element.getBoundingClientRect()
-  return (
-    rect.top >= 0 &&
-    rect.left >= 0 &&
-    rect.bottom <=
-      (window.innerHeight || document.documentElement.clientHeight) &&
-    rect.right <= (window.innerWidth || document.documentElement.clientWidth)
-  )
-}
-
 export default Console

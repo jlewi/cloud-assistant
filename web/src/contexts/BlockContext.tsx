@@ -179,7 +179,7 @@ export const BlockProvider = ({ children }: { children: ReactNode }) => {
             ...prev.blocks,
             [block.id]: block,
           },
-          positions: [...prev.positions, block.id],
+          positions: [block.id, ...prev.positions],
         }
       }
 
