@@ -10,7 +10,7 @@ import {
 
 import { ulid } from 'ulid'
 
-import Stream, { StreamError, genRunID } from '../components/Runme/Stream'
+import Streams, { StreamError, genRunID } from '../components/Runme/Streams'
 
 interface Settings {
   agentEndpoint: string
@@ -98,7 +98,7 @@ export const SettingsProvider = ({
     if (!settings.runnerEndpoint) {
       return
     }
-    const stream = new Stream(ulid(), genRunID(), settings.runnerEndpoint)
+    const stream = new Streams(ulid(), genRunID(), settings.runnerEndpoint)
     stream.errors.subscribe((error) => {
       console.log(new Date(), 'Runner error', error)
       setRunnerError(error)

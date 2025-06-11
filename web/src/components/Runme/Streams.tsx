@@ -33,7 +33,7 @@ import { ClientMessages } from './renderers/client'
 
 export type StreamError = pb.SocketStatus
 
-class Stream {
+class Streams {
   private callback: VSCodeEvent<any> | undefined
 
   private readonly queue = new Subject<pb.SocketRequest>()
@@ -340,4 +340,4 @@ export function genRunID() {
   return ulid()
 }
 
-export default Stream
+export default Streams
