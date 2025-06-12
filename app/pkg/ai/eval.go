@@ -471,7 +471,7 @@ func EvalFromExperiment(exp *cassie.Experiment, experimentFilePath string, cooki
 			continue
 		}
 		name := file.Name()
-		if !(strings.HasSuffix(name, ".yaml") || strings.HasSuffix(name, ".yml")) {
+		if !strings.HasSuffix(name, ".yaml") && !strings.HasSuffix(name, ".yml") {
 			continue
 		}
 		path := filepath.Join(datasetPath, name)
