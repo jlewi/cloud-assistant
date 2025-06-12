@@ -56,13 +56,11 @@ const (
 
 		{
 		"passed": <boolean>,        // true if the AI SRE satisfies the rubric; otherwise false
-		"score":  <integer 1-10>,   // higher is better
-		"reasoning": "<string>"     // brief explanation of the pass/fail decision and the score
+		"reasoning": "<string>"     // brief explanation of the pass/fail decision
 		}
 
 	- **'passed'** - 'true' when every mandatory criterion is satisfied; otherwise 'false'.  
-	- **'score'** - holistic quality rating (1 = poor, 10 = excellent).  
-	- **'reasoning'** - concise justification for the result and score.
+	- **'reasoning'** - concise justification for the result.
 
 	### Rubric
 	Below is the rubric for the evaluation:
@@ -197,18 +195,12 @@ func (l llmJudge) Assert(ctx context.Context, as *cassie.Assertion, inputText st
 								"type":        "boolean",
 								"description": "Whether the assertion passed.",
 							},
-							"score": map[string]any{
-								"type":        "integer",
-								"minimum":     0,
-								"maximum":     10,
-								"description": "A score from 0 (worst) to 10 (best).",
-							},
 							"reasoning": map[string]any{
 								"type":        "string",
 								"description": "Detailed reasoning for the judgement.",
 							},
 						},
-						"required":             []string{"passed", "score", "reasoning"},
+						"required":             []string{"passed", "reasoning"},
 						"additionalProperties": false,
 					},
 					Strict:      param.Opt[bool]{Value: true},
