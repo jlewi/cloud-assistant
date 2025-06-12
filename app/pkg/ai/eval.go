@@ -16,6 +16,7 @@ import (
 	"strings"
 	"time"
 
+	"buf.build/go/protovalidate"
 	"connectrpc.com/connect"
 	"github.com/go-logr/logr"
 	"github.com/go-logr/zapr"
@@ -490,6 +491,9 @@ func EvalFromExperiment(exp *cassie.Experiment, experimentFilePath string, cooki
 		var sample cassie.EvalSample
 		if err := protojson.Unmarshal(jsonData, &sample); err != nil {
 			return nil, errors.Wrapf(err, "failed to unmarshal json to proto for sample file %q", path)
+		}
+		if err := protovalidate.Validate(&sample); err != nil {
+			return nil, errors.Wrapf(err, "failed to validate sample file %q", path)
 		}
 		samples = append(samples, &sample)
 	}

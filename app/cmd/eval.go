@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 
+	"buf.build/go/protovalidate"
 	"github.com/go-logr/zapr"
 	"github.com/jlewi/cloud-assistant/app/pkg/ai"
 	"github.com/jlewi/cloud-assistant/app/pkg/application"
@@ -51,7 +52,9 @@ func NewEvalCmd() *cobra.Command {
 			if err := protojson.Unmarshal(jsonBytes, &experiment); err != nil {
 				return err
 			}
-
+			if err := protovalidate.Validate(&experiment); err != nil {
+				return fmt.Errorf("failed to validate experiment file %q: %w", args[0], err)
+			}
 			// Read the cookie file (.env-style)
 			cookieData, err := os.ReadFile(cookieFile)
 			if err != nil {
