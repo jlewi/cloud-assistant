@@ -96,7 +96,7 @@ message ObjectMeta {
 }
 
 message ExperimentSpec {
-  // Path to the YAML dataset to evaluate.
+  // Path to the folder containing the dataset to evaluate.
   string dataset_path       = 1 [json_name = "datasetPath"];
 
   // Directory where experiment reports will be written.

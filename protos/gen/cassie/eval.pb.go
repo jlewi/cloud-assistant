@@ -462,7 +462,7 @@ func (x *ObjectMeta) GetName() string {
 
 type ExperimentSpec struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Path to the YAML dataset to evaluate.
+	// Path to the folder containing the dataset to evaluate.
 	DatasetPath string `protobuf:"bytes,1,opt,name=dataset_path,json=datasetPath,proto3" json:"dataset_path,omitempty"`
 	// Directory where experiment reports will be written.
 	OutputDir string `protobuf:"bytes,2,opt,name=output_dir,json=outputDir,proto3" json:"output_dir,omitempty"`
