@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"regexp"
 	"runtime"
 	"sort"
@@ -450,12 +451,18 @@ func (r *markdownReport) Render() string {
 }
 
 // EvalFromExperiment runs an experiment based on the Experiment config.
-func EvalFromExperiment(exp *cassie.Experiment, cookie map[string]string, client *openai.Client, log logr.Logger) (map[string]*cassie.Block, error) {
+func EvalFromExperiment(exp *cassie.Experiment, experimentFilePath string, cookie map[string]string, client *openai.Client, log logr.Logger) (map[string]*cassie.Block, error) {
 	registry[cassie.Assertion_TYPE_LLM_JUDGE] = NewLlmJudge(client)
-	// List all YAML files in the dataset directory
-	files, err := os.ReadDir(exp.Spec.GetDatasetPath())
+	// Resolve dataset path relative to experiment file path if needed
+	datasetPath := exp.Spec.GetDatasetPath()
+	if !filepath.IsAbs(datasetPath) {
+		expDir := filepath.Dir(experimentFilePath)
+		datasetPath = filepath.Join(expDir, datasetPath)
+	}
+
+	files, err := os.ReadDir(datasetPath)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to read dataset directory %q", exp.Spec.GetDatasetPath())
+		return nil, errors.Wrapf(err, "failed to read dataset directory %q", datasetPath)
 	}
 
 	var samples []*cassie.EvalSample
@@ -467,7 +474,7 @@ func EvalFromExperiment(exp *cassie.Experiment, cookie map[string]string, client
 		if !(strings.HasSuffix(name, ".yaml") || strings.HasSuffix(name, ".yml")) {
 			continue
 		}
-		path := fmt.Sprintf("%s/%s", exp.Spec.GetDatasetPath(), name)
+		path := filepath.Join(datasetPath, name)
 		data, err := os.ReadFile(path)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to read sample file %q", path)
@@ -556,8 +563,12 @@ func EvalFromExperiment(exp *cassie.Experiment, cookie map[string]string, client
 	if outputDir == "" {
 		outputDir = "."
 	}
+	if !filepath.IsAbs(outputDir) {
+		expDir := filepath.Dir(experimentFilePath)
+		outputDir = filepath.Join(expDir, outputDir)
+	}
 	timestamp := time.Now().In(loc).Format("20060102_150405")
-	reportPath := fmt.Sprintf("%s/eval_report_%s.md", outputDir, timestamp)
+	reportPath := filepath.Join(outputDir, fmt.Sprintf("eval_report_%s.md", timestamp))
 	if err := os.WriteFile(reportPath, []byte(report.Render()), 0644); err != nil {
 		return nil, errors.Wrapf(err, "failed to write markdown report to %s", reportPath)
 	}

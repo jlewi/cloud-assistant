@@ -74,7 +74,7 @@ func NewEvalCmd() *cobra.Command {
 				}
 			}
 			log := zapr.NewLogger(zap.L())
-			_, err = ai.EvalFromExperiment(&experiment, cookies, client, log)
+			_, err = ai.EvalFromExperiment(&experiment, args[0], cookies, client, log)
 			if err != nil {
 				return err
 			}
