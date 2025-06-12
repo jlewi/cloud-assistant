@@ -19,6 +19,8 @@ import {
   skipUntil,
   switchMap,
   take,
+  takeWhile,
+  timer,
   withLatestFrom,
 } from 'rxjs'
 import { ulid } from 'ulid'
@@ -31,14 +33,22 @@ import { getTokenValue } from '../../token'
 // @ts-expect-error because the webcomponents are not typed
 import { ClientMessages } from './renderers/client'
 
-export type StreamError = pb.SocketStatus
+export type StreamError = Error | pb.SocketStatus
+
+export enum Heartbeat {
+  CONTINUOUS = 'CONTINUOUS',
+  INITIAL = 'INITIAL',
+}
 
 class Streams {
   private callback: VSCodeEvent<any> | undefined
 
   private readonly queue = new Subject<pb.SocketRequest>()
 
-  private reconnect = new Subject<string>()
+  private reconnect = new Subject<{
+    streamID: string
+    heartbeat: Heartbeat
+  }>()
   private client = new Observable<WebSocket>()
 
   // App protocol-level errors
@@ -84,6 +94,8 @@ class Streams {
     private readonly runID: string,
     private readonly runnerEndpoint: string
   ) {
+    // Turn the connectables into hot observables
+    this._errorsConnectable.connect()
     this._stdoutConnectable.connect()
     this._stderrConnectable.connect()
     this._exitCodeConnectable.connect()
@@ -94,7 +106,15 @@ class Streams {
     this.client = this.reconnect
       .pipe(
         // switchMap avoids overlapping socket clients; mergeMap would allow overlapping
-        switchMap((streamID) => this.createSocketClient(streamID))
+        switchMap((config) => {
+          // construct a new socket client for each reconnect
+          return this.createSocketClient(config.streamID).pipe(
+            switchMap((socket) => {
+              // add a heartbeat to the socket
+              return this.withHeartbeat(socket, config.heartbeat)
+            })
+          )
+        })
       )
       .pipe(share())
 
@@ -137,29 +157,29 @@ class Streams {
 
     const sender = merged.pipe(
       withLatestFrom(this.client),
-      map(([req, socket]) => {
-        // knownID is important to track the origin cell/block of the request.
-        req.knownId = this.knownID
-        // runID is important to identify the specific execution of the request.
-        req.runId = this.runID
-
-        const token = getTokenValue()
-        // Add bearer token, if available
-        if (token && req) {
-          req.authorization = `Bearer ${token}`
-        }
-        socket.send(JSON.stringify(toJson(pb.SocketRequestSchema, req)))
-        return `${new Date().toISOString()}: Sending ${JSON.stringify(
-          req.payload.value
-        )}`
-      })
+      takeWhile(([, socket]) => socket.readyState === WebSocket.OPEN),
+      map(([req, socket]) =>
+        sendSocketRequest({
+          req,
+          socket,
+          knownID: this.knownID,
+          runID: this.runID,
+        })
+      )
     )
 
-    sender.subscribe()
+    sender.subscribe({
+      error: (err) => {
+        this._errors.next(err)
+      },
+    })
   }
 
+  // Creates a new socket client for the given streamID.
+  // Returns an observable that emits the socket when it is open.
+  // The socket is closed when the observable is unsubscribed.
   private createSocketClient(streamID: string) {
-    return new Observable<WebSocket>((subscriber) => {
+    return new Observable<WebSocket>((observer) => {
       const url = new URL(this.runnerEndpoint)
       url.searchParams.set('id', streamID)
       url.searchParams.set('runID', this.runID)
@@ -167,15 +187,16 @@ class Streams {
 
       socket.onclose = (event) => {
         console.log(new Date(), `WebSocket transport ${streamID} closed`, event)
-        subscriber.complete()
+        observer.complete()
       }
+
       socket.onerror = (event) => {
         console.error(
           new Date(),
           `WebSocket transport ${streamID} error`,
           event
         )
-        subscriber.error(event)
+        observer.error(event)
       }
 
       socket.onmessage = (event) => {
@@ -199,8 +220,7 @@ class Streams {
 
         const status = message!.status
         if (status && status.code !== Code.OK) {
-          this._errors.next(status)
-          subscriber.complete()
+          observer.error(status)
           return
         }
 
@@ -235,7 +255,7 @@ class Streams {
 
         if (response.exitCode !== undefined) {
           this._exitCode.next(response.exitCode)
-          subscriber.complete()
+          observer.complete()
         }
 
         if (response.pid !== undefined) {
@@ -255,7 +275,7 @@ class Streams {
           `✅ Connected WebSocket for block ${this.knownID} with runID ${this.runID}`
         )
 
-        subscriber.next(socket)
+        observer.next(socket)
       }
 
       return () => {
@@ -263,15 +283,6 @@ class Streams {
           new Date(),
           `☑️ Cleanly disconnected WebSocket for block ${this.knownID} with runID ${this.runID}`
         )
-
-        // todo(sebastian): do we need to explicitly complete them with reconnect?
-        // Complete so that any subscribers can unsubscribe
-        // this._errors.complete()
-        // this._stdout.complete()
-        // this._stderr.complete()
-        // this._exitCode.complete()
-        // this._pid.complete()
-        // this._mimeType.complete()
 
         socket.close()
       }
@@ -294,41 +305,81 @@ class Streams {
   }
 
   // Sends periodic heartbeat pings to keep the WebSocket connection alive.
-  // If continuous is true, sends an initial ping immediately and then every 10 seconds.
-  // If continuous is false, sends only a single immediate ping.
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  public heartbeat({ continuous }: { continuous: boolean }) {
-    // this.ws
-    //   .pipe(
-    //     filter((socket) => socket?.readyState === WebSocket.OPEN),
-    //     switchMap((socket) => {
-    //       const ticks = continuous ? timer(0, 1_000) : timer(0)
-    //       return ticks.pipe(
-    //         map(() => {
-    //           const ping = { timestamp: BigInt(Date.now()) }
-    //           return create(pb.SocketRequestSchema, { ping })
-    //         }),
-    //         tap((req) => {
-    //           socket.send(JSON.stringify(toJson(pb.SocketRequestSchema, req)))
-    //         })
-    //       )
-    //     })
-    //   )
-    //   .subscribe({
-    //     complete: () => {
-    //       console.log(
-    //         `Heartbeat for ${this.knownID} with runID ${this.runID} complete`
-    //       )
-    //     },
-    //   })
+  // If heartbeat is Heartbeat.CONTINUOUS, sends an initial ping immediately and then every 10 seconds.
+  // If heartbeat is Heartbeat.INITIAL, sends only a single immediate ping.
+  private withHeartbeat(
+    socket: WebSocket,
+    heartbeat: Heartbeat
+  ): Observable<WebSocket> {
+    return new Observable<WebSocket>((observer) => {
+      const ticks =
+        heartbeat === Heartbeat.INITIAL ? timer(0) : timer(0, 10_000)
+
+      // Subscribe to ticks to send heartbeat pings.
+      const sub = ticks
+        .pipe(
+          takeWhile(() => socket.readyState === WebSocket.OPEN),
+          map(() => {
+            const ping = { timestamp: BigInt(Date.now()) }
+            return create(pb.SocketRequestSchema, { ping })
+          })
+        )
+        .subscribe({
+          next: (req: pb.SocketRequest) => {
+            sendSocketRequest({
+              req,
+              socket,
+              knownID: this.knownID,
+              runID: this.runID,
+            })
+          },
+          // complete: () => {
+          //   console.log(
+          //     `Heartbeat for ${this.knownID} with runID ${this.runID} complete`
+          //   )
+          // },
+          error: (err) => {
+            console.error('Unexpected error sending heartbeat', err)
+          },
+        })
+
+      observer.next(socket)
+
+      return () => {
+        sub.unsubscribe()
+      }
+    })
   }
 
   // Returns the streamID for the new stream
-  public connect(): string {
+  public connect(heartbeat = Heartbeat.CONTINUOUS): string {
     const streamID = genStreamID()
-    this.reconnect.next(streamID)
+    this.reconnect.next({ streamID, heartbeat })
     return streamID
   }
+}
+
+// Sends a SocketRequest over a WebSocket after adding knownId, runId, and authorization.
+function sendSocketRequest({
+  req,
+  socket,
+  knownID,
+  runID,
+}: {
+  req: pb.SocketRequest
+  socket: WebSocket
+  knownID: string
+  runID: string
+}) {
+  // knownID is important to track the origin cell/block of the request.
+  req.knownId = knownID
+  // runID is important to identify the specific execution of the request.
+  req.runId = runID
+  const token = getTokenValue()
+  if (token && req) {
+    req.authorization = `Bearer ${token}`
+  }
+  socket.send(JSON.stringify(toJson(pb.SocketRequestSchema, req)))
 }
 
 // Generate a unique ID for the stream
