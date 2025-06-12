@@ -10,7 +10,11 @@ import {
 
 import { ulid } from 'ulid'
 
-import Streams, { StreamError, genRunID } from '../components/Runme/Streams'
+import Streams, {
+  Heartbeat,
+  StreamError,
+  genRunID,
+} from '../components/Runme/Streams'
 
 interface Settings {
   agentEndpoint: string
@@ -98,20 +102,20 @@ export const SettingsProvider = ({
     if (!settings.runnerEndpoint) {
       return
     }
+    // reset runner error
+    setRunnerError(null)
     const stream = new Streams(ulid(), genRunID(), settings.runnerEndpoint)
-    stream.errors.subscribe((error) => {
-      console.log(new Date(), 'Runner error', error)
-      setRunnerError(error)
+    stream.errors.subscribe({
+      next: (error) => {
+        setRunnerError(error)
+      },
     })
+    stream.connect(Heartbeat.INITIAL)
   }, [settings.runnerEndpoint])
 
   useEffect(() => {
-    if (!settings.requireAuth) {
-      return
-    }
-
     checkRunnerAuth()
-  }, [checkRunnerAuth, settings.requireAuth])
+  }, [checkRunnerAuth])
 
   const updateSettings = (newSettings: Partial<Settings>) => {
     setSettings((prev) => ({ ...prev, ...newSettings }))

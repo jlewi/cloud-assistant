@@ -59,7 +59,8 @@ function Console({
   }, [blockID, runID, settings.runnerEndpoint])
 
   useEffect(() => {
-    console.log('Connecting new stream with ID', streams?.connect())
+    const streamID = streams?.connect()
+    console.log('Connecting new stream with ID', streamID)
   }, [streams])
 
   let winsize = create(WinsizeSchema, {

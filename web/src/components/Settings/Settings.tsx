@@ -77,9 +77,7 @@ export default function Settings() {
             </Text>
             {runnerError && (
               <Callout.Root color="red">
-                <Callout.Text className="font-bold">
-                  Runner error: {runnerError.message}
-                </Callout.Text>
+                <Callout.Text className="font-bold">Runner error</Callout.Text>
               </Callout.Root>
             )}
             <TextArea
