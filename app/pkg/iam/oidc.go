@@ -7,6 +7,8 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/types/known/timestamppb"
 	"math/big"
 	"net/http"
 	"net/url"
@@ -33,9 +35,10 @@ var (
 )
 
 const (
-	OIDCPathPrefix    = "/oidc"
-	SessionCookieName = "cassie-session"
-	stateLength       = 32
+	OIDCPathPrefix        = "/oidc"
+	SessionCookieName     = "cassie-session"
+	SessionOAuthTokenName = "cassie-oauth-token"
+	stateLength           = 32
 )
 
 // OIDC handles OAuth2 authentication setup and management
@@ -366,6 +369,23 @@ func (o *OIDC) CallbackHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Create an OAuthToken protobuf message
+	// This will be used to allow the client to potentially refresh the token.
+	tokenPB := &cassie.OAuthToken{
+		AccessToken:  token.AccessToken,
+		TokenType:    token.TokenType,
+		RefreshToken: token.RefreshToken,
+		Expiry:       timestamppb.New(token.Expiry),
+		ExpiresIn:    token.ExpiresIn,
+	}
+
+	tokenPBJson, err := protojson.Marshal(tokenPB)
+	if err != nil {
+		log.Error(err, "Failed to marshal OAuthToken to JSON")
+		redirectWithError(w, r, "token_marshal_failed", "Failed to marshal token")
+		return
+	}
+
 	// Get the ID token from the response
 	idToken, ok := token.Extra("id_token").(string)
 	if !ok {
@@ -376,6 +396,15 @@ func (o *OIDC) CallbackHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Set the session cookie with the ID token
 	http.SetCookie(w, &http.Cookie{
+		Name:     SessionOAuthTokenName,
+		Value:    string(tokenPBJson),
+		Path:     "/",
+		HttpOnly: false,
+		Secure:   true,
+		SameSite: http.SameSiteLaxMode,
+	})
+
+	http.SetCookie(w, &http.Cookie{
 		Name:     SessionCookieName,
 		Value:    idToken,
 		Path:     "/",
@@ -383,7 +412,6 @@ func (o *OIDC) CallbackHandler(w http.ResponseWriter, r *http.Request) {
 		Secure:   true,
 		SameSite: http.SameSiteLaxMode,
 	})
-
 	// Redirect to the home page
 	http.Redirect(w, r, "/", http.StatusFound)
 }
