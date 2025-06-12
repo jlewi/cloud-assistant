@@ -841,7 +841,7 @@ var File_cassie_eval_proto protoreflect.FileDescriptor
 
 const file_cassie_eval_proto_rawDesc = "" +
 	"\n" +
-	"\x11cassie/eval.proto\x1a\x1bbuf/validate/validate.proto\"\xd7\b\n" +
+	"\x11cassie/eval.proto\x1a\x1bbuf/validate/validate.proto\"\xcb\b\n" +
 	"\tAssertion\x12\x1e\n" +
 	"\x04name\x18\x01 \x01(\tB\n" +
 	"\xbaH\a\xc8\x01\x01r\x02\x10\x01R\x04name\x12+\n" +
@@ -859,12 +859,11 @@ const file_cassie_eval_proto_rawDesc = "" +
 	"\x05flags\x18\x02 \x03(\tB\v\xbaH\b\xc8\x01\x01\x92\x01\x02\b\x01R\x05flags\x1a9\n" +
 	"\x0eToolInvocation\x12'\n" +
 	"\ttool_name\x18\x01 \x01(\tB\n" +
-	"\xbaH\a\xc8\x01\x01r\x02\x10\x01R\btoolName\x1a]\n" +
+	"\xbaH\a\xc8\x01\x01r\x02\x10\x01R\btoolName\x1aQ\n" +
 	"\rFileRetrieval\x12#\n" +
 	"\afile_id\x18\x01 \x01(\tB\n" +
-	"\xbaH\a\xc8\x01\x01r\x02\x10\x01R\x06fileId\x12'\n" +
-	"\tfile_name\x18\x02 \x01(\tB\n" +
-	"\xbaH\a\xc8\x01\x01r\x02\x10\x01R\bfileName\x1a.\n" +
+	"\xbaH\a\xc8\x01\x01r\x02\x10\x01R\x06fileId\x12\x1b\n" +
+	"\tfile_name\x18\x02 \x01(\tR\bfileName\x1a.\n" +
 	"\bLLMJudge\x12\"\n" +
 	"\x06prompt\x18\x01 \x01(\tB\n" +
 	"\xbaH\a\xc8\x01\x01r\x02\x10\x01R\x06prompt\x1a2\n" +
