@@ -71,10 +71,7 @@ message Assertion {
       (buf.validate.field).string.min_len = 1,
       (buf.validate.field).required = true
     ];
-    string file_name = 2 [
-      (buf.validate.field).string.min_len = 1,
-      (buf.validate.field).required = true
-    ];                         // Optional human-readable name
+    string file_name = 2;   // Optional human-readable name
   }
 
   // Asks an LLM to grade the assistant's answer.
