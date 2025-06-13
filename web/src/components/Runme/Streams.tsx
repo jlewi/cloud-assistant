@@ -9,17 +9,21 @@ import { create } from '@bufbuild/protobuf'
 import {
   Observable,
   Subject,
+  Subscription,
   bufferWhen,
   connectable,
   filter,
+  fromEvent,
   map,
   merge,
   mergeMap,
+  scan,
   share,
   skipUntil,
   switchMap,
   take,
   takeWhile,
+  tap,
   timer,
   withLatestFrom,
 } from 'rxjs'
@@ -40,16 +44,40 @@ export enum Heartbeat {
   INITIAL = 'INITIAL',
 }
 
+type ReconnectConfig = {
+  streamID: string
+  heartbeat: Heartbeat
+}
+
+type Latency = {
+  streamID: string
+  latency: number
+}
+
 class Streams {
   private callback: VSCodeEvent<any> | undefined
 
   private readonly queue = new Subject<pb.SocketRequest>()
 
-  private reconnect = new Subject<{
-    streamID: string
-    heartbeat: Heartbeat
-  }>()
+  // Transport related
+  private reconnect = new Subject<ReconnectConfig>()
   private client = new Observable<WebSocket>()
+
+  // Track transport latencies for each stream.
+  private _latencies = new Subject<Latency>()
+  private _latenciesConnectable = connectable(
+    this._latencies.asObservable().pipe(
+      scan((acc, curr) => {
+        acc.set(curr.streamID, curr.latency)
+        return acc
+      }, new Map<string, number>())
+    )
+  )
+
+  // Returns an observable that emits the latencies for all streams.
+  public get latencies() {
+    return this._latenciesConnectable
+  }
 
   // App protocol-level errors
   private _errors = new Subject<StreamError>()
@@ -95,6 +123,7 @@ class Streams {
     private readonly runnerEndpoint: string
   ) {
     // Turn the connectables into hot observables
+    this._latenciesConnectable.connect()
     this._errorsConnectable.connect()
     this._stdoutConnectable.connect()
     this._stderrConnectable.connect()
@@ -111,7 +140,7 @@ class Streams {
           return this.createSocketClient(config.streamID).pipe(
             switchMap((socket) => {
               // add a heartbeat to the socket
-              return this.withHeartbeat(socket, config.heartbeat)
+              return this.withHeartbeat(socket, config)
             })
           )
         })
@@ -185,12 +214,13 @@ class Streams {
       url.searchParams.set('runID', this.runID)
       const socket = new WebSocket(url.toString())
 
-      socket.onclose = (event) => {
+      // Define event handlers
+      const onClose = (event: CloseEvent) => {
         console.log(new Date(), `WebSocket transport ${streamID} closed`, event)
         observer.complete()
       }
 
-      socket.onerror = (event) => {
+      const onError = (event: Event) => {
         console.error(
           new Date(),
           `WebSocket transport ${streamID} error`,
@@ -199,19 +229,14 @@ class Streams {
         observer.error(event)
       }
 
-      socket.onmessage = (event) => {
+      const onMessage = (event: MessageEvent) => {
         if (typeof event.data !== 'string') {
           console.warn('Unexpected WebSocket message type:', typeof event.data)
           return
         }
         let message: pb.SocketResponse
         try {
-          // Parse the string into an object
-          const parsed = JSON.parse(event.data)
-
-          // Parse the payload into a Protobuf message
-          message = fromJson(pb.SocketResponseSchema, parsed)
-
+          message = parseSocketResponse(event.data)
           // Use the message
           console.log('Received SocketResponse:', message)
         } catch (err) {
@@ -269,7 +294,7 @@ class Streams {
         }
       }
 
-      socket.onopen = () => {
+      const onOpen = () => {
         console.log(
           new Date(),
           `✅ Connected WebSocket for block ${this.knownID} with runID ${this.runID}`
@@ -278,12 +303,21 @@ class Streams {
         observer.next(socket)
       }
 
+      // Attach event listeners
+      socket.addEventListener('close', onClose)
+      socket.addEventListener('error', onError)
+      socket.addEventListener('message', onMessage)
+      socket.addEventListener('open', onOpen)
+
       return () => {
         console.log(
           new Date(),
           `☑️ Cleanly disconnected WebSocket for block ${this.knownID} with runID ${this.runID}`
         )
-
+        socket.removeEventListener('close', onClose)
+        socket.removeEventListener('error', onError)
+        socket.removeEventListener('message', onMessage)
+        socket.removeEventListener('open', onOpen)
         socket.close()
       }
     })
@@ -309,54 +343,125 @@ class Streams {
   // If heartbeat is Heartbeat.INITIAL, sends only a single immediate ping.
   private withHeartbeat(
     socket: WebSocket,
-    heartbeat: Heartbeat
+    { streamID, heartbeat }: ReconnectConfig
   ): Observable<WebSocket> {
     return new Observable<WebSocket>((observer) => {
       const ticks =
         heartbeat === Heartbeat.INITIAL ? timer(0) : timer(0, 10_000)
 
-      // Subscribe to ticks to send heartbeat pings.
-      const sub = ticks
-        .pipe(
-          takeWhile(() => socket.readyState === WebSocket.OPEN),
-          map(() => {
-            const ping = { timestamp: BigInt(Date.now()) }
-            return create(pb.SocketRequestSchema, { ping })
+      // Listen to the websocket's pongs
+      const pongsWithTimestamp = fromEvent<MessageEvent>(
+        socket,
+        'message'
+      ).pipe(
+        map((event) => parseSocketResponse(event.data)),
+        map((message) => message.pong),
+        filter((pong) => pong !== undefined),
+        map((pong) => ({
+          receivedAt: BigInt(Date.now()),
+          pong,
+        }))
+      )
+
+      // Turn ticks into pings.
+      const pings = ticks.pipe(
+        takeWhile(() => socket.readyState === WebSocket.OPEN),
+        map(() => {
+          const ping = { timestamp: BigInt(Date.now()) }
+          return create(pb.SocketRequestSchema, { ping })
+        }),
+        tap((req: pb.SocketRequest) => {
+          sendSocketRequest({
+            req,
+            socket,
+            // todo(sebastian): not including these saves payload size. do we need them?
+            // knownID: this.knownID,
+            // runID: this.runID,
           })
-        )
-        .subscribe({
-          next: (req: pb.SocketRequest) => {
-            sendSocketRequest({
-              req,
-              socket,
-              knownID: this.knownID,
-              runID: this.runID,
-            })
+        }),
+        map((req: pb.SocketRequest) => req.ping),
+        share()
+      )
+
+      const latency$ = pongsWithTimestamp.pipe(
+        withLatestFrom(pings),
+        filter(([pong, ping]) => !!pong && !!ping),
+        map(([receivedPong, ping]) => {
+          const sent = ping!.timestamp
+          const received = receivedPong.receivedAt
+          if (sent !== receivedPong.pong.timestamp) {
+            throw new Error(
+              `Heartbeat out of order: sent ${sent} but received ${receivedPong.pong.timestamp} for stream ${streamID}`
+            )
+          }
+          return Number(received - sent)
+        })
+      )
+
+      const subs: Subscription[] = []
+
+      subs.push(
+        latency$.subscribe({
+          next: (ms) => {
+            this._latencies.next({ streamID, latency: ms })
+            // console.log(`Heartbeat latency for streamID ${streamID}: ${ms}ms`)
           },
-          // complete: () => {
-          //   console.log(
-          //     `Heartbeat for ${this.knownID} with runID ${this.runID} complete`
-          //   )
-          // },
+          error: (err) => {
+            this._errors.next(err)
+          },
+        })
+      )
+
+      // Subscribe to pings.
+      subs.push(
+        pings.subscribe({
+          complete: () => {
+            console.log(`Heartbeat for streamID ${streamID} complete`)
+          },
           error: (err) => {
             console.error('Unexpected error sending heartbeat', err)
           },
         })
+      )
 
       observer.next(socket)
 
       return () => {
-        sub.unsubscribe()
+        subs.forEach((sub) => sub.unsubscribe())
       }
     })
   }
 
-  // Returns the streamID for the new stream
-  public connect(heartbeat = Heartbeat.CONTINUOUS): string {
+  // Returns an observable that emits the latency for the new stream.
+  // If the stream is not found, null is emitted.
+  public connect(heartbeat = Heartbeat.CONTINUOUS): Observable<Latency | null> {
     const streamID = genStreamID()
+    const latency = this.latencies.pipe(
+      map((latencies) => {
+        const l = latencies.get(streamID)
+        if (l === undefined) {
+          return null
+        }
+        return { streamID, latency: l }
+      })
+    )
     this.reconnect.next({ streamID, heartbeat })
-    return streamID
+    return latency
   }
+
+  // Closes streams by completing the reconnect and queue subjects.
+  public close() {
+    this.reconnect.complete()
+    this.queue.complete()
+  }
+}
+
+// Parses a SocketResponse from a string.
+function parseSocketResponse(data: string): pb.SocketResponse {
+  // Parse the string into an object
+  const parsed = JSON.parse(data)
+  // Parse the payload into a Protobuf message
+  return fromJson(pb.SocketResponseSchema, parsed)
 }
 
 // Sends a SocketRequest over a WebSocket after adding knownId, runId, and authorization.
@@ -368,13 +473,17 @@ function sendSocketRequest({
 }: {
   req: pb.SocketRequest
   socket: WebSocket
-  knownID: string
-  runID: string
+  knownID?: string
+  runID?: string
 }) {
-  // knownID is important to track the origin cell/block of the request.
-  req.knownId = knownID
-  // runID is important to identify the specific execution of the request.
-  req.runId = runID
+  // knownID tracks the origin cell/block of the request.
+  if (knownID) {
+    req.knownId = knownID
+  }
+  // runID identifies the specific execution of the request.
+  if (runID) {
+    req.runId = runID
+  }
   const token = getTokenValue()
   if (token && req) {
     req.authorization = `Bearer ${token}`
