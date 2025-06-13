@@ -103,13 +103,16 @@ export const SettingsProvider = ({
     if (!settings.runnerEndpoint) {
       return
     }
+
     // reset runner error
     setRunnerError(null)
+
     const stream = new Streams(
       `check_${ulid()}`,
       genRunID(),
       settings.runnerEndpoint
     )
+
     const subs: Subscription[] = []
     subs.push(
       stream.errors.subscribe({
@@ -127,6 +130,7 @@ export const SettingsProvider = ({
         stream.close()
       })
     )
+
     return () => {
       subs.forEach((sub) => sub.unsubscribe())
     }
