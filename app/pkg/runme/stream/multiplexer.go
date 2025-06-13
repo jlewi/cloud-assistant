@@ -105,8 +105,6 @@ func (m *Multiplexer) close() {
 	m.setInflight(nil)
 	// Wait for 30s to give the client a chance to close the connection.
 	time.Sleep(30 * time.Second)
-	// Delay close because clients might still be connected.
-	close(m.authedSocketRequests)
 	// With Runme's execution finished we can close all websocket connections.
 	m.streams.close(m.ctx)
 }

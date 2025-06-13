@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { Helmet } from 'react-helmet'
 import { BrowserRouter, Route, Routes } from 'react-router-dom'
 
@@ -13,7 +14,8 @@ import NotFound from './components/NotFound'
 import Settings from './components/Settings/Settings'
 import { AgentClientProvider } from './contexts/AgentContext'
 import { BlockProvider } from './contexts/BlockContext'
-import { SettingsProvider } from './contexts/SettingsContext'
+import { SettingsProvider, useSettings } from './contexts/SettingsContext'
+import { Code } from './gen/es/google/rpc/code_pb'
 import Layout from './layout'
 
 export interface AppProps {
@@ -26,29 +28,36 @@ export interface AppProps {
 }
 
 function AppRouter() {
-  // const { settings, runnerError } = useSettings()
+  const { settings, runnerError } = useSettings()
 
-  // useEffect(() => {
-  //   if (!runnerError) {
-  //     return
-  //   }
+  useEffect(() => {
+    if (!runnerError) {
+      return
+    }
 
-  //   const currentPath = window.location.pathname
-  //   if (
-  //     currentPath === '/settings' ||
-  //     currentPath === '/login' ||
-  //     currentPath === '/oidc/login'
-  //   ) {
-  //     return
-  //   }
+    const settingsPath = '/settings'
+    const currentPath = window.location.pathname
+    if (
+      currentPath === settingsPath ||
+      currentPath === '/login' ||
+      currentPath === '/oidc/login'
+    ) {
+      return
+    }
 
-  //   const runnerErrorStr = runnerError?.toString() || ''
-  //   const isError401 = runnerErrorStr.includes('401')
-  //   const loginUrl = settings.requireAuth ? '/oidc/login' : '/login'
-  //   const redirectUrl = isError401 ? loginUrl : '/settings'
+    const loginUrl = settings.requireAuth ? '/oidc/login' : '/login'
 
-  //   window.location.href = redirectUrl
-  // }, [runnerError, settings.requireAuth])
+    if (!(runnerError instanceof Error) && !(runnerError instanceof Event)) {
+      const isAuthError =
+        runnerError.code === Code.UNAUTHENTICATED ||
+        runnerError.code === Code.PERMISSION_DENIED
+      const redirectUrl = isAuthError ? loginUrl : settingsPath
+      window.location.href = redirectUrl
+      return
+    }
+
+    window.location.href = settingsPath
+  }, [runnerError, settings.requireAuth])
 
   return (
     <BrowserRouter>

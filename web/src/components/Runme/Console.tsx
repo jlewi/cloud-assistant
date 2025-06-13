@@ -12,7 +12,7 @@ import { RendererContext } from 'vscode-notebook-renderer'
 import { VSCodeEvent } from 'vscode-notebook-renderer/events'
 
 import { useSettings } from '../../contexts/SettingsContext'
-import Stream from './Stream'
+import Streams from './Streams'
 // anything below is required for the webcomponents to work
 import './renderers/client'
 // @ts-expect-error because the webcomponents are not typed
@@ -49,16 +49,28 @@ function Console({
   onMimeType?: (mimeType: string) => void
 }) {
   const { settings } = useSettings()
-  const stream = useMemo(() => {
-    return new Stream(blockID, runID, settings.runnerEndpoint)
+  const streams = useMemo(() => {
+    if (!blockID || !runID || !settings.runnerEndpoint) {
+      return undefined
+    }
+
+    console.log('Creating stream', blockID, runID, settings.runnerEndpoint)
+    return new Streams(blockID, runID, settings.runnerEndpoint)
   }, [blockID, runID, settings.runnerEndpoint])
 
   useEffect(() => {
+    const sub = streams
+      ?.connect()
+      .subscribe((latency) =>
+        console.log(
+          `Heartbeat latency for streamID ${latency?.streamID} (${latency?.readyState === 1 ? 'open' : 'closed'}): ${latency?.latency}ms`
+        )
+      )
     return () => {
-      // this will close previous stream, if still open
-      stream?.close()
+      sub?.unsubscribe()
+      streams?.close()
     }
-  }, [stream])
+  }, [streams])
 
   let winsize = create(WinsizeSchema, {
     rows: 34,
@@ -136,7 +148,7 @@ function Console({
           const req = create(ExecuteRequestSchema, {
             winsize,
           })
-          stream.sendExecuteRequest(req)
+          streams?.sendExecuteRequest(req)
         }
       }
 
@@ -145,59 +157,61 @@ function Console({
         const req = create(ExecuteRequestSchema, { inputData })
         // const reqJson = toJson(ExecuteRequestSchema, req)
         // console.log('terminalStdin', reqJson)
-        stream.sendExecuteRequest(req)
+        streams?.sendExecuteRequest(req)
       }
     },
     onDidReceiveMessage: (listener: VSCodeEvent<any>) => {
-      stream.setCallback(listener)
+      streams?.setCallback(listener)
     },
   } as Partial<RendererContext<void>>)
 
   useEffect(() => {
-    const stdoutSub = stream.stdout.subscribe((data: Uint8Array) => {
+    const stdoutSub = streams?.stdout.subscribe((data: Uint8Array) => {
       onStdout?.(data)
     })
-    return () => stdoutSub.unsubscribe()
-  }, [stream, onStdout])
+    return () => stdoutSub?.unsubscribe()
+  }, [streams, onStdout])
 
   useEffect(() => {
-    const stderrSub = stream.stderr.subscribe((data: Uint8Array) => {
+    const stderrSub = streams?.stderr.subscribe((data: Uint8Array) => {
       onStderr?.(data)
     })
-    return () => stderrSub.unsubscribe()
-  }, [stream, onStderr])
+    return () => stderrSub?.unsubscribe()
+  }, [streams, onStderr])
 
   useEffect(() => {
-    const exitCodeSub = stream.exitCode.subscribe((code: number) => {
+    const exitCodeSub = streams?.exitCode.subscribe((code: number) => {
       onExitCode?.(code)
+      // close the stream when the exit code is received
+      streams?.close()
     })
-    return () => exitCodeSub.unsubscribe()
-  }, [stream, onExitCode])
+    return () => exitCodeSub?.unsubscribe()
+  }, [streams, onExitCode])
 
   useEffect(() => {
-    const pidSub = stream.pid.subscribe((pid: number) => {
+    const pidSub = streams?.pid.subscribe((pid: number) => {
       onPid?.(pid)
     })
-    return () => pidSub.unsubscribe()
-  }, [stream, onPid])
+    return () => pidSub?.unsubscribe()
+  }, [streams, onPid])
 
   useEffect(() => {
-    const mimeTypeSub = stream.mimeType.subscribe((mimeType: string) => {
+    const mimeTypeSub = streams?.mimeType.subscribe((mimeType: string) => {
       onMimeType?.(mimeType)
     })
-    return () => mimeTypeSub.unsubscribe()
-  }, [stream, onMimeType])
+    return () => mimeTypeSub?.unsubscribe()
+  }, [streams, onMimeType])
 
   useEffect(() => {
-    if (!stream || !executeRequest) {
+    if (!streams || !executeRequest) {
       return
     }
     console.log(
       'useEffect invoked - Commands changed:',
       JSON.stringify(executeRequest.config!.source!.value)
     )
-    stream.sendExecuteRequest(executeRequest)
-  }, [executeRequest, stream])
+    streams?.sendExecuteRequest(executeRequest)
+  }, [executeRequest, streams])
 
   return (
     <div
