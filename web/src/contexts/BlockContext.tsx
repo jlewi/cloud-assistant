@@ -14,7 +14,7 @@ import {
   GenerateRequest,
   GenerateRequestSchema,
 } from '../gen/es/cassie/blocks_pb'
-import { getTokenValue } from '../token'
+import { getAccessToken } from '../token'
 import { useClient as useAgentClient } from './AgentContext'
 
 type BlockContextType = {

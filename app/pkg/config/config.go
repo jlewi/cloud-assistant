@@ -83,16 +83,6 @@ type CloudAssistantConfig struct {
 type OpenAIConfig struct {
 	// APIKeyFile is the file containing the OpenAI API key
 	APIKeyFile string `json:"apiKeyFile,omitempty" yaml:"apiKeyFile,omitempty"`
-
-	// DO NOT SUBMIT I don't think we need this.
-
-	// Organization is the OpenAI organization to use
-	// Only needs to be set if using OAuth and not using an APIKey.
-	Organization string `json:"organization,omitempty" yaml:"organization,omitempty"`
-
-	// Project is the OpenAI project to use
-	// Only needs to be set if using OAuth and not using an APIKey.
-	Project string `json:"project,omitempty" yaml:"project,omitempty"`
 }
 
 type Logging struct {
