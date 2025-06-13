@@ -3,6 +3,7 @@ package ai
 import (
 	"context"
 	"encoding/json"
+	"github.com/openai/openai-go/option"
 
 	"connectrpc.com/connect"
 	"github.com/go-logr/logr"
@@ -65,6 +66,8 @@ type Agent struct {
 
 	// blocksCache is a cache to store the mapping from blockID to block
 	blocksCache *lru.Cache[string, *cassie.Block]
+
+	useOAuth bool // Use OAuth for authentication; if true then the token must be provided in the GenerateRequest
 }
 
 // AgentOptions are options for creating a new Agent
@@ -78,6 +81,10 @@ type AgentOptions struct {
 
 	// FilenameToLink is an optional function that converts a filename to a link to be displayed in the UI.
 	FilenameToLink func(string) string
+
+	// UseOAuth indicates whether to use OAuth for authentication
+	// If true then the token must be provided in the GenerateRequest
+	UseOAuth bool
 }
 
 // FromAssistantConfig overrides the AgentOptions based on the values from the AssistantConfig
@@ -116,6 +123,8 @@ func NewAgent(opts AgentOptions) (*Agent, error) {
 		return nil, errors.Wrap(err, "Failed to create blocks cache")
 	}
 
+	log.Info("Creating Agent", "options", opts)
+
 	return &Agent{
 		Client:               opts.Client,
 		instructions:         opts.Instructions,
@@ -124,6 +133,7 @@ func NewAgent(opts AgentOptions) (*Agent, error) {
 		vectorStoreIDs:       opts.VectorStores,
 		responseCache:        responseCache,
 		blocksCache:          blocksCache,
+		useOAuth:             opts.UseOAuth,
 	}, nil
 }
 
@@ -276,7 +286,9 @@ func (a *Agent) ProcessWithOpenAI(ctx context.Context, req *cassie.GenerateReque
 				},
 			})
 		default:
-			return connect.NewError(connect.CodeInvalidArgument, errors.Errorf("Unsupported block kind %s", b.Kind))
+			err := errors.Errorf("Unsupported block kind %s", b.Kind)
+			log.Error(err, "Unsupported block kind", "block", b)
+			return connect.NewError(connect.CodeInvalidArgument, err)
 		}
 	}
 
@@ -295,8 +307,18 @@ func (a *Agent) ProcessWithOpenAI(ctx context.Context, req *cassie.GenerateReque
 		createResponse.PreviousResponseID = openai.Opt(req.PreviousResponseId)
 	}
 
+	opts := make([]option.RequestOption, 0, 1)
+
+	if a.useOAuth {
+		if req.GetOpenaiAccessToken() == "" {
+			log.Info("OpenAI access token is required when using OAuth")
+			return connect.NewError(connect.CodeInvalidArgument, errors.New("OpenAI access token is required when using OAuth"))
+		}
+		opts = append(opts, option.WithHeader("Authorization", "Bearer "+req.GetOpenaiAccessToken()))
+	}
+
 	log.Info("ResponseRequest", "request", createResponse)
-	eStream := a.Client.Responses.NewStreaming(ctx, createResponse)
+	eStream := a.Client.Responses.NewStreaming(ctx, createResponse, opts...)
 
 	builder := NewBlocksBuilder(a.filenameToLink, a.responseCache, a.blocksCache)
 

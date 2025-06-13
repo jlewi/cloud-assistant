@@ -266,6 +266,13 @@ export declare type GenerateRequest = Message<"GenerateRequest"> & {
    * @generated from field: string previous_response_id = 2;
    */
   previousResponseId: string;
+
+  /**
+   * openai_access_token is the OpenAI access token to use when contacting the OpenAI API.
+   *
+   * @generated from field: string openai_access_token = 3;
+   */
+  openaiAccessToken: string;
 };
 
 /**
@@ -281,6 +288,13 @@ export declare type GenerateRequestJson = {
    * @generated from field: string previous_response_id = 2;
    */
   previousResponseId?: string;
+
+  /**
+   * openai_access_token is the OpenAI access token to use when contacting the OpenAI API.
+   *
+   * @generated from field: string openai_access_token = 3;
+   */
+  openaiAccessToken?: string;
 };
 
 /**

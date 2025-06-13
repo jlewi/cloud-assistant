@@ -407,8 +407,10 @@ type GenerateRequest struct {
 	state              protoimpl.MessageState `protogen:"open.v1"`
 	Blocks             []*Block               `protobuf:"bytes,1,rep,name=blocks,proto3" json:"blocks,omitempty"`
 	PreviousResponseId string                 `protobuf:"bytes,2,opt,name=previous_response_id,json=previousResponseId,proto3" json:"previous_response_id,omitempty"`
-	unknownFields      protoimpl.UnknownFields
-	sizeCache          protoimpl.SizeCache
+	// openai_access_token is the OpenAI access token to use when contacting the OpenAI API.
+	OpenaiAccessToken string `protobuf:"bytes,3,opt,name=openai_access_token,json=openaiAccessToken,proto3" json:"openai_access_token,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *GenerateRequest) Reset() {
@@ -451,6 +453,13 @@ func (x *GenerateRequest) GetBlocks() []*Block {
 func (x *GenerateRequest) GetPreviousResponseId() string {
 	if x != nil {
 		return x.PreviousResponseId
+	}
+	return ""
+}
+
+func (x *GenerateRequest) GetOpenaiAccessToken() string {
+	if x != nil {
+		return x.OpenaiAccessToken
 	}
 	return ""
 }
@@ -533,10 +542,11 @@ const file_cassie_blocks_proto_rawDesc = "" +
 	"\x04kind\x18\x02 \x01(\x0e2\x10.BlockOutputKindR\x04kind\"B\n" +
 	"\x0fBlockOutputItem\x12\x12\n" +
 	"\x04mime\x18\x01 \x01(\tR\x04mime\x12\x1b\n" +
-	"\ttext_data\x18\x02 \x01(\tR\btextData\"c\n" +
+	"\ttext_data\x18\x02 \x01(\tR\btextData\"\x93\x01\n" +
 	"\x0fGenerateRequest\x12\x1e\n" +
 	"\x06blocks\x18\x01 \x03(\v2\x06.BlockR\x06blocks\x120\n" +
-	"\x14previous_response_id\x18\x02 \x01(\tR\x12previousResponseId\"S\n" +
+	"\x14previous_response_id\x18\x02 \x01(\tR\x12previousResponseId\x12.\n" +
+	"\x13openai_access_token\x18\x03 \x01(\tR\x11openaiAccessToken\"S\n" +
 	"\x10GenerateResponse\x12\x1e\n" +
 	"\x06blocks\x18\x01 \x03(\v2\x06.BlockR\x06blocks\x12\x1f\n" +
 	"\vresponse_id\x18\x02 \x01(\tR\n" +
