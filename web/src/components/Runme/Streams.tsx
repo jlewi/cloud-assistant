@@ -13,7 +13,9 @@ import {
   bufferWhen,
   connectable,
   filter,
+  finalize,
   fromEvent,
+  interval,
   map,
   merge,
   mergeMap,
@@ -24,6 +26,7 @@ import {
   take,
   takeWhile,
   tap,
+  throttleTime,
   timer,
   withLatestFrom,
 } from 'rxjs'
@@ -36,6 +39,9 @@ import { Code } from '../../gen/es/google/rpc/code_pb'
 import { getTokenValue } from '../../token'
 // @ts-expect-error because the webcomponents are not typed
 import { ClientMessages } from './renderers/client'
+
+const MAX_LATENCY_DEADLINE_MS = 5_000
+const RECONNECT_THROTTLE_MS = 15_000
 
 export type StreamError = Error | pb.SocketStatus
 
@@ -52,6 +58,7 @@ type ReconnectConfig = {
 type Latency = {
   streamID: string
   latency: number
+  readyState: number
   updatedAt: bigint
 }
 
@@ -59,6 +66,8 @@ class Streams {
   private callback: VSCodeEvent<any> | undefined
 
   private readonly queue = new Subject<pb.SocketRequest>()
+
+  private subscriptions: Subscription[] = []
 
   // Transport related
   private reconnect = new Subject<ReconnectConfig>()
@@ -69,9 +78,15 @@ class Streams {
   private _latenciesConnectable = connectable(
     this._latencies.asObservable().pipe(
       scan((acc, curr) => {
-        // remove all negative latencies; signals that the stream was closed
+        // negative latencies signal that the stream was closed
         if (curr.latency < 0) {
-          acc.delete(curr.streamID)
+          const l = acc.get(curr.streamID)
+          if (l) {
+            acc.set(curr.streamID, {
+              ...l,
+              readyState: curr.readyState,
+            })
+          }
         } else {
           acc.set(curr.streamID, curr)
         }
@@ -153,10 +168,47 @@ class Streams {
       )
       .pipe(share())
 
-    this.process()
+    this.subscriptions.push(this.monitor())
+    this.subscriptions.push(this.process())
   }
 
-  private process() {
+  private monitor(): Subscription {
+    // Monitor the latencies and trigger reconnects if the latency is too high
+    const monitor = interval(1000).pipe(
+      withLatestFrom(this.reconnect),
+      filter(([, reconnect]) => reconnect.heartbeat === Heartbeat.CONTINUOUS),
+      withLatestFrom(this.latencies),
+      map(([, latencies]) =>
+        Array.from(latencies.values()).filter(
+          (latency) =>
+            latency.readyState === WebSocket.OPEN &&
+            latency.latency > MAX_LATENCY_DEADLINE_MS
+        )
+      ),
+      tap((latencies) =>
+        console.log('Monitor monitoring latencies', latencies)
+      ),
+      filter((latencies) => latencies.length > 0),
+      // Throttle the reconnects to avoid overwhelming the server
+      throttleTime(RECONNECT_THROTTLE_MS)
+    )
+
+    // Monitor the latencies and trigger reconnects if the latency is too high
+    return monitor.subscribe({
+      next: (latencies) => {
+        console.log(new Date(), 'Triggering reconnect', latencies)
+        this.connect()
+      },
+      complete: () => {
+        console.log('Monitor complete')
+      },
+      error: (err) => {
+        console.error('Error in monitor', err)
+      },
+    })
+  }
+
+  private process(): Subscription {
     const socketIsOpen = this.client.pipe(
       filter((socket) => {
         return socket?.readyState === WebSocket.OPEN
@@ -203,7 +255,7 @@ class Streams {
       )
     )
 
-    sender.subscribe({
+    return sender.subscribe({
       error: (err) => {
         this._errors.next(err)
       },
@@ -352,14 +404,8 @@ class Streams {
     { streamID, heartbeat }: ReconnectConfig
   ): Observable<WebSocket> {
     return new Observable<WebSocket>((observer) => {
-      const ticks =
-        heartbeat === Heartbeat.INITIAL ? timer(0) : timer(0, 10_000)
-
       // Listen to the websocket's pongs
-      const pongsWithTimestamp = fromEvent<MessageEvent>(
-        socket,
-        'message'
-      ).pipe(
+      const pongsWithReceipt = fromEvent<MessageEvent>(socket, 'message').pipe(
         takeWhile(() => socket.readyState === WebSocket.OPEN),
         map((event) => parseSocketResponse(event.data)),
         map((message) => message.pong),
@@ -370,6 +416,8 @@ class Streams {
         }))
       )
 
+      const ticks =
+        heartbeat === Heartbeat.INITIAL ? timer(0) : timer(0, 10_000)
       // Turn ticks into pings.
       const pings = ticks.pipe(
         takeWhile(() => socket.readyState === WebSocket.OPEN),
@@ -390,18 +438,27 @@ class Streams {
         share()
       )
 
-      const latency = pongsWithTimestamp.pipe(
+      const latency = pongsWithReceipt.pipe(
         withLatestFrom(pings),
         filter(([pong, ping]) => !!pong && !!ping),
-        map(([receivedPong, ping]) => {
+        map(([pongReceipt, ping]) => {
           const sent = ping!.timestamp
-          const received = receivedPong.receivedAt
-          if (sent !== receivedPong.pong.timestamp) {
+          const received = pongReceipt.receivedAt
+          if (sent !== pongReceipt.pong.timestamp) {
             throw new Error(
-              `Heartbeat out of order: sent ${sent} but received ${receivedPong.pong.timestamp} for stream ${streamID}`
+              `Heartbeat out of order: sent ${sent} but received ${pongReceipt.pong.timestamp} for stream ${streamID}`
             )
           }
           return Number(received - sent)
+        }),
+        finalize(() => {
+          // Mark the stream's latency as closed
+          this._latencies.next({
+            streamID,
+            latency: -1,
+            readyState: socket.readyState,
+            updatedAt: BigInt(Date.now()),
+          })
         })
       )
 
@@ -413,16 +470,13 @@ class Streams {
             this._latencies.next({
               streamID,
               latency: ms,
+              readyState: socket.readyState,
               updatedAt: BigInt(Date.now()),
             })
           },
           error: (err) => {
             this._errors.next(err)
           },
-          // todo(sebastian): should we remove entries?
-          // complete: () => {
-          //   this._latencies.next({ streamID, latency: -1 })
-          // },
         })
       )
 
@@ -468,6 +522,7 @@ class Streams {
     this.reconnect.complete()
     this.queue.complete()
     this._latencies.complete()
+    this.subscriptions.forEach((sub) => sub.unsubscribe())
   }
 }
 

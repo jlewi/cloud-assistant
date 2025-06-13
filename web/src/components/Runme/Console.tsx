@@ -66,7 +66,10 @@ function Console({
           `Heartbeat latency for streamID ${latency?.streamID}: ${latency?.latency}ms`
         )
       )
-    return () => sub?.unsubscribe()
+    return () => {
+      sub?.unsubscribe()
+      streams?.close()
+    }
   }, [streams])
 
   let winsize = create(WinsizeSchema, {
@@ -179,6 +182,8 @@ function Console({
   useEffect(() => {
     const exitCodeSub = streams?.exitCode.subscribe((code: number) => {
       onExitCode?.(code)
+      // close the stream when the exit code is received
+      streams?.close()
     })
     return () => exitCodeSub?.unsubscribe()
   }, [streams, onExitCode])
