@@ -125,7 +125,7 @@ export const SettingsProvider = ({
           return
         }
         console.log(
-          `Heartbeat latency for streamID ${l.streamID}: ${l.latency}ms`
+          `Initial heartbeat latency for streamID ${l.streamID}: ${l.latency}ms`
         )
         stream.close()
       })
