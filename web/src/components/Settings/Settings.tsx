@@ -1,4 +1,4 @@
-import { ChangeEvent, useEffect, useState } from 'react'
+import { ChangeEvent, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 import { Box, Button, Callout, Flex, Text, TextArea } from '@radix-ui/themes'
@@ -35,6 +35,13 @@ export default function Settings() {
     setEndpoint(defaultSettings.agentEndpoint)
     setRunnerEndpoint(defaultSettings.runnerEndpoint)
   }
+
+  const runnerErrorMessage = useMemo(() => {
+    if (!(runnerError instanceof Error)) {
+      return undefined
+    }
+    return runnerError.message
+  }, [runnerError])
 
   const isChanged =
     endpoint !== settings.agentEndpoint ||
@@ -77,7 +84,10 @@ export default function Settings() {
             </Text>
             {runnerError && (
               <Callout.Root color="red">
-                <Callout.Text className="font-bold">Runner error</Callout.Text>
+                <Callout.Text className="font-bold">
+                  Runner error
+                  {runnerErrorMessage ? ': ' + runnerErrorMessage : ''}
+                </Callout.Text>
               </Callout.Root>
             )}
             <TextArea

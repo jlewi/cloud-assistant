@@ -8,6 +8,7 @@ import {
   useState,
 } from 'react'
 
+import { Subscription } from 'rxjs'
 import { ulid } from 'ulid'
 
 import Streams, {
@@ -104,13 +105,31 @@ export const SettingsProvider = ({
     }
     // reset runner error
     setRunnerError(null)
-    const stream = new Streams(ulid(), genRunID(), settings.runnerEndpoint)
-    stream.errors.subscribe({
-      next: (error) => {
-        setRunnerError(error)
-      },
-    })
-    stream.connect(Heartbeat.INITIAL)
+    const stream = new Streams(
+      `check_${ulid()}`,
+      genRunID(),
+      settings.runnerEndpoint
+    )
+    const subs: Subscription[] = []
+    subs.push(
+      stream.errors.subscribe({
+        next: (error) => setRunnerError(error),
+      })
+    )
+    subs.push(
+      stream.connect(Heartbeat.INITIAL).subscribe((l) => {
+        if (l === null) {
+          return
+        }
+        console.log(
+          `Heartbeat latency for streamID ${l.streamID}: ${l.latency}ms`
+        )
+        stream.close()
+      })
+    )
+    return () => {
+      subs.forEach((sub) => sub.unsubscribe())
+    }
   }, [settings.runnerEndpoint])
 
   useEffect(() => {
