@@ -63,7 +63,7 @@ function Console({
       ?.connect()
       .subscribe((latency) =>
         console.log(
-          `Heartbeat latency for streamID ${latency?.streamID}: ${latency?.latency}ms`
+          `Heartbeat latency for streamID ${latency?.streamID} (${latency?.readyState === 1 ? 'open' : 'closed'}): ${latency?.latency}ms`
         )
       )
     return () => {
