@@ -10,7 +10,9 @@ import {
   Observable,
   Subject,
   Subscription,
+  asyncScheduler,
   bufferWhen,
+  catchError,
   connectable,
   filter,
   finalize,
@@ -19,6 +21,8 @@ import {
   map,
   merge,
   mergeMap,
+  of,
+  race,
   scan,
   share,
   skipUntil,
@@ -40,8 +44,10 @@ import { getTokenValue } from '../../token'
 // @ts-expect-error because the webcomponents are not typed
 import { ClientMessages } from './renderers/client'
 
-const MAX_LATENCY_DEADLINE_MS = 5_000
-const RECONNECT_THROTTLE_MS = 15_000
+const HEARTBEAT_INTERVAL_MS = 5_000
+const MONITOR_INTERVAL_MS = 1_000
+const MAX_LATENCY_DEADLINE_MS = 4_000
+const RECONNECT_THROTTLE_MS = 1_000
 
 export type StreamError = Error | pb.SocketStatus
 
@@ -155,13 +161,18 @@ class Streams {
     // Create a new socket client for each reconnect
     this.client = this.reconnect
       .pipe(
+        // Smartly throttle the reconnects to avoid overwhelming the server
+        throttleTime(RECONNECT_THROTTLE_MS, asyncScheduler, {
+          leading: true,
+          trailing: true,
+        }),
         // switchMap avoids overlapping socket clients; mergeMap would allow overlapping
         switchMap((config) => {
           // construct a new socket client for each reconnect
-          return this.createSocketClient(config.streamID).pipe(
+          return this.useSocketClient(config.streamID).pipe(
             switchMap((socket) => {
               // add a heartbeat to the socket
-              return this.withHeartbeat(socket, config)
+              return this.useHeartbeat(socket, config)
             })
           )
         })
@@ -174,7 +185,7 @@ class Streams {
 
   private monitor(): Subscription {
     // Monitor the latencies and trigger reconnects if the latency is too high
-    const monitor = interval(1000).pipe(
+    const monitor = interval(MONITOR_INTERVAL_MS).pipe(
       withLatestFrom(this.reconnect),
       filter(([, reconnect]) => reconnect.heartbeat === Heartbeat.CONTINUOUS),
       withLatestFrom(this.latencies),
@@ -182,13 +193,11 @@ class Streams {
         Array.from(latencies.values()).filter(
           (latency) =>
             latency.readyState === WebSocket.OPEN &&
-            latency.latency > MAX_LATENCY_DEADLINE_MS
+            latency.latency >= MAX_LATENCY_DEADLINE_MS
         )
       ),
-      tap((latencies) =>
-        console.log('Monitor monitoring latencies', latencies)
-      ),
       filter((latencies) => latencies.length > 0),
+      // tap((latencies) => console.log('Monitor latencies', latencies)),
       // Throttle the reconnects to avoid overwhelming the server
       throttleTime(RECONNECT_THROTTLE_MS)
     )
@@ -265,7 +274,7 @@ class Streams {
   // Creates a new socket client for the given streamID.
   // Returns an observable that emits the socket when it is open.
   // The socket is closed when the observable is unsubscribed.
-  private createSocketClient(streamID: string) {
+  private useSocketClient(streamID: string) {
     return new Observable<WebSocket>((observer) => {
       const url = new URL(this.runnerEndpoint)
       url.searchParams.set('id', streamID)
@@ -275,16 +284,17 @@ class Streams {
       // Define event handlers
       const onClose = (event: CloseEvent) => {
         console.log(new Date(), `WebSocket transport ${streamID} closed`, event)
-        observer.complete()
+        if (event.code === 1005) {
+          observer.complete()
+        } else {
+          // This infinite loop is throttled by the reconnect subject.
+          this.connect()
+        }
       }
 
       const onError = (event: Event) => {
-        console.error(
-          new Date(),
-          `WebSocket transport ${streamID} error`,
-          event
-        )
-        observer.error(event)
+        console.log(new Date(), `WebSocket transport ${streamID} error`, event)
+        // observer.error(event)
       }
 
       const onMessage = (event: MessageEvent) => {
@@ -399,7 +409,7 @@ class Streams {
   // Sends periodic heartbeat pings to keep the WebSocket connection alive.
   // If heartbeat is Heartbeat.CONTINUOUS, sends an initial ping immediately and then every 10 seconds.
   // If heartbeat is Heartbeat.INITIAL, sends only a single immediate ping.
-  private withHeartbeat(
+  private useHeartbeat(
     socket: WebSocket,
     { streamID, heartbeat }: ReconnectConfig
   ): Observable<WebSocket> {
@@ -416,8 +426,12 @@ class Streams {
         }))
       )
 
+      // Continuous heartbeat pings every HEARTBEAT_INTERVAL_MS
       const ticks =
-        heartbeat === Heartbeat.INITIAL ? timer(0) : timer(0, 10_000)
+        heartbeat === Heartbeat.INITIAL
+          ? timer(0)
+          : timer(0, HEARTBEAT_INTERVAL_MS)
+
       // Turn ticks into pings.
       const pings = ticks.pipe(
         takeWhile(() => socket.readyState === WebSocket.OPEN),
@@ -434,58 +448,71 @@ class Streams {
             // runID: this.runID,
           })
         }),
-        map((req: pb.SocketRequest) => req.ping),
-        share()
+        map((req: pb.SocketRequest) => req.ping)
       )
 
-      const latency = pongsWithReceipt.pipe(
-        withLatestFrom(pings),
-        filter(([pong, ping]) => !!pong && !!ping),
-        map(([pongReceipt, ping]) => {
-          const sent = ping!.timestamp
-          const received = pongReceipt.receivedAt
-          if (sent !== pongReceipt.pong.timestamp) {
-            throw new Error(
-              `Heartbeat out of order: sent ${sent} but received ${pongReceipt.pong.timestamp} for stream ${streamID}`
+      // For each ping, expect a pong within MAX_LATENCY_DEADLINE_MS
+      const pingsWithTimeout = pings.pipe(
+        filter((ping) => ping?.timestamp !== undefined),
+        mergeMap((ping) =>
+          race(
+            pongsWithReceipt.pipe(
+              filter(
+                (pongReceipt) => pongReceipt.pong.timestamp === ping!.timestamp
+              ),
+              take(1),
+              map((pongReceipt) => {
+                const sent = ping!.timestamp
+                const received = pongReceipt.receivedAt
+                return Number(received - sent)
+              })
+            ),
+            timer(MAX_LATENCY_DEADLINE_MS).pipe(
+              map(() => {
+                throw new Error(
+                  `Pong not received within ${MAX_LATENCY_DEADLINE_MS}ms for stream ${streamID}`
+                )
+              })
             )
-          }
-          return Number(received - sent)
-        }),
+          ).pipe(
+            catchError((err) => {
+              // Emit a deadline latency to trigger a reconnect
+              this._latencies.next({
+                streamID,
+                latency: MAX_LATENCY_DEADLINE_MS,
+                readyState: socket.readyState,
+                updatedAt: BigInt(Date.now()),
+              })
+              console.log(new Date(), `Ping deadline exceeded`, err.message)
+              return of(null) // Continue stream
+            })
+          )
+        ),
         finalize(() => {
-          // Mark the stream's latency as closed
+          // Mark the stream's latency as closed; as per readyState
           this._latencies.next({
             streamID,
             latency: -1,
             readyState: socket.readyState,
             updatedAt: BigInt(Date.now()),
           })
-        })
-      )
-
-      const subs: Subscription[] = []
-
-      subs.push(
-        latency.subscribe({
-          next: (ms) => {
+        }),
+        tap((ms) => {
+          if (ms !== null) {
             this._latencies.next({
               streamID,
               latency: ms,
               readyState: socket.readyState,
               updatedAt: BigInt(Date.now()),
             })
-          },
-          error: (err) => {
-            this._errors.next(err)
-          },
+          }
         })
       )
 
-      // Subscribe to pings.
+      const subs: Subscription[] = []
+
       subs.push(
-        pings.subscribe({
-          // complete: () => {
-          //   console.log(`Heartbeat for streamID ${streamID} complete`)
-          // },
+        pingsWithTimeout.subscribe({
           error: (err) => {
             console.error('Unexpected error sending heartbeat', err)
           },
@@ -511,7 +538,8 @@ class Streams {
           return null
         }
         return l
-      })
+      }),
+      takeWhile((latency) => latency?.readyState === WebSocket.OPEN)
     )
     this.reconnect.next({ streamID, heartbeat })
     return latency
