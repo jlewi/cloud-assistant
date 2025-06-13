@@ -52,6 +52,7 @@ type ReconnectConfig = {
 type Latency = {
   streamID: string
   latency: number
+  updatedAt: bigint
 }
 
 class Streams {
@@ -68,9 +69,14 @@ class Streams {
   private _latenciesConnectable = connectable(
     this._latencies.asObservable().pipe(
       scan((acc, curr) => {
-        acc.set(curr.streamID, curr.latency)
+        // remove all negative latencies; signals that the stream was closed
+        if (curr.latency < 0) {
+          acc.delete(curr.streamID)
+        } else {
+          acc.set(curr.streamID, curr)
+        }
         return acc
-      }, new Map<string, number>())
+      }, new Map<string, Latency>())
     )
   )
 
@@ -354,6 +360,7 @@ class Streams {
         socket,
         'message'
       ).pipe(
+        takeWhile(() => socket.readyState === WebSocket.OPEN),
         map((event) => parseSocketResponse(event.data)),
         map((message) => message.pong),
         filter((pong) => pong !== undefined),
@@ -383,7 +390,7 @@ class Streams {
         share()
       )
 
-      const latency$ = pongsWithTimestamp.pipe(
+      const latency = pongsWithTimestamp.pipe(
         withLatestFrom(pings),
         filter(([pong, ping]) => !!pong && !!ping),
         map(([receivedPong, ping]) => {
@@ -401,23 +408,30 @@ class Streams {
       const subs: Subscription[] = []
 
       subs.push(
-        latency$.subscribe({
+        latency.subscribe({
           next: (ms) => {
-            this._latencies.next({ streamID, latency: ms })
-            // console.log(`Heartbeat latency for streamID ${streamID}: ${ms}ms`)
+            this._latencies.next({
+              streamID,
+              latency: ms,
+              updatedAt: BigInt(Date.now()),
+            })
           },
           error: (err) => {
             this._errors.next(err)
           },
+          // todo(sebastian): should we remove entries?
+          // complete: () => {
+          //   this._latencies.next({ streamID, latency: -1 })
+          // },
         })
       )
 
       // Subscribe to pings.
       subs.push(
         pings.subscribe({
-          complete: () => {
-            console.log(`Heartbeat for streamID ${streamID} complete`)
-          },
+          // complete: () => {
+          //   console.log(`Heartbeat for streamID ${streamID} complete`)
+          // },
           error: (err) => {
             console.error('Unexpected error sending heartbeat', err)
           },
@@ -442,17 +456,18 @@ class Streams {
         if (l === undefined) {
           return null
         }
-        return { streamID, latency: l }
+        return l
       })
     )
     this.reconnect.next({ streamID, heartbeat })
     return latency
   }
 
-  // Closes streams by completing the reconnect and queue subjects.
+  // Closes streams by completing the reconnect, queue, and latencies subjects.
   public close() {
     this.reconnect.complete()
     this.queue.complete()
+    this._latencies.complete()
   }
 }
 

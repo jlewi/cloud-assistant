@@ -59,8 +59,14 @@ function Console({
   }, [blockID, runID, settings.runnerEndpoint])
 
   useEffect(() => {
-    const streamID = streams?.connect()
-    console.log('Connecting new stream with ID', streamID)
+    const sub = streams
+      ?.connect()
+      .subscribe((latency) =>
+        console.log(
+          `Heartbeat latency for streamID ${latency?.streamID}: ${latency?.latency}ms`
+        )
+      )
+    return () => sub?.unsubscribe()
   }, [streams])
 
   let winsize = create(WinsizeSchema, {
