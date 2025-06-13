@@ -1,3 +1,8 @@
+import { fromJson } from '@bufbuild/protobuf'
+import { create } from '@bufbuild/protobuf'
+
+import { OAuthToken, OAuthTokenSchema } from './gen/es/cassie/credentials_pb'
+
 export const SESSION_COOKIE_NAME = 'cassie-session'
 export const OAUTH_COOKIE_NAME = 'cassie-oauth-token'
 
@@ -10,24 +15,30 @@ export function getTokenValue(): string | undefined {
 }
 
 // Returns the value of the oauth access token.
-export function getAccessToken(): string | undefined {
+export function getAccessToken(): OAuthToken {
   const match = document.cookie
     .split('; ')
-    .find((row) => row.startsWith(SESSION_COOKIE_NAME + '='))
+    .find((row) => row.startsWith(OAUTH_COOKIE_NAME + '='))
 
   // Cookie value should be the JSON version of the proto OAuthToken
   const value = match?.split('=')[1]
+  let token: OAuthToken = create(OAuthTokenSchema)
 
   if (!value) {
-    return undefined
+    return token
   }
 
   try {
-    // Do we need decoeURIComponent here to properly decode the cookie value?
-    const tokenObj = JSON.parse(decodeURIComponent(value))
-    return tokenObj.accessToken
-  } catch (e) {
-    console.error('Failed to parse access token from cookie:', e)
-    return undefined
+    // Unescape the URL-encoded value
+    const jsonStr = decodeURIComponent(value)
+    // Parse the string into an object
+    const parsed = JSON.parse(jsonStr)
+
+    // Parse the payload into a Protobuf message
+    token = fromJson(OAuthTokenSchema, parsed)
+  } catch (err) {
+    console.error('Failed to parse OAuthToken:', err)
   }
+
+  return token
 }

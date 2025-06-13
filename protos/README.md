@@ -6,8 +6,8 @@ and a GoLang backend. So we rely on protocol buffers to have a well defined inte
 
 ## Vendoring
 
-We currently vendor the GoLang and Typescript generated code into the monorepo. In the future we can explore
-building it on demand using bazel.
+We currently vendor the GoLang and Typescript generated code into the repo rather than relying on 
+publishing to buf. This speeds up development. 
 
 ## Developer Guide
 

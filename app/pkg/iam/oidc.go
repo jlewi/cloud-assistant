@@ -394,10 +394,14 @@ func (o *OIDC) CallbackHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// We need to properly escape the token for use in a cookie
+	// PathEscape properly encodes nested spaces.
+	tokenEscaped := url.PathEscape(string(tokenPBJson))
+
 	// Set the session cookie with the ID token
 	http.SetCookie(w, &http.Cookie{
 		Name:     SessionOAuthTokenName,
-		Value:    string(tokenPBJson),
+		Value:    tokenEscaped,
 		Path:     "/",
 		HttpOnly: false,
 		Secure:   true,

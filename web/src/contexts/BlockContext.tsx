@@ -122,8 +122,9 @@ export const BlockProvider = ({ children }: { children: ReactNode }) => {
       previousResponseId: previousResponseId,
     })
 
-    if (accessToken) {
-      req.openaiAccessToken = accessToken
+    req.openaiAccessToken = accessToken.accessToken
+    if (accessToken.accessToken == "") {
+      console.log('No access token found')
     }
 
     try {

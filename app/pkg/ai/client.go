@@ -14,14 +14,9 @@ import (
 
 // NewClient helper function to create a new OpenAI client from  a config
 func NewClient(cfg config.OpenAIConfig) (*openai.Client, error) {
+
 	if cfg.APIKeyFile == "" {
-		if cfg.Organization == "" || cfg.Project == "" {
-			return nil, errors.New("IF APIKeyFile is not set, then Organization and Project must be set in Config.OpenAI to configure OAuth")
-		}
-	} else {
-		if cfg.Organization != "" || cfg.Project != "" {
-			return nil, errors.New("IF APIKeyFile is set, then Organization and Project must NOT be set in Config.OpenAI to disable OAuth")
-		}
+		return nil, errors.New("OpenAI API key is empty")
 	}
 
 	b, err := os.ReadFile(cfg.APIKeyFile)
