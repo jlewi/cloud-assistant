@@ -16,6 +16,9 @@ import (
 	"sync"
 	"time"
 
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/types/known/timestamppb"
+
 	"github.com/go-logr/zapr"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/jlewi/cloud-assistant/app/pkg/config"
@@ -33,9 +36,10 @@ var (
 )
 
 const (
-	OIDCPathPrefix    = "/oidc"
-	SessionCookieName = "cassie-session"
-	stateLength       = 32
+	OIDCPathPrefix        = "/oidc"
+	SessionCookieName     = "cassie-session"
+	SessionOAuthTokenName = "cassie-oauth-token"
+	stateLength           = 32
 )
 
 // OIDC handles OAuth2 authentication setup and management
@@ -44,8 +48,12 @@ type OIDC struct {
 	oauth2     *oauth2.Config
 	publicKeys map[string]*rsa.PublicKey
 	discovery  *openIDDiscovery
-	state      *stateManager
-	provider   OIDCProvider
+	// stateManager manages the state for OAuth2 PKCE.
+	// This assumes there is a single instants of the server so that the redirect from the OAuth2 provider
+	// will hit the same server instance. If we had multiple instances of the server we would need to use a
+	// distributed cache
+	state    *stateManager
+	provider OIDCProvider
 }
 
 // NewOIDC creates a new OIDC
@@ -322,17 +330,19 @@ func NewAuthMiddlewareForOIDC(oidc *OIDC) (func(http.Handler) http.Handler, erro
 
 // loginHandler handles the OAuth2 login flow
 func (o *OIDC) LoginHandler(w http.ResponseWriter, r *http.Request) {
+	log := logs.FromContext(r.Context())
 	state, err := o.state.generateState()
 	if err != nil {
-		log := zapr.NewLogger(zap.L())
 		log.Error(err, "Failed to generate state")
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
-	url := o.oauth2.AuthCodeURL(state)
+
+	url := o.oauth2.AuthCodeURL(state.state, oauth2.S256ChallengeOption(state.verifier))
 	if o.config.ForceApproval {
-		url = o.oauth2.AuthCodeURL(state, oauth2.ApprovalForce)
+		url = o.oauth2.AuthCodeURL(state.state, oauth2.ApprovalForce)
 	}
+	log.Info("Redirecting to OAuth2 login", "url", url)
 	http.Redirect(w, r, url, http.StatusFound)
 }
 
@@ -341,19 +351,39 @@ func (o *OIDC) CallbackHandler(w http.ResponseWriter, r *http.Request) {
 	log := zapr.NewLogger(zap.L())
 
 	// Verify state
-	state := r.URL.Query().Get("state")
-	if !o.state.validateState(state) {
+	stateKey := r.URL.Query().Get("state")
+	verifier, ok := o.state.validateState(stateKey)
+	if !ok {
 		log.Error(nil, "Invalid state parameter")
 		redirectWithError(w, r, "invalid_state", "Invalid state parameter")
 		return
 	}
 
 	// Exchange code for token
+	verifierOpt := oauth2.VerifierOption(verifier)
+
 	code := r.URL.Query().Get("code")
-	token, err := o.oauth2.Exchange(r.Context(), code)
+	token, err := o.oauth2.Exchange(r.Context(), code, verifierOpt)
 	if err != nil {
 		log.Error(err, "Failed to exchange code for token")
 		redirectWithError(w, r, "token_exchange_failed", "Failed to exchange code for token")
+		return
+	}
+
+	// Create an OAuthToken protobuf message
+	// This will be used to allow the client to potentially refresh the token.
+	tokenPB := &cassie.OAuthToken{
+		AccessToken:  token.AccessToken,
+		TokenType:    token.TokenType,
+		RefreshToken: token.RefreshToken,
+		Expiry:       timestamppb.New(token.Expiry),
+		ExpiresIn:    token.ExpiresIn,
+	}
+
+	tokenPBJson, err := protojson.Marshal(tokenPB)
+	if err != nil {
+		log.Error(err, "Failed to marshal OAuthToken to JSON")
+		redirectWithError(w, r, "token_marshal_failed", "Failed to marshal token")
 		return
 	}
 
@@ -365,7 +395,20 @@ func (o *OIDC) CallbackHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// We need to properly escape the token for use in a cookie
+	// PathEscape properly encodes nested spaces.
+	tokenEscaped := url.PathEscape(string(tokenPBJson))
+
 	// Set the session cookie with the ID token
+	http.SetCookie(w, &http.Cookie{
+		Name:     SessionOAuthTokenName,
+		Value:    tokenEscaped,
+		Path:     "/",
+		HttpOnly: false,
+		Secure:   true,
+		SameSite: http.SameSiteLaxMode,
+	})
+
 	http.SetCookie(w, &http.Cookie{
 		Name:     SessionCookieName,
 		Value:    idToken,
@@ -374,7 +417,6 @@ func (o *OIDC) CallbackHandler(w http.ResponseWriter, r *http.Request) {
 		Secure:   true,
 		SameSite: http.SameSiteLaxMode,
 	})
-
 	// Redirect to the home page
 	http.Redirect(w, r, "/", http.StatusFound)
 }
@@ -420,6 +462,10 @@ func (o *OIDC) LogoutHandler(w http.ResponseWriter, r *http.Request) {
 
 type stateEntry struct {
 	expiresAt time.Time
+	// verifier is used for PKCE (Proof Key for Code Exchange)
+	verifier string
+	// state is the unique state string to be passed in the query argument
+	state string
 }
 
 type stateManager struct {
@@ -436,37 +482,45 @@ func newStateManager(stateExpiration time.Duration) *stateManager {
 }
 
 // generateState generates a new cryptographically secure random state
-func (sm *stateManager) generateState() (string, error) {
+func (sm *stateManager) generateState() (stateEntry, error) {
 	b := make([]byte, stateLength)
 	if _, err := rand.Read(b); err != nil {
-		return "", errors.Wrap(err, "failed to generate random state")
+		return stateEntry{}, errors.Wrap(err, "failed to generate random state")
 	}
 	state := base64.URLEncoding.EncodeToString(b)
 
+	verifier, err := generateCodeVerifier(64)
+	if err != nil {
+		return stateEntry{}, errors.Wrap(err, "failed to generate code verifier")
+	}
 	sm.mu.Lock()
 	defer sm.mu.Unlock()
 	sm.states[state] = stateEntry{
+		state:     state,
 		expiresAt: time.Now().Add(sm.stateExpiration),
+		// Generate a code verifier for PKCE
+		verifier: verifier,
 	}
 
-	return state, nil
+	return sm.states[state], nil
 }
 
 // validateState checks if a state is valid and removes it if it is
-func (sm *stateManager) validateState(state string) bool {
+// returns a verifier if the state is valid, or false if it is not
+func (sm *stateManager) validateState(state string) (string, bool) {
 	sm.mu.Lock()
 	defer sm.mu.Unlock()
 
 	entry, exists := sm.states[state]
 	if !exists {
-		return false
+		return "", false
 	}
 
 	// Remove the state regardless of validity
 	delete(sm.states, state)
 
 	// Check if the state has expired
-	return time.Now().Before(entry.expiresAt)
+	return entry.verifier, time.Now().Before(entry.expiresAt)
 }
 
 // cleanupExpiredStates removes expired states from the map
@@ -683,4 +737,25 @@ func (idp *TestIDP) GenerateToken(claims jwt.Claims) (string, error) {
 	}
 
 	return signedToken, nil
+}
+
+func generateCodeVerifier(length int) (string, error) {
+	if length < 43 || length > 128 {
+		return "", errors.New("code_verifier must be between 43 and 128 characters")
+	}
+
+	// Use URL-safe characters per RFC 7636
+	// We'll generate random bytes and base64url encode them
+	bytes := make([]byte, length)
+	_, err := rand.Read(bytes)
+	if err != nil {
+		return "", err
+	}
+
+	verifier := base64.RawURLEncoding.EncodeToString(bytes)
+	// Trim or pad to exact length if needed
+	if len(verifier) > length {
+		verifier = verifier[:length]
+	}
+	return verifier, nil
 }

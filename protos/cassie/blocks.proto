@@ -86,6 +86,9 @@ service BlocksService {
 message GenerateRequest {
   repeated Block blocks = 1;
   string previous_response_id = 2;
+
+  // openai_access_token is the OpenAI access token to use when contacting the OpenAI API.
+  string openai_access_token = 3;
 }
 
 message GenerateResponse {
