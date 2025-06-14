@@ -6,6 +6,7 @@ lint:
 deps:
   - buf.build/stateful/runme
   - buf.build/googleapis/googleapis
+  - buf.build/bufbuild/protovalidate
 breaking:
   use:
     - FILE

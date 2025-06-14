@@ -19,8 +19,6 @@ export declare const file_cassie_eval: GenFile;
  */
 export declare type Assertion = Message<"Assertion"> & {
   /**
-   * e.g. "kubectl_has_context_flag"
-   *
    * @generated from field: string name = 1;
    */
   name: string;
@@ -71,6 +69,13 @@ export declare type Assertion = Message<"Assertion"> & {
     value: Assertion_CodeblockRegex;
     case: "codeblockRegex";
   } | { case: undefined; value?: undefined };
+
+  /**
+   * If the assertion failed, this will contain the reason.
+   *
+   * @generated from field: string failure_reason = 9;
+   */
+  failureReason: string;
 };
 
 /**
@@ -82,8 +87,6 @@ export declare type Assertion = Message<"Assertion"> & {
  */
 export declare type AssertionJson = {
   /**
-   * e.g. "kubectl_has_context_flag"
-   *
    * @generated from field: string name = 1;
    */
   name?: string;
@@ -122,6 +125,13 @@ export declare type AssertionJson = {
    * @generated from field: Assertion.CodeblockRegex codeblock_regex = 8;
    */
   codeblockRegex?: Assertion_CodeblockRegexJson;
+
+  /**
+   * If the assertion failed, this will contain the reason.
+   *
+   * @generated from field: string failure_reason = 9;
+   */
+  failureReason?: string;
 };
 
 /**
@@ -420,35 +430,35 @@ export declare const Assertion_ResultSchema: GenEnum<Assertion_Result, Assertion
 
 /**
  * -------------------------------------------------------------------------
- * Test sample – a full input plus its assertions
+ * EvalSample – Represents a single evaluation input and its expected assertions
  * -------------------------------------------------------------------------
  *
  * @generated from message EvalSample
  */
 export declare type EvalSample = Message<"EvalSample"> & {
   /**
-   * e.g. "aks_required_flags"
+   * Resource kind, always "EvalSample"
    *
-   * @generated from field: string name = 1;
+   * @generated from field: string kind = 1;
    */
-  name: string;
+  kind: string;
 
   /**
-   * Optional human description
+   * Standard metadata (name, labels, etc.)
    *
-   * @generated from field: string description = 2;
+   * @generated from field: ObjectMeta metadata = 2;
    */
-  description: string;
+  metadata?: ObjectMeta;
 
   /**
-   * The assistant input to test
+   * The input text to be evaluated
    *
    * @generated from field: string input_text = 3;
    */
   inputText: string;
 
   /**
-   * Checks to run against that input
+   * List of assertions to check for this input
    *
    * @generated from field: repeated Assertion assertions = 4;
    */
@@ -457,35 +467,35 @@ export declare type EvalSample = Message<"EvalSample"> & {
 
 /**
  * -------------------------------------------------------------------------
- * Test sample – a full input plus its assertions
+ * EvalSample – Represents a single evaluation input and its expected assertions
  * -------------------------------------------------------------------------
  *
  * @generated from message EvalSample
  */
 export declare type EvalSampleJson = {
   /**
-   * e.g. "aks_required_flags"
+   * Resource kind, always "EvalSample"
    *
-   * @generated from field: string name = 1;
+   * @generated from field: string kind = 1;
    */
-  name?: string;
+  kind?: string;
 
   /**
-   * Optional human description
+   * Standard metadata (name, labels, etc.)
    *
-   * @generated from field: string description = 2;
+   * @generated from field: ObjectMeta metadata = 2;
    */
-  description?: string;
+  metadata?: ObjectMetaJson;
 
   /**
-   * The assistant input to test
+   * The input text to be evaluated
    *
    * @generated from field: string input_text = 3;
    */
   inputText?: string;
 
   /**
-   * Checks to run against that input
+   * List of assertions to check for this input
    *
    * @generated from field: repeated Assertion assertions = 4;
    */
@@ -559,7 +569,7 @@ export declare const ObjectMetaSchema: GenMessage<ObjectMeta, ObjectMetaJson>;
  */
 export declare type ExperimentSpec = Message<"ExperimentSpec"> & {
   /**
-   * Path to the YAML dataset to evaluate.
+   * Path to the folder containing the dataset to evaluate.
    *
    * @generated from field: string dataset_path = 1;
    */
@@ -585,7 +595,7 @@ export declare type ExperimentSpec = Message<"ExperimentSpec"> & {
  */
 export declare type ExperimentSpecJson = {
   /**
-   * Path to the YAML dataset to evaluate.
+   * Path to the folder containing the dataset to evaluate.
    *
    * @generated from field: string dataset_path = 1;
    */

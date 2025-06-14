@@ -68,7 +68,7 @@ type Agent struct {
 	// blocksCache is a cache to store the mapping from blockID to block
 	blocksCache *lru.Cache[string, *cassie.Block]
 
-	useOAuth bool // Use OAuth for authentication; if true then the token must be provided in the GenerateRequest
+	useOAuth bool // Use OAuth for authorization; if true then the token must be provided in the GenerateRequest
 }
 
 // AgentOptions are options for creating a new Agent

@@ -1,0 +1,19 @@
+kind: NetworkChaos
+apiVersion: chaos-mesh.org/v1alpha1
+metadata:
+  namespace: ingress-nginx
+  name: network-corrupt-ingress-nginx
+spec:
+  selector:
+    namespaces:
+      - ingress-nginx
+    labelSelectors:
+      app.kubernetes.io/component: controller
+      app.kubernetes.io/name: ingress-nginx
+  mode: all
+  action: corrupt
+  duration: 60m
+  corrupt:
+    corrupt: '100'
+    correlation: '100'
+  direction: to

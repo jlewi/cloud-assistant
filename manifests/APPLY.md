@@ -2,6 +2,10 @@
 cwd: ..
 ---
 
+```sh {"terminalRows":"3"}
+kubectl create ns cloud-assistant
+```
+
 ## Replace the cert and key with your own
 
 ```sh {"terminalRows":"2"}
@@ -19,30 +23,32 @@ kubectl create -n cloud-assistant secret generic openai \
 kubectl apply -f -
 ```
 
-```sh
+```sh {"terminalRows":"7"}
 kubectl delete -k manifests
+```
+
+```sh {"terminalRows":"7"}
 kubectl apply -k manifests
 ```
 
-```sh
+```sh {"background":"true"}
+kubectl get pods -n cloud-assistant -w
+```
+
+```sh {"background":"true"}
+sudo minikube tunnel
+```
+
+```sh {"terminalRows":"3"}
 kubectl rollout restart -n cloud-assistant deploy cloud-assistant-ui
 ```
 
-```sh {"terminalRows":"20"}
+```sh {"terminalRows":"34"}
 kubectl logs -n cloud-assistant -l app=cloud-assistant-ui
 ```
 
 ## Expose locally
 
-```sh
-kubectl expose -n cloud-assistant deployment cloud-assistant-ui \
-  --name cloud-assistant-ui \
-  --port 5443 \
-  --target-port cloud-assi-tls \
-  --type ClusterIP
-
-```
-
 ```sh {"background":"true"}
-kubectl port-forward svc/cloud-assistant-ui -n cloud-assistant 5443:5443
+kubectl port-forward svc/cloud-assistant-ui -n cloud-assistant 5443:8443
 ```

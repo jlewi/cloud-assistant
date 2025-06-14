@@ -9,6 +9,8 @@ configMapGenerator:
 
 resources:
 - deployment.yaml
+- ingress.yaml
+- service.yaml
 images:
 - name: cloud-assistant
   newName: ghcr.io/jlewi/cloud-assistant
