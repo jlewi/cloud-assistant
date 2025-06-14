@@ -14,6 +14,7 @@ import {
   GenerateRequest,
   GenerateRequestSchema,
 } from '../gen/es/cassie/blocks_pb'
+import { getAccessToken } from '../token'
 import { useClient as useAgentClient } from './AgentContext'
 
 type BlockContextType = {
@@ -114,10 +115,17 @@ export const BlockProvider = ({ children }: { children: ReactNode }) => {
   }
 
   const streamGenerateResults = async (blocks: Block[]) => {
+    const accessToken = getAccessToken()
+
     const req: GenerateRequest = create(GenerateRequestSchema, {
       blocks,
       previousResponseId: previousResponseId,
     })
+
+    req.openaiAccessToken = accessToken.accessToken
+    if (accessToken.accessToken == '') {
+      console.error('No access token found')
+    }
 
     try {
       const res = client!.generate(req)

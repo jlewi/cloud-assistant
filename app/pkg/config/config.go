@@ -154,6 +154,7 @@ func (c *Config) GetConfigDir() string {
 // IsValid validates the configuration and returns any errors.
 func (c *Config) IsValid() []string {
 	problems := make([]string, 0, 1)
+
 	return problems
 }
 
