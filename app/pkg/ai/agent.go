@@ -3,6 +3,7 @@ package ai
 import (
 	"context"
 	"encoding/json"
+
 	"github.com/openai/openai-go/option"
 
 	"connectrpc.com/connect"
@@ -170,7 +171,7 @@ func (a *Agent) ProcessWithOpenAI(ctx context.Context, req *cassie.GenerateReque
 	}
 
 	tools := make([]responses.ToolUnionParam, 0, 1)
-	
+
 	if len(a.vectorStoreIDs) > 0 {
 		fileSearchTool := &responses.FileSearchToolParam{
 			MaxNumResults:  openai.Opt(int64(5)),

@@ -23,15 +23,15 @@ func TestStateManager(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to generate state: %v", err)
 	}
-	if state == "" {
+	if state.state == "" {
 		t.Error("Generated state is empty")
 	}
 
 	// Test state validation
-	if !sm.validateState(state) {
+	if _, valid := sm.validateState(state.state); !valid {
 		t.Error("Valid state was not accepted")
 	}
-	if sm.validateState(state) {
+	if _, valid := sm.validateState(state.state); valid {
 		t.Error("State was accepted twice")
 	}
 
@@ -41,7 +41,7 @@ func TestStateManager(t *testing.T) {
 		t.Fatalf("Failed to generate state: %v", err)
 	}
 	time.Sleep(sm.stateExpiration + time.Second)
-	if sm.validateState(state) {
+	if _, ok := sm.validateState(state.state); ok {
 		t.Error("Expired state was accepted")
 	}
 }
@@ -148,7 +148,7 @@ func TestOIDC_Handlers(t *testing.T) {
 		}
 
 		// Create a test request with valid state but no code
-		req = httptest.NewRequest("GET", "/oidc/callback?state="+state, nil)
+		req = httptest.NewRequest("GET", "/oidc/callback?state="+state.state, nil)
 		w = httptest.NewRecorder()
 		oidc.CallbackHandler(w, req)
 		resp = w.Result()
