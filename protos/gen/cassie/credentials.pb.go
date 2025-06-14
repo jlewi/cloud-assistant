@@ -29,11 +29,11 @@ type OAuthToken struct {
 	// The type of the token.
 	// e.g. "Bearer"
 	TokenType    string `protobuf:"bytes,2,opt,name=token_type,json=tokenType,proto3" json:"token_type,omitempty"`
-	RefreshToken string `protobuf:"bytes,5,opt,name=refresh_token,json=refreshToken,proto3" json:"refresh_token,omitempty"`
+	RefreshToken string `protobuf:"bytes,3,opt,name=refresh_token,json=refreshToken,proto3" json:"refresh_token,omitempty"`
 	// The expiration time of the token in seconds since epoch.
-	ExpiresAt int64 `protobuf:"varint,3,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
+	ExpiresAt int64 `protobuf:"varint,4,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
 	// Expiration time
-	Expiry        *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=expiry,proto3" json:"expiry,omitempty"`
+	Expiry        *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=expiry,proto3" json:"expiry,omitempty"`
 	ExpiresIn     int64                  `protobuf:"varint,6,opt,name=expires_in,json=expiresIn,proto3" json:"expires_in,omitempty"` // The number of seconds until the token expires.
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -121,10 +121,10 @@ const file_cassie_credentials_proto_rawDesc = "" +
 	"\faccess_token\x18\x01 \x01(\tR\vaccessToken\x12\x1d\n" +
 	"\n" +
 	"token_type\x18\x02 \x01(\tR\ttokenType\x12#\n" +
-	"\rrefresh_token\x18\x05 \x01(\tR\frefreshToken\x12\x1d\n" +
+	"\rrefresh_token\x18\x03 \x01(\tR\frefreshToken\x12\x1d\n" +
 	"\n" +
-	"expires_at\x18\x03 \x01(\x03R\texpiresAt\x122\n" +
-	"\x06expiry\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\x06expiry\x12\x1d\n" +
+	"expires_at\x18\x04 \x01(\x03R\texpiresAt\x122\n" +
+	"\x06expiry\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\x06expiry\x12\x1d\n" +
 	"\n" +
 	"expires_in\x18\x06 \x01(\x03R\texpiresInBHB\x10CredentialsProtoP\x01Z2github.com/jlewi/cloud-assistant/protos/gen/cassieb\x06proto3"
 

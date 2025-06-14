@@ -31,21 +31,21 @@ export declare type OAuthToken = Message<"OAuthToken"> & {
   tokenType: string;
 
   /**
-   * @generated from field: string refresh_token = 5;
+   * @generated from field: string refresh_token = 3;
    */
   refreshToken: string;
 
   /**
    * The expiration time of the token in seconds since epoch.
    *
-   * @generated from field: int64 expires_at = 3;
+   * @generated from field: int64 expires_at = 4;
    */
   expiresAt: bigint;
 
   /**
    * Expiration time
    *
-   * @generated from field: google.protobuf.Timestamp expiry = 4;
+   * @generated from field: google.protobuf.Timestamp expiry = 5;
    */
   expiry?: Timestamp;
 
@@ -77,21 +77,21 @@ export declare type OAuthTokenJson = {
   tokenType?: string;
 
   /**
-   * @generated from field: string refresh_token = 5;
+   * @generated from field: string refresh_token = 3;
    */
   refreshToken?: string;
 
   /**
    * The expiration time of the token in seconds since epoch.
    *
-   * @generated from field: int64 expires_at = 3;
+   * @generated from field: int64 expires_at = 4;
    */
   expiresAt?: string;
 
   /**
    * Expiration time
    *
-   * @generated from field: google.protobuf.Timestamp expiry = 4;
+   * @generated from field: google.protobuf.Timestamp expiry = 5;
    */
   expiry?: TimestampJson;
 
