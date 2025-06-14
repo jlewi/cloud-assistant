@@ -170,12 +170,7 @@ func (a *Agent) ProcessWithOpenAI(ctx context.Context, req *cassie.GenerateReque
 	}
 
 	tools := make([]responses.ToolUnionParam, 0, 1)
-
-	if len(a.vectorStoreIDs) > 1 {
-		// TODO(jlewi): Does OpenAI support multiple vector stores?
-		return connect.NewError(connect.CodeInternal, errors.New("Expected at most one vector store"))
-	}
-
+	
 	if len(a.vectorStoreIDs) > 0 {
 		fileSearchTool := &responses.FileSearchToolParam{
 			MaxNumResults:  openai.Opt(int64(5)),
@@ -319,7 +314,6 @@ func (a *Agent) ProcessWithOpenAI(ctx context.Context, req *cassie.GenerateReque
 
 	log.Info("ResponseRequest", "request", createResponse)
 	eStream := a.Client.Responses.NewStreaming(ctx, createResponse, opts...)
-
 	builder := NewBlocksBuilder(a.filenameToLink, a.responseCache, a.blocksCache)
 
 	return builder.HandleEvents(ctx, eStream, sender)
