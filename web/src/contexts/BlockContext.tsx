@@ -133,7 +133,7 @@ export const BlockProvider = ({ children }: { children: ReactNode }) => {
     })
 
     req.openaiAccessToken = accessToken.accessToken
-    if (accessToken.accessToken == '') {
+    if (!accessToken.accessToken) {
       console.error('No access token found')
     }
 

@@ -632,7 +632,7 @@ export function genStreamID() {
 
 // Generate a unique ID for the run
 export function genRunID() {
-  return ulid()
+  return `run_${ulid()}`
 }
 
 export default Streams
