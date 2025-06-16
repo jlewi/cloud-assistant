@@ -324,11 +324,12 @@ func TestRunmeHandler_DenyMismatchedKnownID(t *testing.T) {
 		},
 	})
 
-	if err := sc.WriteMessage(websocket.TextMessage, req1); err != nil {
-		t.Fatalf("WriteMessage req1: %v", err)
-	}
-	if err := sc.WriteMessage(websocket.TextMessage, req2); err != nil {
-		t.Fatalf("WriteMessage req2: %v", err)
+	reqs := [][]byte{req1, req2}
+
+	for _, req := range reqs {
+		if err := sc.WriteMessage(websocket.TextMessage, req); err != nil {
+			t.Fatalf("WriteMessage req: %v", err)
+		}
 	}
 
 	for {
