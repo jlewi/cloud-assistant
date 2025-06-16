@@ -22,6 +22,7 @@ import './runme-vscode.css'
 function Console({
   blockID,
   runID,
+  sequence,
   commands,
   rows = 20,
   className,
@@ -36,6 +37,7 @@ function Console({
 }: {
   blockID: string
   runID: string
+  sequence: number
   commands: string[]
   rows?: number
   className?: string
@@ -56,12 +58,19 @@ function Console({
 
     console.log('Creating stream', blockID, runID, settings.webApp.runner)
     return new Streams(
-      blockID,
-      runID,
-      settings.webApp.runner,
-      settings.webApp.reconnect
+      { knownID: blockID, runID, sequence },
+      {
+        runnerEndpoint: settings.webApp.runner,
+        autoReconnect: settings.webApp.reconnect,
+      }
     )
-  }, [blockID, runID, settings.webApp.reconnect, settings.webApp.runner])
+  }, [
+    blockID,
+    runID,
+    sequence,
+    settings.webApp.reconnect,
+    settings.webApp.runner,
+  ])
 
   useEffect(() => {
     const sub = streams

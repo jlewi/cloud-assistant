@@ -119,10 +119,11 @@ export const SettingsProvider = ({
     setRunnerError(null)
 
     const stream = new Streams(
-      `check_${ulid()}`,
-      genRunID(),
-      settings.webApp.runner,
-      settings.webApp.reconnect
+      { knownID: `check_${ulid()}`, runID: genRunID(), sequence: 0 },
+      {
+        runnerEndpoint: settings.webApp.runner,
+        autoReconnect: settings.webApp.reconnect,
+      }
     )
 
     const subs: Subscription[] = []

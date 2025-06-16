@@ -144,12 +144,42 @@ class Streams {
     return this._mimeTypeConnectable
   }
 
+  // Identifiers for the block/console associated with this stream
+  private readonly knownID: string
+  private readonly runID: string
+  private readonly sequence: number
+
+  // Configuration
+  private readonly runnerEndpoint: string
+  private readonly autoReconnect: boolean
+
   constructor(
-    private readonly knownID: string,
-    private readonly runID: string,
-    private readonly runnerEndpoint: string,
-    private readonly autoReconnect: boolean
+    {
+      knownID,
+      runID,
+      sequence,
+    }: {
+      knownID: string
+      runID: string
+      sequence: number
+    },
+    {
+      runnerEndpoint,
+      autoReconnect,
+    }: {
+      runnerEndpoint: string
+      autoReconnect: boolean
+    }
   ) {
+    // Set the identifiers
+    this.knownID = knownID
+    this.runID = runID
+    this.sequence = sequence
+
+    // Assign configuration
+    this.runnerEndpoint = runnerEndpoint
+    this.autoReconnect = autoReconnect
+
     // Turn the connectables into hot observables
     this._latenciesConnectable.connect()
     this._errorsConnectable.connect()
@@ -371,7 +401,7 @@ class Streams {
       const onOpen = () => {
         console.log(
           new Date(),
-          `✅ Connected WebSocket for block ${this.knownID} with runID ${this.runID}`
+          `✅ Connected WebSocket for block ${this.knownID} (#${this.sequence}) with runID ${this.runID}`
         )
 
         observer.next(socket)
@@ -386,7 +416,7 @@ class Streams {
       return () => {
         console.log(
           new Date(),
-          `☑️ Cleanly disconnected WebSocket for block ${this.knownID} with runID ${this.runID}`
+          `☑️ Cleanly disconnected WebSocket for block ${this.knownID} (#${this.sequence}) with runID ${this.runID}`
         )
         socket.removeEventListener('close', onClose)
         socket.removeEventListener('error', onError)
