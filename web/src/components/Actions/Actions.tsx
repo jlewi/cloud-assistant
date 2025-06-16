@@ -96,7 +96,7 @@ const CodeConsole = memo(
 
 // Action is an editor and an optional Runme console
 function Action({ block }: { block: Block }) {
-  const { createOutputBlock, sendOutputBlock } = useBlock()
+  const { createOutputBlock, sendOutputBlock, incrementSequence } = useBlock()
   const [editorValue, setEditorValue] = useState(block.contents)
   const [takeFocus, setTakeFocus] = useState(false)
   const [exec, setExec] = useState<{ value: string; runID: string }>({
@@ -109,6 +109,7 @@ function Action({ block }: { block: Block }) {
   const [stdout, setStdout] = useState<string>('')
   const [stderr, setStderr] = useState<string>('')
   const [lastRunID, setLastRunID] = useState<string>('')
+  const [lastSequence, setLastSequence] = useState<number | null>(null)
 
   const runCode = useCallback(
     (takeFocus = false) => {
@@ -117,9 +118,10 @@ function Action({ block }: { block: Block }) {
       setPid(null)
       setExitCode(null)
       setTakeFocus(takeFocus)
+      setLastSequence(incrementSequence())
       setExec({ value: editorValue, runID: genRunID() })
     },
-    [editorValue]
+    [editorValue, incrementSequence]
   )
 
   // Listen for runCodeBlock events
@@ -197,24 +199,39 @@ function Action({ block }: { block: Block }) {
     }
 
     setLastRunID(exec.runID)
-    sendOutputBlock(finalOutputBlock)
+    // sendOutputBlock(finalOutputBlock)
   }, [sendOutputBlock, finalOutputBlock, exec.runID, lastRunID])
 
   useEffect(() => {
     setEditorValue(block.contents)
   }, [block.contents])
 
+  const sequenceLabel = useMemo(() => {
+    if (!lastSequence) {
+      return ' '
+    }
+    return lastSequence.toString()
+  }, [lastSequence])
+
   return (
     <div>
       <Box className="w-full p-2">
         <div className="flex justify-between items-top">
-          <RunActionButton
-            pid={pid}
-            exitCode={exitCode}
-            onClick={() => {
-              runCode(true)
-            }}
-          />
+          <div className="flex flex-col items-center">
+            <RunActionButton
+              pid={pid}
+              exitCode={exitCode}
+              onClick={() => {
+                runCode(true)
+              }}
+            />
+            <Text
+              size="2"
+              className="mt-1 p-2 font-bold text-gray-400 font-mono"
+            >
+              [{sequenceLabel}]
+            </Text>
+          </div>
           <Card className="whitespace-nowrap overflow-hidden flex-1 ml-2">
             <Editor
               key={block.id}
