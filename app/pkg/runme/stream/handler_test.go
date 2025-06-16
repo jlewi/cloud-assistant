@@ -267,9 +267,11 @@ func TestRunmeHandler_DenyMismatchedKnownID(t *testing.T) {
 		mockRunmeServer.executeResponses <- &v2.ExecuteResponse{
 			StdoutData: []byte("first response"),
 		}
+		time.Sleep(100 * time.Millisecond)
 		mockRunmeServer.executeResponses <- &v2.ExecuteResponse{
 			StdoutData: []byte("second response"),
 		}
+		time.Sleep(100 * time.Millisecond)
 		mockRunmeServer.executeResponses <- &v2.ExecuteResponse{
 			ExitCode: &wrappers.UInt32Value{Value: 1},
 		}
