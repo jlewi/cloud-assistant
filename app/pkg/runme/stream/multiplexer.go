@@ -85,7 +85,7 @@ func (m *Multiplexer) receiveRequests(streamID string, sc *Connection) {
 	defer m.streams.removeStream(ctx, streamID)
 	log := logs.FromContextWithTrace(ctx)
 
-	if err := m.streams.receive(ctx, streamID, sc); err != nil {
+	if err := m.streams.receive(ctx, streamID, m.runID, sc); err != nil {
 		closeErr, ok := err.(*websocket.CloseError)
 		if !ok {
 			log.Error(err, "Unexpected error while receiving socket requests")

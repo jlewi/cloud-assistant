@@ -17,6 +17,7 @@ import (
 	"github.com/jlewi/cloud-assistant/protos/gen/cassie"
 	"github.com/oklog/ulid/v2"
 	v2 "github.com/runmedev/runme/v3/api/gen/proto/go/runme/runner/v2"
+	"google.golang.org/genproto/googleapis/rpc/code"
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
@@ -128,13 +129,12 @@ func TestRunmeHandler_Roundtrip(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(h.Handler))
 	defer ts.Close()
 
-	sc, _, err := dialWebSocket(ts, genULID().String())
+	runID := genULID()
+	sc, _, err := dialWebSocket(ts, runID.String())
 	if err != nil {
 		t.Errorf("Failed to dial websocket: %v", err)
 		return
 	}
-
-	runID := genULID()
 
 	dummyReq, err := protojson.Marshal(&cassie.SocketRequest{
 		RunId: runID.String(),
@@ -184,6 +184,167 @@ func TestRunmeHandler_Roundtrip(t *testing.T) {
 			t.Errorf("Unexpected stdout data: '%s'", stdout)
 		}
 	}
+}
+
+// Tests websocket handler rejects requests with mismatched runIDs as unauthorized.
+func TestRunmeHandler_DenyMismatchedRunID(t *testing.T) {
+	mockRunmeServer := newMockRunmeServer()
+	mockRunmeServer.SetResponder(func() error {
+		mockRunmeServer.executeResponses <- &v2.ExecuteResponse{
+			ExitCode: &wrappers.UInt32Value{Value: 1},
+		}
+		return nil
+	})
+
+	h := NewWebSocketHandler(
+		&runme.Runner{Server: mockRunmeServer},
+		&iam.AuthContext{Checker: &iam.AllowAllChecker{}},
+	)
+
+	ts := httptest.NewServer(http.HandlerFunc(h.Handler))
+	defer ts.Close()
+
+	initRunID := genULID()
+	sc, _, err := dialWebSocket(ts, initRunID.String())
+	if err != nil {
+		t.Errorf("Failed to dial websocket: %v", err)
+		return
+	}
+
+	unrelatedRunID := genULID()
+	dummyReq, err := protojson.Marshal(&cassie.SocketRequest{
+		RunId: unrelatedRunID.String(),
+		Payload: &cassie.SocketRequest_ExecuteRequest{
+			ExecuteRequest: &v2.ExecuteRequest{
+				Config: &v2.ProgramConfig{
+					Source: &v2.ProgramConfig_Commands{
+						Commands: &v2.ProgramConfig_CommandList{
+							Items: []string{"echo", "hi"},
+						},
+					},
+				},
+			},
+		},
+	})
+	if err != nil {
+		t.Errorf("Failed to marshal message: %v", err)
+	}
+
+	defer func() {
+		err := sc.Close()
+		if err != nil {
+			t.Errorf("Expected no error, got %v", err)
+		}
+	}()
+
+	err = sc.WriteMessage(websocket.TextMessage, dummyReq)
+	if err != nil {
+		t.Errorf("Expected no error, got %v", err)
+	}
+
+	for {
+		resp, err := sc.ReadSocketResponse(context.Background())
+		closeErr, ok := err.(*websocket.CloseError)
+
+		// Expect permission denied error if the runID is not the same as the one in the request.
+		if resp != nil && resp.GetStatus() != nil && resp.GetStatus().GetCode() == code.Code_PERMISSION_DENIED && resp.GetStatus().GetMessage() == "RunID mismatch" {
+			continue
+		}
+		// Expect protocol error if the connection is closed.
+		if closeErr != nil && ok && closeErr.Code == websocket.CloseProtocolError {
+			return
+		}
+
+		// Otherwise, fail the test.
+		t.Fatalf("Expected error 1002 'RunID mismatch', got %v", err)
+	}
+}
+
+// Tests websocket handler rejects requests with mismatched knownIDs as unauthorized.
+func TestRunmeHandler_DenyMismatchedKnownID(t *testing.T) {
+	mockRunmeServer := newMockRunmeServer()
+	mockRunmeServer.SetResponder(func() error {
+		mockRunmeServer.executeResponses <- &v2.ExecuteResponse{
+			StdoutData: []byte("first response"),
+		}
+		mockRunmeServer.executeResponses <- &v2.ExecuteResponse{
+			StdoutData: []byte("second response"),
+		}
+		mockRunmeServer.executeResponses <- &v2.ExecuteResponse{
+			ExitCode: &wrappers.UInt32Value{Value: 1},
+		}
+		return nil
+	})
+
+	h := NewWebSocketHandler(
+		&runme.Runner{Server: mockRunmeServer},
+		&iam.AuthContext{Checker: &iam.AllowAllChecker{}},
+	)
+	ts := httptest.NewServer(http.HandlerFunc(h.Handler))
+	defer ts.Close()
+
+	runID := genULID()
+	sc, _, err := dialWebSocket(ts, runID.String())
+	if err != nil {
+		t.Fatalf("Failed to dial websocket: %v", err)
+	}
+	defer func() { _ = sc.Close() }()
+
+	knownID1 := genULID()
+	knownID2 := genULID() // This is the mismatching one
+
+	req1, _ := protojson.Marshal(&cassie.SocketRequest{
+		KnownId: knownID1.String(),
+		RunId:   runID.String(),
+		Payload: &cassie.SocketRequest_ExecuteRequest{
+			ExecuteRequest: &v2.ExecuteRequest{
+				Config: &v2.ProgramConfig{
+					Source: &v2.ProgramConfig_Commands{
+						Commands: &v2.ProgramConfig_CommandList{
+							Items: []string{"echo", "hi"},
+						},
+					},
+				},
+			},
+		},
+	})
+	req2, _ := protojson.Marshal(&cassie.SocketRequest{
+		KnownId: knownID2.String(), // Mismatched KnownID
+		RunId:   runID.String(),
+		Payload: &cassie.SocketRequest_ExecuteRequest{
+			ExecuteRequest: &v2.ExecuteRequest{
+				Config: &v2.ProgramConfig{
+					Source: &v2.ProgramConfig_Commands{
+						Commands: &v2.ProgramConfig_CommandList{
+							Items: []string{"echo", "hi"},
+						},
+					},
+				},
+			},
+		},
+	})
+
+	if err := sc.WriteMessage(websocket.TextMessage, req1); err != nil {
+		t.Fatalf("WriteMessage req1: %v", err)
+	}
+	if err := sc.WriteMessage(websocket.TextMessage, req2); err != nil {
+		t.Fatalf("WriteMessage req2: %v", err)
+	}
+
+	for {
+		resp, err := sc.ReadSocketResponse(context.Background())
+		if err != nil {
+			break // Connection closed or error
+		}
+		if resp.GetExecuteResponse().GetExitCode() != nil {
+			break // Fail, we should never receive an exit code
+		}
+		status := resp.GetStatus()
+		if status != nil && status.GetCode() == code.Code_PERMISSION_DENIED && status.GetMessage() == "KnownID mismatch" {
+			return // Test passes
+		}
+	}
+	t.Fatal("Expected permission denied due to knownID mismatch")
 }
 
 func TestRunmeHandler_MutliClient(t *testing.T) {
