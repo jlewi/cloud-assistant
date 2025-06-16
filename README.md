@@ -23,6 +23,8 @@ openai:
 cloudAssistant:
     vectorStores:
         - ${VSID}
+webApp:
+    reconnect: true
 assistantServer:
     bindAddress: ""
     port: 0
