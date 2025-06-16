@@ -16,11 +16,12 @@ import Streams, {
   StreamError,
   genRunID,
 } from '../components/Runme/Streams'
+import { WebAppConfigJson } from '../gen/es/cassie/config/webapp_pb'
 
 interface Settings {
   agentEndpoint: string
-  runnerEndpoint: string
   requireAuth: boolean
+  webApp: Required<WebAppConfigJson>
 }
 
 interface SettingsContextType {
@@ -47,9 +48,7 @@ export const useSettings = () => {
 interface SettingsProviderProps {
   children: ReactNode
   requireAuth?: boolean
-  webApp?: {
-    runner?: string
-  }
+  webApp?: WebAppConfigJson
 }
 
 export const SettingsProvider = ({
@@ -65,18 +64,21 @@ export const SettingsProvider = ({
     const isVite = window.location.port === '5173'
     const isDev = isLocalhost && isHttp && isVite
 
-    let runnerLocation = new URL(window.location.href)
-    // Overwrite runnerEndpoint if webApp.runner is provided
+    let runnerEndpoint = new URL(window.location.href)
+    // Overwrite runner if webApp.runner is provided
     if (webApp?.runner) {
-      runnerLocation = new URL(webApp.runner)
+      runnerEndpoint = new URL(webApp.runner)
     }
 
     const baseSettings: Settings = {
-      agentEndpoint: isDev ? 'http://localhost:8080' : window.location.origin,
-      runnerEndpoint: isDev
-        ? 'ws://localhost:8080/ws'
-        : `${runnerLocation.protocol === 'https:' ? 'wss:' : 'ws:'}//${runnerLocation.host}/ws`,
       requireAuth: false,
+      agentEndpoint: isDev ? 'http://localhost:8080' : window.location.origin,
+      webApp: {
+        runner: isDev
+          ? 'ws://localhost:8080/ws'
+          : `${runnerEndpoint.protocol === 'https:' ? 'wss:' : 'ws:'}//${runnerEndpoint.host}/ws`,
+        reconnect: webApp?.reconnect ?? true,
+      },
     }
 
     // Override requireAuth if provided
@@ -89,8 +91,17 @@ export const SettingsProvider = ({
 
   const [settings, setSettings] = useState<Settings>(() => {
     const savedSettings = localStorage.getItem('cloudAssistantSettings')
+    const savedSettingsJson = savedSettings ? JSON.parse(savedSettings) : {}
+    // always use the default reconnect value
+    if (
+      savedSettingsJson &&
+      savedSettingsJson.webApp &&
+      savedSettingsJson.webApp.reconnect !== undefined
+    ) {
+      savedSettingsJson.webApp.reconnect = defaultSettings.webApp.reconnect
+    }
     const mergedSettings = savedSettings
-      ? { ...defaultSettings, ...JSON.parse(savedSettings) }
+      ? { ...defaultSettings, ...savedSettingsJson }
       : defaultSettings
     return mergedSettings
   })
@@ -100,7 +111,7 @@ export const SettingsProvider = ({
   }, [settings])
 
   const checkRunnerAuth = useCallback(async () => {
-    if (!settings.runnerEndpoint) {
+    if (!settings.webApp.runner) {
       return
     }
 
@@ -110,7 +121,8 @@ export const SettingsProvider = ({
     const stream = new Streams(
       `check_${ulid()}`,
       genRunID(),
-      settings.runnerEndpoint
+      settings.webApp.runner,
+      settings.webApp.reconnect
     )
 
     const subs: Subscription[] = []
@@ -134,14 +146,23 @@ export const SettingsProvider = ({
     return () => {
       subs.forEach((sub) => sub.unsubscribe())
     }
-  }, [settings.runnerEndpoint])
+  }, [settings.webApp.reconnect, settings.webApp.runner])
 
   useEffect(() => {
     checkRunnerAuth()
   }, [checkRunnerAuth])
 
   const updateSettings = (newSettings: Partial<Settings>) => {
-    setSettings((prev) => ({ ...prev, ...newSettings }))
+    setSettings((prev) => {
+      return {
+        ...prev,
+        ...newSettings,
+        webApp: {
+          ...prev.webApp,
+          ...newSettings.webApp,
+        },
+      }
+    })
   }
 
   return (

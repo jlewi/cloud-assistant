@@ -11,12 +11,15 @@ export default function Settings() {
     useSettings()
   const [saveSettingsPending, setSaveSettingsPending] = useState(false)
   const [endpoint, setEndpoint] = useState(settings.agentEndpoint)
-  const [runnerEndpoint, setRunnerEndpoint] = useState(settings.runnerEndpoint)
+  const [runnerEndpoint, setRunnerEndpoint] = useState(settings.webApp.runner)
 
   const handleSave = () => {
     updateSettings({
       agentEndpoint: endpoint,
-      runnerEndpoint: runnerEndpoint,
+      webApp: {
+        runner: runnerEndpoint,
+        reconnect: settings.webApp.reconnect,
+      },
     })
     setSaveSettingsPending(true)
   }
@@ -33,7 +36,7 @@ export default function Settings() {
 
   const handleRevert = () => {
     setEndpoint(defaultSettings.agentEndpoint)
-    setRunnerEndpoint(defaultSettings.runnerEndpoint)
+    setRunnerEndpoint(defaultSettings.webApp.runner)
   }
 
   const runnerErrorMessage = useMemo(() => {
@@ -45,7 +48,7 @@ export default function Settings() {
 
   const isChanged =
     endpoint !== settings.agentEndpoint ||
-    runnerEndpoint !== settings.runnerEndpoint
+    runnerEndpoint !== settings.webApp.runner
 
   return (
     <Box className="w-full mx-auto">

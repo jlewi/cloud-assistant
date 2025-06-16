@@ -15,15 +15,14 @@ import Settings from './components/Settings/Settings'
 import { AgentClientProvider } from './contexts/AgentContext'
 import { BlockProvider } from './contexts/BlockContext'
 import { SettingsProvider, useSettings } from './contexts/SettingsContext'
+import { WebAppConfigJson } from './gen/es/cassie/config/webapp_pb'
 import { Code } from './gen/es/google/rpc/code_pb'
 import Layout from './layout'
 
 export interface AppProps {
   initialState?: {
     requireAuth?: boolean
-    webApp?: {
-      runner?: string
-    }
+    webApp?: WebAppConfigJson
   }
 }
 

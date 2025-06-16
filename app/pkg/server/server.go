@@ -18,6 +18,8 @@ import (
 	"context"
 	"fmt"
 
+	pbcfg "github.com/jlewi/cloud-assistant/protos/gen/cassie/config"
+
 	"connectrpc.com/otelconnect"
 
 	"github.com/go-logr/zapr"
@@ -41,7 +43,7 @@ import (
 type Server struct {
 	telemetry        *config.TelemetryConfig
 	serverConfig     *config.AssistantServerConfig
-	webAppConfig     *config.WebAppConfig
+	webAppConfig     *pbcfg.WebAppConfig
 	hServer          *http.Server
 	engine           http.Handler
 	shutdownComplete chan bool
@@ -53,7 +55,7 @@ type Server struct {
 type Options struct {
 	Telemetry *config.TelemetryConfig
 	Server    *config.AssistantServerConfig
-	WebApp    *config.WebAppConfig
+	WebApp    *pbcfg.WebAppConfig
 	IAMPolicy *api.IAMPolicy
 }
 

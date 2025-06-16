@@ -147,7 +147,8 @@ class Streams {
   constructor(
     private readonly knownID: string,
     private readonly runID: string,
-    private readonly runnerEndpoint: string
+    private readonly runnerEndpoint: string,
+    private readonly autoReconnect: boolean
   ) {
     // Turn the connectables into hot observables
     this._latenciesConnectable.connect()
@@ -186,6 +187,7 @@ class Streams {
   private monitor(): Subscription {
     // Monitor the latencies and trigger reconnects if the latency is too high
     const monitor = interval(MONITOR_INTERVAL_MS).pipe(
+      filter(() => this.autoReconnect),
       withLatestFrom(this.reconnect),
       filter(([, reconnect]) => reconnect.heartbeat === Heartbeat.CONTINUOUS),
       withLatestFrom(this.latencies),
@@ -286,9 +288,13 @@ class Streams {
         console.log(new Date(), `WebSocket transport ${streamID} closed`, event)
         if (event.code === 1005) {
           observer.complete()
-        } else {
+          return
+        }
+
+        if (this.autoReconnect) {
           // This infinite loop is throttled by the reconnect subject.
           this.connect()
+          return
         }
       }
 

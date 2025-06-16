@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/jlewi/cloud-assistant/app/api"
+	pbcfg "github.com/jlewi/cloud-assistant/protos/gen/cassie/config"
 
 	"github.com/go-logr/zapr"
 	"github.com/pkg/errors"
@@ -59,18 +60,13 @@ type Config struct {
 	AssistantServer *AssistantServerConfig `json:"assistantServer,omitempty" yaml:"assistantServer,omitempty"`
 
 	// WebAppConfig is the configuration for the web application.
-	WebApp *WebAppConfig `json:"webApp,omitempty" yaml:"webApp,omitempty"`
+	WebApp *pbcfg.WebAppConfig `json:"webApp,omitempty" yaml:"webApp,omitempty"`
 
 	// IAMPolicy is the IAM policy for the service. It only matters if OIDC is enabled in the AssistantServerConfig.
 	IAMPolicy *api.IAMPolicy `json:"iamPolicy,omitempty" yaml:"iamPolicy,omitempty"`
 
 	// configFile is the configuration file used
 	configFile string
-}
-
-type WebAppConfig struct {
-	// Runner is the address of the Runme runner service to use
-	Runner string `json:"runner,omitempty" yaml:"runner,omitempty"`
 }
 
 type CloudAssistantConfig struct {

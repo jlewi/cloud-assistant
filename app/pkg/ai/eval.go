@@ -37,15 +37,15 @@ import (
 
 const (
 	llmJudgeInstructions = `
-	**Role:** Large-Language-Model (LLM) Judge  
+	**Role:** Large-Language-Model (LLM) Judge
 	**Purpose:** Evaluate the performance of our AI Site Reliability Engineer (AI SRE).
 
 	### Background
 	The AI SRE helps developers deploy and operate their software on the company's internal cloud. It can use several tools—for example:
 
-	- **'bash'** to run shell commands  
-	- **'filesearch'** to locate internal documents  
-	- Other task-specific tools as provided  
+	- **'bash'** to run shell commands
+	- **'filesearch'** to locate internal documents
+	- Other task-specific tools as provided
 
 	### Your task
 	1. Review the information supplied to you:
@@ -61,7 +61,7 @@ const (
 		"reasoning": "<string>"     // brief explanation of the pass/fail decision
 		}
 
-	- **'passed'** - 'true' when every mandatory criterion is satisfied; otherwise 'false'.  
+	- **'passed'** - 'true' when every mandatory criterion is satisfied; otherwise 'false'.
 	- **'reasoning'** - concise justification for the result.
 
 	### Rubric

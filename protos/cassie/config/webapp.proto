@@ -1,0 +1,12 @@
+syntax = "proto3";
+
+option go_package = "github.com/jlewi/cloud-assistant/protos/gen/cassie/config";
+
+// WebAppConfig is the application configuration.
+message WebAppConfig {
+  // runner is the address of the runner that the application should use.
+  string runner = 1;
+
+  // Reconnect is a flag to enable automatic reconnecting to the runner.
+  optional bool reconnect = 2;
+}

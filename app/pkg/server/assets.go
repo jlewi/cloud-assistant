@@ -8,8 +8,9 @@ import (
 	"net/http"
 	"os"
 
+	pbcfg "github.com/jlewi/cloud-assistant/protos/gen/cassie/config"
+
 	"github.com/go-logr/zapr"
-	"github.com/jlewi/cloud-assistant/app/pkg/config"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 )
@@ -62,8 +63,8 @@ func (s *Server) processIndexHTMLWithConfig(assetsFS fs.FS) ([]byte, error) {
 	content := buf.Bytes()
 
 	type initialState struct {
-		RequireAuth  bool                 `json:"requireAuth"`
-		WebAppConfig *config.WebAppConfig `json:"webApp,omitempty"`
+		RequireAuth  bool                `json:"requireAuth"`
+		WebAppConfig *pbcfg.WebAppConfig `json:"webApp,omitempty"`
 	}
 
 	state := initialState{RequireAuth: false, WebAppConfig: s.webAppConfig}

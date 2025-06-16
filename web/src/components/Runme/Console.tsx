@@ -50,13 +50,18 @@ function Console({
 }) {
   const { settings } = useSettings()
   const streams = useMemo(() => {
-    if (!blockID || !runID || !settings.runnerEndpoint) {
+    if (!blockID || !runID || !settings.webApp.runner) {
       return undefined
     }
 
-    console.log('Creating stream', blockID, runID, settings.runnerEndpoint)
-    return new Streams(blockID, runID, settings.runnerEndpoint)
-  }, [blockID, runID, settings.runnerEndpoint])
+    console.log('Creating stream', blockID, runID, settings.webApp.runner)
+    return new Streams(
+      blockID,
+      runID,
+      settings.webApp.runner,
+      settings.webApp.reconnect
+    )
+  }, [blockID, runID, settings.webApp.reconnect, settings.webApp.runner])
 
   useEffect(() => {
     const sub = streams
