@@ -207,8 +207,11 @@ function Action({ block }: { block: Block }) {
   }, [sendOutputBlock, finalOutputBlock, exec.runID, lastRunID])
 
   useEffect(() => {
+    if (lastRunID === exec.runID) {
+      return
+    }
     setLastSequence(sequence)
-  }, [sequence])
+  }, [sequence, exec.runID, lastRunID])
 
   useEffect(() => {
     setEditorValue(block.contents)
