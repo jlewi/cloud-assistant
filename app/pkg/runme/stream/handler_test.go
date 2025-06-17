@@ -19,6 +19,7 @@ import (
 	v2 "github.com/runmedev/runme/v3/api/gen/proto/go/runme/runner/v2"
 	"google.golang.org/genproto/googleapis/rpc/code"
 	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // todo(sebastian): reuses Runme's after moving it out under internal
@@ -348,6 +349,76 @@ func TestRunmeHandler_DenyMismatchedKnownID(t *testing.T) {
 		}
 	}
 	t.Fatal("Expected permission denied due to knownID mismatch")
+}
+
+func TestRunmeHandler_Ping(t *testing.T) {
+	mockRunmeServer := newMockRunmeServer()
+	mockRunmeServer.SetResponder(func() error {
+		mockRunmeServer.executeResponses <- &v2.ExecuteResponse{
+			ExitCode: &wrappers.UInt32Value{Value: 1},
+		}
+		return nil
+	})
+
+	h := NewWebSocketHandler(
+		&runme.Runner{Server: mockRunmeServer},
+		&iam.AuthContext{Checker: &iam.AllowAllChecker{}},
+	)
+	ts := httptest.NewServer(http.HandlerFunc(h.Handler))
+	defer ts.Close()
+
+	sc, _, err := dialWebSocket(ts, genULID().String())
+	if err != nil {
+		t.Fatalf("Failed to dial websocket: %v", err)
+	}
+	defer func() { _ = sc.Close() }()
+
+	// Send a ping request with knownID and runID
+	ts1 := timestamppb.Now().AsTime().UnixMilli()
+	req1, _ := protojson.Marshal(&cassie.SocketRequest{
+		KnownId: genULID().String(),
+		RunId:   genULID().String(),
+		Ping: &cassie.Ping{
+			Timestamp: ts1,
+		},
+	})
+
+	// Send a ping request with mismatched knownID and runID
+	// We allow ping requests with mismatched knownID and runID to be sent.
+	// This keeps the payloads small.
+	if err := sc.WriteMessage(websocket.TextMessage, req1); err != nil {
+		t.Errorf("WriteMessage req: %v", err)
+	}
+	time.Sleep(200 * time.Millisecond)
+	ts2 := timestamppb.Now().AsTime().UnixMilli()
+	req2, _ := protojson.Marshal(&cassie.SocketRequest{
+		KnownId: genULID().String(),
+		RunId:   genULID().String(),
+		Ping: &cassie.Ping{
+			Timestamp: ts2,
+		},
+	})
+	if err := sc.WriteMessage(websocket.TextMessage, req2); err != nil {
+		t.Errorf("WriteMessage req: %v", err)
+	}
+
+	for {
+		resp, err := sc.ReadSocketResponse(context.Background())
+		if err != nil {
+			break // Connection closed or error
+		}
+		if resp.GetExecuteResponse().GetExitCode() != nil {
+			break // Fail, we should never receive an exit code
+		}
+		if resp.GetPong() != nil && resp.GetPong().GetTimestamp() == ts2 {
+			return // Done as expected
+		}
+		if resp.GetPong() != nil && resp.GetPong().GetTimestamp() != ts1 {
+			break // If timestamps are not equal, fail the test
+		}
+	}
+
+	t.Fatal("Expected pong response")
 }
 
 func TestRunmeHandler_MutliClient(t *testing.T) {

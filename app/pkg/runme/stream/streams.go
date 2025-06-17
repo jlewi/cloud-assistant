@@ -102,22 +102,26 @@ func (s *Streams) receive(ctx context.Context, streamID string, runID string, sc
 			return err
 		}
 
-		// Check if context runID matches the authorized one in the request.
-		if req.GetRunId() != runID {
-			log.Error(err, "RunID mismatch", "streamID", streamID, "runID", req.GetRunId(), "expectedRunID", runID)
-			sc.ErrorMessage(ctx, code.Code_PERMISSION_DENIED, "RunID mismatch")
-			return err
-		}
+		// Skip if request is explicitly ping-only.
+		if req.GetPing() == nil && req.GetPayload() != nil {
+			// Check if context runID matches the authorized one in the request.
+			if req.GetRunId() != runID {
+				log.Error(err, "RunID mismatch", "streamID", streamID, "runID", req.GetRunId(), "expectedRunID", runID)
+				sc.ErrorMessage(ctx, code.Code_PERMISSION_DENIED, "RunID mismatch")
+				return err
+			}
 
-		// Set the known ID if it is not already set.
-		if s.knownID == "" {
-			s.knownID = req.GetKnownId()
-		}
+			// Set the known ID if it is not already set.
+			if s.knownID == "" {
+				s.knownID = req.GetKnownId()
+			}
 
-		if req.GetKnownId() != s.knownID {
-			log.Error(err, "KnownID mismatch", "streamID", streamID, "knownID", req.GetKnownId(), "expectedKnownID", s.knownID)
-			sc.ErrorMessage(ctx, code.Code_PERMISSION_DENIED, "KnownID mismatch")
-			return err
+			// Check if the knownID matches the one in the request.
+			if req.GetKnownId() != s.knownID {
+				log.Error(err, "KnownID mismatch", "streamID", streamID, "knownID", req.GetKnownId(), "expectedKnownID", s.knownID)
+				sc.ErrorMessage(ctx, code.Code_PERMISSION_DENIED, "KnownID mismatch")
+				return err
+			}
 		}
 
 		// Handle protocol-level ping
