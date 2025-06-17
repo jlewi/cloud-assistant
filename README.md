@@ -24,7 +24,7 @@ cloudAssistant:
     vectorStores:
         - ${VSID}
 webApp:
-    reconnect: true
+    reconnect: true # Set to false to disable attemps to auto-reconnect
 assistantServer:
     bindAddress: ""
     port: 0
