@@ -147,7 +147,7 @@ export const SettingsProvider = ({
     return () => {
       subs.forEach((sub) => sub.unsubscribe())
     }
-  }, [settings.webApp.reconnect, settings.webApp.runner])
+  }, [settings.webApp.runner])
 
   useEffect(() => {
     checkRunnerAuth()
