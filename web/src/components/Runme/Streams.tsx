@@ -330,7 +330,10 @@ class Streams {
 
       const onError = (event: Event) => {
         console.log(new Date(), `WebSocket transport ${streamID} error`, event)
-        // observer.error(event)
+        // If autoReconnect is disabled, we want to error out immediately.
+        if (!this.autoReconnect) {
+          observer.error(event)
+        }
       }
 
       const onMessage = (event: MessageEvent) => {

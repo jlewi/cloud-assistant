@@ -122,7 +122,7 @@ export const SettingsProvider = ({
       { knownID: `check_${ulid()}`, runID: genRunID(), sequence: 0 },
       {
         runnerEndpoint: settings.webApp.runner,
-        autoReconnect: settings.webApp.reconnect,
+        autoReconnect: false, // let it fail, we're interested in the error
       }
     )
 
