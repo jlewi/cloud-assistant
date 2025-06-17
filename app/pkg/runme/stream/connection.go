@@ -2,6 +2,7 @@ package stream
 
 import (
 	"context"
+	"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -16,6 +17,9 @@ import (
 // Connection is a thin wrapper around *websocket.Conn for common SocketRequest/SocketResponse operations.
 type Connection struct {
 	conn *websocket.Conn
+
+	readerMu sync.Mutex // protects reading from the websocket
+	writerMu sync.Mutex // protects writing to the websocket
 }
 
 // NewConnection creates a new Connection from a websocket connection.
@@ -63,11 +67,15 @@ func (sc *Connection) ErrorMessage(ctx context.Context, code code.Code, message 
 
 // ReadSocketRequest reads a SocketRequest from the websocket connection.
 func (sc *Connection) ReadSocketRequest(ctx context.Context) (*cassie.SocketRequest, error) {
+	sc.readerMu.Lock()
+	defer sc.readerMu.Unlock()
 	return readSocketMessage(ctx, sc.conn, func() *cassie.SocketRequest { return &cassie.SocketRequest{} })
 }
 
 // ReadSocketResponse reads a SocketResponse from the websocket connection.
 func (sc *Connection) ReadSocketResponse(ctx context.Context) (*cassie.SocketResponse, error) {
+	sc.readerMu.Lock()
+	defer sc.readerMu.Unlock()
 	return readSocketMessage(ctx, sc.conn, func() *cassie.SocketResponse { return &cassie.SocketResponse{} })
 }
 
@@ -79,15 +87,13 @@ func (sc *Connection) WriteSocketResponse(ctx context.Context, resp *cassie.Sock
 		log.Error(err, "Could not marshal SocketResponse")
 		return err
 	}
-	if err := sc.WriteMessage(websocket.TextMessage, data); err != nil {
-		log.Error(err, "Could not write SocketResponse")
-		return err
-	}
-	return nil
+	return sc.WriteMessage(websocket.TextMessage, data)
 }
 
 // WriteMessage writes a message to the websocket connection.
 func (sc *Connection) WriteMessage(messageType int, data []byte) error {
+	sc.writerMu.Lock()
+	defer sc.writerMu.Unlock()
 	return sc.conn.WriteMessage(messageType, data)
 }
 
