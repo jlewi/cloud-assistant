@@ -1,14 +1,13 @@
 import { memo, useEffect, useRef, useState } from 'react'
 import Markdown from 'react-markdown'
 
-import { MagnifyingGlassIcon } from '@radix-ui/react-icons'
 import {
   Button,
   Callout,
   Flex,
   ScrollArea,
   Text,
-  TextField,
+  TextArea,
 } from '@radix-ui/themes'
 
 import {
@@ -18,6 +17,7 @@ import {
   TypingBlock,
   useBlock,
 } from '../../contexts/BlockContext'
+import { SubmitQuestionIcon } from '../Actions/icons'
 
 type MessageProps = {
   block: Block
@@ -230,7 +230,7 @@ const ChatMessages = () => {
 const ChatInput = () => {
   const { sendUserBlock, isInputDisabled } = useBlock()
   const [userInput, setUserInput] = useState('')
-  const inputRef = useRef<HTMLInputElement>(null)
+  const inputRef = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => {
     inputRef.current?.focus()
@@ -243,24 +243,33 @@ const ChatInput = () => {
     setUserInput('')
   }
 
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (event.key === 'Enter' && !event.shiftKey) {
+      event.preventDefault()
+      const form = event.currentTarget.form
+      if (form) {
+        form.requestSubmit()
+      }
+    }
+  }
+
   return (
     <form onSubmit={handleSubmit} className="flex w-full order-1">
-      <Flex className="w-full flex flex-nowrap items-center">
-        <TextField.Root
+      <Flex className="w-full flex flex-nowrap items-start gap-4 m-2">
+        <TextArea
           name="userInput"
           value={userInput}
           onChange={(e) => setUserInput(e.target.value)}
+          onKeyDown={handleKeyDown}
           placeholder="Enter your question"
-          size="2"
-          className="flex-grow min-w-0 m-2"
+          size="3"
+          className="flex-grow min-w-0"
           ref={inputRef}
-        >
-          <TextField.Slot>
-            <MagnifyingGlassIcon height="16" width="16" />
-          </TextField.Slot>
-        </TextField.Root>
+          rows={2}
+          style={{ resize: 'vertical' }}
+        />
         <Button type="submit" disabled={isInputDisabled}>
-          {isInputDisabled ? 'Thinking' : 'Send'}
+          <SubmitQuestionIcon />
         </Button>
       </Flex>
     </form>
