@@ -41,6 +41,8 @@ type BlockContextType = {
   isTyping: boolean
   // Function to run a code block
   runCodeBlock: (block: Block) => void
+  // Function to reset the session
+  resetSession: () => void
 }
 
 const BlockContext = createContext<BlockContextType | undefined>(undefined)
@@ -211,6 +213,12 @@ export const BlockProvider = ({ children }: { children: ReactNode }) => {
     })
   }
 
+  const resetSession = () => {
+    setState({ blocks: {}, positions: [] })
+    setSequence(0)
+    setPreviousResponseId(undefined)
+  }
+
   const addCodeBlock = () => {
     const block = create(BlockSchema, {
       id: `code_${uuidv4()}`,
@@ -247,6 +255,7 @@ export const BlockProvider = ({ children }: { children: ReactNode }) => {
         isInputDisabled,
         isTyping,
         runCodeBlock,
+        resetSession,
       }}
     >
       {children}
