@@ -11,14 +11,17 @@ import { useBlock } from '../contexts/BlockContext'
 import { getTokenValue } from '../token'
 
 const getGravatarUrl = (size = 24) => {
-  const token = getTokenValue()
-  if (!token) {
+  const token = getTokenValue() || 'unauthenticated'
+
+  try {
+    const decodedToken = jwtDecode(token)
+    const sub = decodedToken.sub || 'unauthenticated'
+    const hash = md5(sub.trim().toLowerCase())
+    return `https://www.gravatar.com/avatar/${hash}?s=${size}&d=identicon`
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  } catch (_err) {
     return 'unauthenticated'
   }
-  const decodedToken = jwtDecode(token)
-  const sub = decodedToken.sub || 'unauthenticated'
-  const hash = md5(sub.trim().toLowerCase())
-  return `https://www.gravatar.com/avatar/${hash}?s=${size}&d=identicon`
 }
 
 const UserAvatar = () => (
