@@ -1,5 +1,4 @@
 import { useEffect } from 'react'
-import { Helmet } from 'react-helmet'
 import { BrowserRouter, Route, Routes } from 'react-router-dom'
 
 import { Theme } from '@radix-ui/themes'
@@ -97,12 +96,10 @@ function AppRouter() {
 function App({ initialState = {} }: AppProps) {
   return (
     <>
+      <title>Cloud Assistant</title>
+      <meta name="description" content="An AI Assistant For Your Cloud" />
+      <link rel="icon" href={openaiLogo} />
       <Theme accentColor="gray" scaling="110%" radius="small">
-        <Helmet>
-          <title>Cloud Assistant</title>
-          <meta name="description" content="An AI Assistant For Your Cloud" />
-          <link rel="icon" href={openaiLogo} />
-        </Helmet>
         <SettingsProvider
           requireAuth={initialState?.requireAuth}
           webApp={initialState?.webApp}
