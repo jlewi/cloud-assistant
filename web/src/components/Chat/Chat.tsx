@@ -107,13 +107,13 @@ const CodeMessage = memo(
       ? 'justify-end'
       : 'justify-start'
 
+    const shortcut = (
+      <span className="text-xs text-gray-400 p-2">Press CTRL+ENTER to run</span>
+    )
+
     return (
       <div className={`flex ${justification} items-center h-full`}>
-        {isRecentCodeBlock && settings.webApp.invertedOrder && (
-          <span className="text-xs text-gray-400 p-2">
-            Press CTRL+ENTER to run
-          </span>
-        )}
+        {isRecentCodeBlock && settings.webApp.invertedOrder && shortcut}
         <div
           className="flex items-center m-1 p-2 bg-[#1e1e1e] rounded-md max-w-[80%] cursor-pointer"
           onClick={handleClick}
@@ -150,11 +150,7 @@ const CodeMessage = memo(
             {firstLine}
           </span>
         </div>
-        {isRecentCodeBlock && !settings.webApp.invertedOrder && (
-          <span className="text-xs text-gray-400 p-2">
-            Press CTRL+ENTER to run
-          </span>
-        )}
+        {isRecentCodeBlock && !settings.webApp.invertedOrder && shortcut}
       </div>
     )
   },
@@ -211,13 +207,15 @@ const ChatMessages = () => {
     ? 'justify-end'
     : 'justify-start'
 
+  const typingBlock = (
+    <div className={`flex ${typingJustification} items-center h-full`}>
+      <Message block={TypingBlock} />
+    </div>
+  )
+
   return (
     <div className="overflow-y-clip p-1 flex flex-col whitespace-pre-wrap">
-      {isTyping && settings.webApp.invertedOrder && (
-        <div className={`flex ${typingJustification} items-center h-full`}>
-          <Message block={TypingBlock} />
-        </div>
-      )}
+      {isTyping && settings.webApp.invertedOrder && typingBlock}
       {chat.map((msg: Block, index: number) => (
         <Message
           key={index}
@@ -227,11 +225,7 @@ const ChatMessages = () => {
           }
         />
       ))}
-      {isTyping && !settings.webApp.invertedOrder && (
-        <div className={`flex ${typingJustification} items-center h-full`}>
-          <Message block={TypingBlock} />
-        </div>
-      )}
+      {isTyping && !settings.webApp.invertedOrder && typingBlock}
       <div ref={messagesEndRef} />
     </div>
   )
