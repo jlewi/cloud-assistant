@@ -206,6 +206,11 @@ const ChatMessages = () => {
 
   return (
     <div className="overflow-y-clip p-1 flex flex-col whitespace-pre-wrap">
+      {isTyping && settings.webApp.invertedOrder && (
+        <div className={`flex ${typingJustification} items-center h-full`}>
+          <Message block={TypingBlock} />
+        </div>
+      )}
       {chat.map((msg: Block, index: number) => (
         <Message
           key={index}
@@ -215,7 +220,7 @@ const ChatMessages = () => {
           }
         />
       ))}
-      {isTyping && (
+      {isTyping && !settings.webApp.invertedOrder && (
         <div className={`flex ${typingJustification} items-center h-full`}>
           <Message block={TypingBlock} />
         </div>
