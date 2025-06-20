@@ -99,7 +99,7 @@ function App({ initialState = {} }: AppProps) {
       <title>Cloud Assistant</title>
       <meta name="description" content="An AI Assistant For Your Cloud" />
       <link rel="icon" href={openaiLogo} />
-      <Theme accentColor="gray" scaling="110%" radius="small">
+      <Theme accentColor="gray" scaling="100%" radius="small">
         <SettingsProvider
           requireAuth={initialState?.requireAuth}
           webApp={initialState?.webApp}
