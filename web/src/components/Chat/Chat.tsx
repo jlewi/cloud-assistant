@@ -109,6 +109,11 @@ const CodeMessage = memo(
 
     return (
       <div className={`flex ${justification} items-center h-full`}>
+        {isRecentCodeBlock && settings.webApp.invertedOrder && (
+          <span className="text-xs text-gray-400 p-2">
+            Press CTRL+ENTER to run
+          </span>
+        )}
         <div
           className="flex items-center m-1 p-2 bg-[#1e1e1e] rounded-md max-w-[80%] cursor-pointer"
           onClick={handleClick}
@@ -145,8 +150,10 @@ const CodeMessage = memo(
             {firstLine}
           </span>
         </div>
-        {isRecentCodeBlock && (
-          <span className="text-xs text-gray-400">Press CTRL+ENTER to run</span>
+        {isRecentCodeBlock && !settings.webApp.invertedOrder && (
+          <span className="text-xs text-gray-400 p-2">
+            Press CTRL+ENTER to run
+          </span>
         )}
       </div>
     )
