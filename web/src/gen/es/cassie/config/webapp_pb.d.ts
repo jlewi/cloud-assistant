@@ -29,6 +29,13 @@ export declare type WebAppConfig = Message<"WebAppConfig"> & {
    * @generated from field: optional bool reconnect = 2;
    */
   reconnect?: boolean;
+
+  /**
+   * InvertedOrder is a flag to invert the order of the blocks.
+   *
+   * @generated from field: optional bool inverted_order = 3;
+   */
+  invertedOrder?: boolean;
 };
 
 /**
@@ -50,6 +57,13 @@ export declare type WebAppConfigJson = {
    * @generated from field: optional bool reconnect = 2;
    */
   reconnect?: boolean;
+
+  /**
+   * InvertedOrder is a flag to invert the order of the blocks.
+   *
+   * @generated from field: optional bool inverted_order = 3;
+   */
+  invertedOrder?: boolean;
 };
 
 /**

@@ -27,7 +27,9 @@ type WebAppConfig struct {
 	// runner is the address of the runner that the application should use.
 	Runner string `protobuf:"bytes,1,opt,name=runner,proto3" json:"runner,omitempty"`
 	// Reconnect is a flag to enable automatic reconnecting to the runner.
-	Reconnect     *bool `protobuf:"varint,2,opt,name=reconnect,proto3,oneof" json:"reconnect,omitempty"`
+	Reconnect *bool `protobuf:"varint,2,opt,name=reconnect,proto3,oneof" json:"reconnect,omitempty"`
+	// InvertedOrder is a flag to invert the order of the blocks.
+	InvertedOrder *bool `protobuf:"varint,3,opt,name=inverted_order,json=invertedOrder,proto3,oneof" json:"inverted_order,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -76,16 +78,25 @@ func (x *WebAppConfig) GetReconnect() bool {
 	return false
 }
 
+func (x *WebAppConfig) GetInvertedOrder() bool {
+	if x != nil && x.InvertedOrder != nil {
+		return *x.InvertedOrder
+	}
+	return false
+}
+
 var File_cassie_config_webapp_proto protoreflect.FileDescriptor
 
 const file_cassie_config_webapp_proto_rawDesc = "" +
 	"\n" +
-	"\x1acassie/config/webapp.proto\"W\n" +
+	"\x1acassie/config/webapp.proto\"\x96\x01\n" +
 	"\fWebAppConfig\x12\x16\n" +
 	"\x06runner\x18\x01 \x01(\tR\x06runner\x12!\n" +
-	"\treconnect\x18\x02 \x01(\bH\x00R\treconnect\x88\x01\x01B\f\n" +
+	"\treconnect\x18\x02 \x01(\bH\x00R\treconnect\x88\x01\x01\x12*\n" +
+	"\x0einverted_order\x18\x03 \x01(\bH\x01R\rinvertedOrder\x88\x01\x01B\f\n" +
 	"\n" +
-	"_reconnectBJB\vWebappProtoP\x01Z9github.com/jlewi/cloud-assistant/protos/gen/cassie/configb\x06proto3"
+	"_reconnectB\x11\n" +
+	"\x0f_inverted_orderBJB\vWebappProtoP\x01Z9github.com/jlewi/cloud-assistant/protos/gen/cassie/configb\x06proto3"
 
 var (
 	file_cassie_config_webapp_proto_rawDescOnce sync.Once

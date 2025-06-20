@@ -1,4 +1,11 @@
-import { ReactNode, createContext, useContext, useMemo, useState } from 'react'
+import {
+  ReactNode,
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react'
 
 import { clone, create } from '@bufbuild/protobuf'
 import { v4 as uuidv4 } from 'uuid'
@@ -16,6 +23,7 @@ import {
 } from '../gen/es/cassie/blocks_pb'
 import { getAccessToken } from '../token'
 import { useClient as useAgentClient } from './AgentContext'
+import { useSettings } from './SettingsContext'
 
 type BlockContextType = {
   // useColumns returns arrays of blocks organized by their kind
@@ -62,6 +70,7 @@ interface BlockState {
 }
 
 export const BlockProvider = ({ children }: { children: ReactNode }) => {
+  const { settings } = useSettings()
   const [sequence, setSequence] = useState(0)
   const [isInputDisabled, setIsInputDisabled] = useState(false)
   const [isTyping, setIsTyping] = useState(false)
@@ -78,6 +87,20 @@ export const BlockProvider = ({ children }: { children: ReactNode }) => {
     blocks: {},
     positions: [],
   })
+
+  const invertedOrder = useMemo(
+    () => settings.webApp.invertedOrder,
+    [settings.webApp.invertedOrder]
+  )
+
+  useEffect(() => {
+    setState((prev) => {
+      return {
+        ...prev,
+        positions: [...prev.positions].reverse(),
+      }
+    })
+  }, [invertedOrder])
 
   const chatBlocks = useMemo(() => {
     return state.positions
@@ -194,12 +217,15 @@ export const BlockProvider = ({ children }: { children: ReactNode }) => {
   const updateBlock = (block: Block) => {
     setState((prev) => {
       if (!prev.blocks[block.id]) {
+        const newPositions = invertedOrder
+          ? [block.id, ...prev.positions]
+          : [...prev.positions, block.id]
         return {
           blocks: {
             ...prev.blocks,
             [block.id]: block,
           },
-          positions: [...prev.positions, block.id],
+          positions: newPositions,
         }
       }
 

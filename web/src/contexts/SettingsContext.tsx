@@ -78,6 +78,7 @@ export const SettingsProvider = ({
           ? 'ws://localhost:8080/ws'
           : `${runnerEndpoint.protocol === 'https:' ? 'wss:' : 'ws:'}//${runnerEndpoint.host}/ws`,
         reconnect: webApp?.reconnect ?? true,
+        invertedOrder: webApp?.invertedOrder ?? false,
       },
     }
 

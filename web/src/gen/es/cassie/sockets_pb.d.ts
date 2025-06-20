@@ -133,7 +133,12 @@ export declare type SocketRequest = Message<"SocketRequest"> & {
   } | { case: undefined; value?: undefined };
 
   /**
-   * Protocol-level ping (not part of app payload)
+   * Protocol-level ping for frontend heartbeat. Unlike websocket servers which
+   * have a spec-integral heartbeat (https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API/Writing_WebSocket_servers#pings_and_pongs_the_heartbeat_of_websockets),
+   * we need to specify our own to cover client->server. The integral heartbeat
+   * only works server->client and the browser sandbox is not privy to it.
+   * Once the server receives a ping, it will send a pong response with the
+   * exact same timestamp.
    *
    * @generated from field: Ping ping = 100;
    */
@@ -176,7 +181,12 @@ export declare type SocketRequestJson = {
   executeRequest?: ExecuteRequestJson;
 
   /**
-   * Protocol-level ping (not part of app payload)
+   * Protocol-level ping for frontend heartbeat. Unlike websocket servers which
+   * have a spec-integral heartbeat (https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API/Writing_WebSocket_servers#pings_and_pongs_the_heartbeat_of_websockets),
+   * we need to specify our own to cover client->server. The integral heartbeat
+   * only works server->client and the browser sandbox is not privy to it.
+   * Once the server receives a ping, it will send a pong response with the
+   * exact same timestamp.
    *
    * @generated from field: Ping ping = 100;
    */
@@ -231,7 +241,10 @@ export declare type SocketResponse = Message<"SocketResponse"> & {
   } | { case: undefined; value?: undefined };
 
   /**
-   * Protocol-level pong (not part of app payload)
+   * Protocol-level pong for frontend heartbeat. Once the server receives
+   * a ping, it will send a pong response with the exact same timestamp.
+   * This allows the frontend (client) to detect if the connection is
+   * still alive or stale/inactive. See SocketRequest's ping for more details.
    *
    * @generated from field: Pong pong = 100;
    */
@@ -274,7 +287,10 @@ export declare type SocketResponseJson = {
   executeResponse?: ExecuteResponseJson;
 
   /**
-   * Protocol-level pong (not part of app payload)
+   * Protocol-level pong for frontend heartbeat. Once the server receives
+   * a ping, it will send a pong response with the exact same timestamp.
+   * This allows the frontend (client) to detect if the connection is
+   * still alive or stale/inactive. See SocketRequest's ping for more details.
    *
    * @generated from field: Pong pong = 100;
    */

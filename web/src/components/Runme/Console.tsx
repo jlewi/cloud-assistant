@@ -29,6 +29,7 @@ function Console({
   fontSize = 12,
   fontFamily = 'monospace',
   takeFocus = true,
+  scrollToFit = true,
   onStdout,
   onStderr,
   onExitCode,
@@ -44,6 +45,7 @@ function Console({
   fontSize?: number
   fontFamily?: string
   takeFocus?: boolean
+  scrollToFit?: boolean
   onStdout?: (data: Uint8Array) => void
   onStderr?: (data: Uint8Array) => void
   onExitCode?: (code: number) => void
@@ -127,6 +129,7 @@ function Console({
         cursorBlink: true,
         cursorWidth: 1,
         takeFocus,
+        scrollToFit,
         smoothScrollDuration: 0,
         scrollback: 1000,
         initialRows: rows,
@@ -135,7 +138,14 @@ function Console({
         isPlatformAuthEnabled: false,
       },
     }),
-    [fontFamily, fontSize, takeFocus, rows, executeRequest.config?.knownId]
+    [
+      fontFamily,
+      fontSize,
+      takeFocus,
+      rows,
+      executeRequest.config?.knownId,
+      scrollToFit,
+    ]
   )
 
   const encoder = new TextEncoder()
@@ -326,7 +336,7 @@ function Console({
         el.appendChild(terminalEnd)
 
         setTimeout(() => {
-          if (!isInViewport(terminalEnd)) {
+          if (scrollToFit && !isInViewport(terminalEnd)) {
             terminalEnd.scrollIntoView({ behavior: 'smooth' })
           }
         }, 0)

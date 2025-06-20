@@ -3,6 +3,7 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Box, Button, Card, ScrollArea, Text } from '@radix-ui/themes'
 
 import { Block, BlockOutputKind, useBlock } from '../../contexts/BlockContext'
+import { useSettings } from '../../contexts/SettingsContext'
 import Console from '../Runme/Console'
 import { genRunID } from '../Runme/Streams'
 import Editor from './Editor'
@@ -48,6 +49,7 @@ const CodeConsole = memo(
     value,
     className,
     takeFocus = false,
+    scrollToFit = true,
     onStdout,
     onStderr,
     onExitCode,
@@ -60,6 +62,7 @@ const CodeConsole = memo(
     value: string
     className?: string
     takeFocus?: boolean
+    scrollToFit?: boolean
     onStdout: (data: Uint8Array) => void
     onStderr: (data: Uint8Array) => void
     onExitCode: (code: number) => void
@@ -79,6 +82,7 @@ const CodeConsole = memo(
           fontSize={fontSize}
           fontFamily={fontFamily}
           takeFocus={takeFocus}
+          scrollToFit={scrollToFit}
           onPid={onPid}
           onStdout={onStdout}
           onStderr={onStderr}
@@ -99,6 +103,8 @@ const CodeConsole = memo(
 
 // Action is an editor and an optional Runme console
 function Action({ block }: { block: Block }) {
+  const { settings } = useSettings()
+  const invertedOrder = settings.webApp.invertedOrder
   const { createOutputBlock, sendOutputBlock, incrementSequence, sequence } =
     useBlock()
   const [editorValue, setEditorValue] = useState(block.contents)
@@ -264,6 +270,7 @@ function Action({ block }: { block: Block }) {
               sequence={lastSequence || 0}
               value={exec.value}
               takeFocus={takeFocus}
+              scrollToFit={!invertedOrder}
               onStdout={(data: Uint8Array) =>
                 setStdout((prev) => prev + new TextDecoder().decode(data))
               }
@@ -284,17 +291,14 @@ function Action({ block }: { block: Block }) {
 
 function Actions() {
   const { useColumns, addCodeBlock } = useBlock()
+  const { settings } = useSettings()
   const { actions } = useColumns()
-
-  const actionsEndRef = useRef<HTMLDivElement | null>(null)
-  // automatically scroll to bottom of chat
-  const scrollToBottom = () => {
-    actionsEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }
+  const actionsEndRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    scrollToBottom()
-  }, [actions])
+    if (settings.webApp.invertedOrder) return
+    actionsEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [actions, settings.webApp.invertedOrder])
 
   return (
     <div className="flex flex-col h-full">
@@ -315,7 +319,7 @@ function Actions() {
         {actions.map((action) => (
           <Action key={action.id} block={action} />
         ))}
-        <div ref={actionsEndRef} className="h-1" />
+        <div ref={actionsEndRef} />
       </ScrollArea>
     </div>
   )

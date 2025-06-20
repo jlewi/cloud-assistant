@@ -174,7 +174,12 @@ type SocketRequest struct {
 	//
 	//	*SocketRequest_ExecuteRequest
 	Payload isSocketRequest_Payload `protobuf_oneof:"payload"`
-	// Protocol-level ping (not part of app payload)
+	// Protocol-level ping for frontend heartbeat. Unlike websocket servers which
+	// have a spec-integral heartbeat (https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API/Writing_WebSocket_servers#pings_and_pongs_the_heartbeat_of_websockets),
+	// we need to specify our own to cover client->server. The integral heartbeat
+	// only works server->client and the browser sandbox is not privy to it.
+	// Once the server receives a ping, it will send a pong response with the
+	// exact same timestamp.
 	Ping *Ping `protobuf:"bytes,100,opt,name=ping,proto3" json:"ping,omitempty"`
 	// Optional authorization header, similar to the HTTP Authorization header.
 	Authorization string `protobuf:"bytes,200,opt,name=authorization,proto3" json:"authorization,omitempty"`
@@ -278,7 +283,10 @@ type SocketResponse struct {
 	//
 	//	*SocketResponse_ExecuteResponse
 	Payload isSocketResponse_Payload `protobuf_oneof:"payload"`
-	// Protocol-level pong (not part of app payload)
+	// Protocol-level pong for frontend heartbeat. Once the server receives
+	// a ping, it will send a pong response with the exact same timestamp.
+	// This allows the frontend (client) to detect if the connection is
+	// still alive or stale/inactive. See SocketRequest's ping for more details.
 	Pong *Pong `protobuf:"bytes,100,opt,name=pong,proto3" json:"pong,omitempty"`
 	// Optional socket-level status.
 	Status *SocketStatus `protobuf:"bytes,200,opt,name=status,proto3" json:"status,omitempty"`

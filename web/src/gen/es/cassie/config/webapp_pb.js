@@ -8,7 +8,7 @@ import { fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv1";
  * Describes the file cassie/config/webapp.proto.
  */
 export const file_cassie_config_webapp = /*@__PURE__*/
-  fileDesc("ChpjYXNzaWUvY29uZmlnL3dlYmFwcC5wcm90byJECgxXZWJBcHBDb25maWcSDgoGcnVubmVyGAEgASgJEhYKCXJlY29ubmVjdBgCIAEoCEgAiAEBQgwKCl9yZWNvbm5lY3RCSkILV2ViYXBwUHJvdG9QAVo5Z2l0aHViLmNvbS9qbGV3aS9jbG91ZC1hc3Npc3RhbnQvcHJvdG9zL2dlbi9jYXNzaWUvY29uZmlnYgZwcm90bzM");
+  fileDesc("ChpjYXNzaWUvY29uZmlnL3dlYmFwcC5wcm90byJ0CgxXZWJBcHBDb25maWcSDgoGcnVubmVyGAEgASgJEhYKCXJlY29ubmVjdBgCIAEoCEgAiAEBEhsKDmludmVydGVkX29yZGVyGAMgASgISAGIAQFCDAoKX3JlY29ubmVjdEIRCg9faW52ZXJ0ZWRfb3JkZXJCSkILV2ViYXBwUHJvdG9QAVo5Z2l0aHViLmNvbS9qbGV3aS9jbG91ZC1hc3Npc3RhbnQvcHJvdG9zL2dlbi9jYXNzaWUvY29uZmlnYgZwcm90bzM");
 
 /**
  * Describes the message WebAppConfig.
