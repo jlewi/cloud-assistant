@@ -4,7 +4,6 @@ import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import { Theme } from '@radix-ui/themes'
 import '@radix-ui/themes/styles.css'
 
-import openaiLogo from './assets/openai.svg'
 import Actions from './components/Actions/Actions'
 import Chat from './components/Chat/Chat'
 import FileViewer from './components/Files/Viewer'
@@ -23,6 +22,7 @@ export interface AppProps {
     requireAuth?: boolean
     webApp?: WebAppConfigJson
   }
+  logo: string
 }
 
 function AppRouter() {
@@ -93,12 +93,12 @@ function AppRouter() {
   )
 }
 
-function App({ initialState = {} }: AppProps) {
+function App({ initialState = {}, logo }: AppProps) {
   return (
     <>
       <title>Cloud Assistant</title>
       <meta name="description" content="An AI Assistant For Your Cloud" />
-      <link rel="icon" href={openaiLogo} />
+      <link rel="icon" href={logo} />
       <Theme accentColor="gray" scaling="100%" radius="small">
         <SettingsProvider
           requireAuth={initialState?.requireAuth}
