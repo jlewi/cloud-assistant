@@ -131,7 +131,7 @@ function Console({
         takeFocus,
         scrollToFit,
         smoothScrollDuration: 0,
-        scrollback: 1000,
+        scrollback: 4000,
         initialRows: rows,
         content: '',
         isAutoSaveEnabled: false,
