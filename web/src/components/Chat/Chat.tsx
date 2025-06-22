@@ -31,17 +31,7 @@ const MessageContainer = ({
   role: BlockRole
   children: React.ReactNode
 }) => {
-  const { settings } = useSettings()
-
-  const self =
-    role === BlockRole.USER
-      ? settings.webApp.invertedOrder
-        ? 'self-start'
-        : 'self-end'
-      : settings.webApp.invertedOrder
-        ? 'self-end'
-        : 'self-start'
-
+  const self = role === BlockRole.USER ? 'self-end' : 'self-start'
   const color = role === BlockRole.USER ? 'indigo' : 'gray'
 
   return (
