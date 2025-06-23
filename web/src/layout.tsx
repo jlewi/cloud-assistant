@@ -2,14 +2,15 @@ import { Link } from 'react-router-dom'
 
 import { Box, Flex, Text } from '@radix-ui/themes'
 
-import openaiLogo from './assets/openai.svg'
 import TopNavigation from './components/TopNavigation'
 
 function Layout({
+  logo,
   left,
   middle,
   right,
 }: {
+  logo: string
   left?: React.ReactNode
   middle?: React.ReactNode
   right?: React.ReactNode
@@ -21,7 +22,7 @@ function Layout({
         <Flex align="center" justify="between">
           <Link to="/">
             <Flex align="center" gap="2">
-              <img src={openaiLogo} alt="OpenAI Logo" className="h-6 w-6" />
+              <img src={logo} className="h-6 w-6" />
               <Text size="5" weight="bold" className="text-black">
                 Cloud Assistant
               </Text>

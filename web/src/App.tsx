@@ -25,7 +25,7 @@ export interface AppProps {
   logo: string
 }
 
-function AppRouter() {
+function AppRouter({ logo }: AppProps) {
   const { settings, runnerError } = useSettings()
 
   useEffect(() => {
@@ -64,6 +64,7 @@ function AppRouter() {
           path="/"
           element={
             <Layout
+              logo={logo}
               left={<Chat />}
               middle={<Actions />}
               right={<FileViewer />}
@@ -73,21 +74,30 @@ function AppRouter() {
         <Route
           path="/settings"
           element={
-            <Layout left={<Chat />} middle={<Actions />} right={<Settings />} />
+            <Layout
+              logo={logo}
+              left={<Chat />}
+              middle={<Actions />}
+              right={<Settings />}
+            />
           }
         />
         <Route
           path="/oidc/*"
           element={
             <Layout
+              logo={logo}
               middle={
                 <div>OIDC routes are exclusively handled by the server.</div>
               }
             />
           }
         />
-        <Route path="/login" element={<Layout left={<Login />} />} />
-        <Route path="*" element={<Layout left={<NotFound />} />} />
+        <Route
+          path="/login"
+          element={<Layout logo={logo} left={<Login />} />}
+        />
+        <Route path="*" element={<Layout logo={logo} left={<NotFound />} />} />
       </Routes>
     </BrowserRouter>
   )
@@ -106,7 +116,7 @@ function App({ initialState = {}, logo }: AppProps) {
         >
           <AgentClientProvider>
             <BlockProvider>
-              <AppRouter />
+              <AppRouter logo={logo} />
             </BlockProvider>
           </AgentClientProvider>
         </SettingsProvider>
