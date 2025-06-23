@@ -193,9 +193,7 @@ const ChatMessages = () => {
 
   const recentIndex = settings.webApp.invertedOrder ? 0 : chat.length - 1
 
-  const typingJustification = settings.webApp.invertedOrder
-    ? 'justify-end'
-    : 'justify-start'
+  const typingJustification = 'justify-start'
 
   const typingBlock = (
     <div className={`flex ${typingJustification} items-center h-full`}>
