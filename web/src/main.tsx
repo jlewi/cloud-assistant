@@ -1,6 +1,8 @@
 import { createRoot } from 'react-dom/client'
 
-import App, { AppProps } from './App.tsx'
+import { AppProps } from '@runmedev/react-components'
+
+import App from './App.tsx'
 import logo from './assets/openai.svg'
 import './index.css'
 
@@ -15,5 +17,8 @@ declare global {
 const initialState = window.__INITIAL_STATE__ || {}
 
 createRoot(document.getElementById('root')!).render(
-  <App initialState={initialState} logo={logo} />
+  <App
+    branding={{ name: 'Cloud Assistant', logo }}
+    initialState={initialState}
+  />
 )
