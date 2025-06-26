@@ -4,7 +4,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/jlewi/cloud-assistant/app/pkg/config"
+	"github.com/runmedev/runme/v3/pkg/agent/cmd"
+	"github.com/runmedev/runme/v3/pkg/agent/config"
 	"github.com/spf13/cobra"
 )
 
@@ -20,12 +21,12 @@ func NewRootCmd() *cobra.Command {
 	rootCmd.PersistentFlags().StringVarP(&level, config.LevelFlagName, "", "info", "The logging level.")
 	rootCmd.PersistentFlags().BoolVarP(&jsonLog, "json-logs", "", false, "Enable json logging.")
 
-	rootCmd.AddCommand(NewVersionCmd(os.Stdout))
-	rootCmd.AddCommand(NewConfigCmd())
-	rootCmd.AddCommand(NewRunCmd())
-	rootCmd.AddCommand(NewServeCmd())
-	rootCmd.AddCommand(NewEnvCmd())
-	rootCmd.AddCommand(NewEvalCmd())
+	rootCmd.AddCommand(cmd.NewVersionCmd(os.Stdout))
+	rootCmd.AddCommand(cmd.NewConfigCmd())
+	rootCmd.AddCommand(cmd.NewRunCmd())
+	rootCmd.AddCommand(cmd.NewServeCmd())
+	rootCmd.AddCommand(cmd.NewEnvCmd())
+	rootCmd.AddCommand(cmd.NewEvalCmd())
 
 	return rootCmd
 }

@@ -18,16 +18,10 @@ build-binary: build-dir
 build-dir:
 	@mkdir -p .build
 
-dist-assets:
-	@cd ../web && npm run build
-	@cp -rv ../web/dist/index.* pkg/server/dist/
-
-dist: clean dist-assets build-binary
+dist: clean build-binary
 
 clean:
 	@rm -rf .build
-	@rm -rf pkg/server/dist
-	@git checkout -f pkg/server/dist
 
 tidy:
 	gofmt -s -w .
