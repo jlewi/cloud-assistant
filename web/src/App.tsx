@@ -1,31 +1,26 @@
 import { useEffect } from 'react'
 import { BrowserRouter, Route, Routes } from 'react-router-dom'
 
+import { Code } from '@buf/googleapis_googleapis.bufbuild_es/google/rpc/code_pb'
 import { Theme } from '@radix-ui/themes'
 import '@radix-ui/themes/styles.css'
+import {
+  Actions,
+  AgentClientProvider,
+  AppProps,
+  BlockProvider,
+  Chat,
+  FilesViewer,
+  Layout,
+  Login,
+  NotFound,
+  Settings,
+  SettingsProvider,
+  useSettings,
+} from '@runmedev/react-components'
+import '@runmedev/react-components/react-components.css'
 
-import Actions from './components/Actions/Actions'
-import Chat from './components/Chat/Chat'
-import FileViewer from './components/Files/Viewer'
-import Login from './components/Login/Login'
-import NotFound from './components/NotFound'
-import Settings from './components/Settings/Settings'
-import { AgentClientProvider } from './contexts/AgentContext'
-import { BlockProvider } from './contexts/BlockContext'
-import { SettingsProvider, useSettings } from './contexts/SettingsContext'
-import { WebAppConfigJson } from './gen/es/cassie/config/webapp_pb'
-import { Code } from './gen/es/google/rpc/code_pb'
-import Layout from './layout'
-
-export interface AppProps {
-  initialState?: {
-    requireAuth?: boolean
-    webApp?: WebAppConfigJson
-  }
-  logo: string
-}
-
-function AppRouter({ logo }: AppProps) {
+function AppRouter({ branding }: AppProps) {
   const { settings, runnerError } = useSettings()
 
   useEffect(() => {
@@ -64,10 +59,10 @@ function AppRouter({ logo }: AppProps) {
           path="/"
           element={
             <Layout
-              logo={logo}
+              branding={branding}
               left={<Chat />}
               middle={<Actions />}
-              right={<FileViewer />}
+              right={<FilesViewer />}
             />
           }
         />
@@ -75,7 +70,7 @@ function AppRouter({ logo }: AppProps) {
           path="/settings"
           element={
             <Layout
-              logo={logo}
+              branding={branding}
               left={<Chat />}
               middle={<Actions />}
               right={<Settings />}
@@ -86,7 +81,7 @@ function AppRouter({ logo }: AppProps) {
           path="/oidc/*"
           element={
             <Layout
-              logo={logo}
+              branding={branding}
               middle={
                 <div>OIDC routes are exclusively handled by the server.</div>
               }
@@ -95,20 +90,23 @@ function AppRouter({ logo }: AppProps) {
         />
         <Route
           path="/login"
-          element={<Layout logo={logo} left={<Login />} />}
+          element={<Layout branding={branding} left={<Login />} />}
         />
-        <Route path="*" element={<Layout logo={logo} left={<NotFound />} />} />
+        <Route
+          path="*"
+          element={<Layout branding={branding} left={<NotFound />} />}
+        />
       </Routes>
     </BrowserRouter>
   )
 }
 
-function App({ initialState = {}, logo }: AppProps) {
+function App({ branding, initialState = {} }: AppProps) {
   return (
     <>
       <title>Cloud Assistant</title>
       <meta name="description" content="An AI Assistant For Your Cloud" />
-      <link rel="icon" href={logo} />
+      <link rel="icon" href={branding.logo} />
       <Theme accentColor="gray" scaling="100%" radius="small">
         <SettingsProvider
           requireAuth={initialState?.requireAuth}
@@ -116,7 +114,7 @@ function App({ initialState = {}, logo }: AppProps) {
         >
           <AgentClientProvider>
             <BlockProvider>
-              <AppRouter logo={logo} />
+              <AppRouter branding={branding} />
             </BlockProvider>
           </AgentClientProvider>
         </SettingsProvider>
