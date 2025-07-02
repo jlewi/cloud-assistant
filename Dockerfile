@@ -2,7 +2,6 @@ FROM golang:1.24 as gobuilder
 
 WORKDIR /app
 COPY app ./app
-COPY protos ./protos
 COPY go.mod ./go.mod
 COPY go.sum ./go.sum
 
