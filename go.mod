@@ -2,10 +2,7 @@ module github.com/jlewi/cloud-assistant
 
 go 1.24
 
-require (
-	github.com/runmedev/runme/v3 v3.14.2-rc.0
-	github.com/spf13/cobra v1.9.1
-)
+require github.com/runmedev/runme/v3 v3.14.3-0.20250702192617-38c04a0cabd0
 
 require (
 	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.6-20250613105001-9f2d3c737feb.1 // indirect
@@ -91,6 +88,7 @@ require (
 	github.com/sourcegraph/conc v0.3.0 // indirect
 	github.com/spf13/afero v1.12.0 // indirect
 	github.com/spf13/cast v1.7.1 // indirect
+	github.com/spf13/cobra v1.9.1 // indirect
 	github.com/spf13/pflag v1.0.6 // indirect
 	github.com/spf13/viper v1.20.1 // indirect
 	github.com/stateful/godotenv v0.0.0-20240309032207-c7bc0b812915 // indirect
