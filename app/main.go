@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/jlewi/cloud-assistant/app/cmd"
+	agentCmd "github.com/runmedev/runme/v3/pkg/agent/cmd"
 )
 
 func main() {
-	rootCmd := cmd.NewRootCmd()
+	rootCmd := agentCmd.NewAgentCmd("cloud-assistant")
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Printf("Command failed with error: %+v", err)

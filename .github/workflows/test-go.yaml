@@ -17,7 +17,7 @@ jobs:
       - run: go test ./app/...
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-      - run: go build ./app/...
+      - run: cd app && go build
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v8
         with:
