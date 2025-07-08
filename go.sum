@@ -220,8 +220,8 @@ github.com/rogpeppe/go-internal v1.14.1 h1:UQB4HGPB6osV0SQTLymcB4TgvyWu6ZyliaW0t
 github.com/rogpeppe/go-internal v1.14.1/go.mod h1:MaRKkUm5W0goXpeCfT7UZI6fk/L7L7so1lCWt35ZSgc=
 github.com/rs/cors v1.11.1 h1:eU3gRzXLRK57F5rKMGMZURNdIG4EoAmX8k94r9wXWHA=
 github.com/rs/cors v1.11.1/go.mod h1:XyqrcTp5zjWr1wsJ8PIRZssZ8b/WMcMf71DJnit4EMU=
-github.com/runmedev/runme/v3 v3.14.3-rc.0 h1:B12m1IiO+9oRYiO7um9YRW6RWI/PjpdRApD4BgwJ7Ic=
-github.com/runmedev/runme/v3 v3.14.3-rc.0/go.mod h1:SbVXDiN02E3QI2b8C4Ln/AlCmP5Y1yRIDDUr7FqIDkc=
+github.com/runmedev/runme/v3 v3.14.3-rc.1 h1:T8dgJiErkStSq00hEvIlwyZLmpcDDSJ9mxxfMIWib6I=
+github.com/runmedev/runme/v3 v3.14.3-rc.1/go.mod h1:SbVXDiN02E3QI2b8C4Ln/AlCmP5Y1yRIDDUr7FqIDkc=
 github.com/russross/blackfriday/v2 v2.1.0/go.mod h1:+Rmxgy9KzJVeS9/2gXHxylqXiyQDYRxCVz55jmeOWTM=
 github.com/sagikazarmark/locafero v0.7.0 h1:5MqpDsTGNDhY8sGp0Aowyf0qKsPrhewaLSsFaodPcyo=
 github.com/sagikazarmark/locafero v0.7.0/go.mod h1:2za3Cg5rMaTMoG/2Ulr9AwtFaIppKXTRYnozin4aB5k=
