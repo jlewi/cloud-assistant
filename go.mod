@@ -2,7 +2,7 @@ module github.com/jlewi/cloud-assistant
 
 go 1.24
 
-require github.com/runmedev/runme/v3 v3.14.3-rc.0
+require github.com/runmedev/runme/v3 v3.14.3-rc.1
 
 require (
 	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.6-20250613105001-9f2d3c737feb.1 // indirect
