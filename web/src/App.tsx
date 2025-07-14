@@ -8,7 +8,7 @@ import {
   Actions,
   AgentClientProvider,
   AppProps,
-  BlockProvider,
+  CellProvider,
   Chat,
   FilesViewer,
   Layout,
@@ -113,9 +113,9 @@ function App({ branding, initialState = {} }: AppProps) {
           webApp={initialState?.webApp}
         >
           <AgentClientProvider>
-            <BlockProvider>
+            <CellProvider>
               <AppRouter branding={branding} />
-            </BlockProvider>
+            </CellProvider>
           </AgentClientProvider>
         </SettingsProvider>
       </Theme>
