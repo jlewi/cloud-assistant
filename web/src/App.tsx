@@ -104,7 +104,7 @@ function AppRouter({ branding }: AppProps) {
 function App({ branding, initialState = {} }: AppProps) {
   return (
     <>
-      <title>Cloud Assistant</title>
+      <title>AISRE</title>
       <meta name="description" content="An AI Assistant For Your Cloud" />
       <link rel="icon" href={branding.logo} />
       <Theme accentColor="gray" scaling="100%" radius="small">
